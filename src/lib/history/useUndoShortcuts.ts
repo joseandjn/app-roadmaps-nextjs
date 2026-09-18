@@ -21,7 +21,7 @@ export function useUndoShortcuts() {
       if (el && (el.isContentEditable || EDITABLE_TAGS.has(el.tagName))) return
 
       const s = useRoadmapStore.getState()
-      if (s.impact || s.pform || s.rform || s.sform || s.scenarioForm || s.checkpointForm || s.settingsOpen || s.historyOpen) return
+      if (s.impact || s.pform || s.rform || s.sform || s.scenarioForm || s.checkpointForm || s.settingsOpen || s.historyOpen || s.analysisOpen) return
 
       e.preventDefault()
       if (isUndo) s.undo(); else s.redo()

@@ -1,0 +1,14 @@
+{
+  "name": "roadmap-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Roadmap analysis engine: deterministic analyzers plus an optional LLM narrator. No web framework dependencies.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0"
+  }
+}

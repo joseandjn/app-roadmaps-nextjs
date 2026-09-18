@@ -13,6 +13,19 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // The engine must stay extractable into its own service: no web framework,
+  // no app code (`@/`) and no reaching outside its own folder.
+  {
+    files: ["engine/**/*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [
+          { group: ["next", "next/*", "react", "react/*", "react-dom", "react-dom/*"], message: "The engine must not depend on the web framework." },
+          { group: ["@/*", "../../*", "../../../*"], message: "The engine must not import app code; keep it self-contained." },
+        ],
+      }],
+    },
+  },
 ]);
 
 export default eslintConfig;

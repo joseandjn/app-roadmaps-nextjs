@@ -168,6 +168,7 @@ export interface RoadmapState {
   officialScenarioId: string | null
   scenarioForm: { show: boolean; name: string; note: string } | null
   historyOpen: boolean
+  analysisOpen: boolean
   checkpointForm: { show: boolean; name: string; note: string } | null
   resSel: string | null
   cell: { rid: string; bIdx: number; bucket: { s: number; d: number; label: string } } | null

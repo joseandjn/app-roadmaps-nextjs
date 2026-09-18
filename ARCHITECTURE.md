@@ -136,6 +136,21 @@ auto-saves it like any other change. History is cleared whenever a scenario is
 loaded (boot, scenario switch, checkpoint restore), and the shortcuts are
 ignored while typing in a field or while a modal/form is open.
 
+## Analysis engine
+
+> Full writeup: [`engine/README.md`](engine/README.md)
+
+`engine/` (a sibling of `src/`, deliberately outside it) analyzes the roadmap
+and finds inefficiencies: overloaded people, idle paid capacity (with its cost),
+dependency conflicts and cycles, each group's critical path with the idle time
+between links, and tasks that don't fit their sprint. It is plain
+TypeScript with no web-framework or `src/` imports (enforced by ESLint), so it
+can become its own API service. The web app reaches it through one thin route,
+`POST /api/analyze`, and the ✦ toolbar button opens `AnalysisModal`, which
+shows the deterministic findings immediately and then an LLM summary
+(Ollama by default, Claude with `LLM_PROVIDER=anthropic`). It is read-only:
+it never changes the roadmap.
+
 ## Persistence
 
 > Full functional + technical writeup: [`docs/persistence.md`](docs/persistence.md)

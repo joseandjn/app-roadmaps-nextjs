@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "engine:typecheck": "tsc -p engine/tsconfig.json",
+    "engine:test": "node --test \"engine/test/**/*.test.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

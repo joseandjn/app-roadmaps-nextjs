@@ -245,6 +245,26 @@ const es: Record<string, string> = {
   "Didn't recognize that action": 'No se reconoció esa acción',
   'Voice input is not supported in this browser': 'La entrada de voz no es compatible con este navegador',
   'Voice session stopped — could not hear you': 'Sesión de voz detenida — no se pudo escuchar',
+
+  // Roadmap analysis
+  'Analyze roadmap': 'Analizar roadmap',
+  'Roadmap analysis': 'Análisis del roadmap',
+  'Suggestions only — nothing in your roadmap is changed.': 'Solo sugerencias: no se modifica nada de tu roadmap.',
+  'Analyzing…': 'Analizando…',
+  'Analyze again': 'Analizar de nuevo',
+  'AI summary': 'Resumen con IA',
+  'Generating AI summary…': 'Generando resumen con IA…',
+  "Couldn't generate the AI summary: {error}": 'No se pudo generar el resumen con IA: {error}',
+  'The findings below were computed anyway.': 'Los hallazgos de abajo se calcularon igualmente.',
+  'Priorities': 'Prioridades',
+  'Why': 'Por qué',
+  'Suggested action': 'Acción sugerida',
+  'All findings': 'Todos los hallazgos',
+  'High': 'Alta',
+  'Medium': 'Media',
+  'Low': 'Baja',
+  'No findings — no overloaded people, dependency conflicts or cycles were detected.': 'Sin hallazgos: no se detectaron personas sobrecargadas, conflictos de dependencias ni ciclos.',
+  "Couldn't analyze the roadmap: {error}": 'No se pudo analizar el roadmap: {error}',
 }
 
 export function translate(locale: Locale, text: string, params?: Record<string, string | number>): string {

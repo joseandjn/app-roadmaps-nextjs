@@ -1,6 +1,6 @@
 'use client'
 
-import { Mic, Loader2, Settings, History } from 'lucide-react'
+import { Mic, Loader2, Settings, History, Sparkles } from 'lucide-react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { deriveScale } from '@/lib/roadmapUtils'
 import { SCALE_PRESETS } from '@/data/initialData'
@@ -13,7 +13,7 @@ const TABS: [ViewKey, string][] = [['timeline', 'Timeline'], ['cross', 'Cross-Pr
 const SCALE_LABELS = ['Day', 'Week', 'Month', 'Quarter']
 
 export default function Toolbar() {
-  const { view, pxPerDay, showDeps, setView, setScale, zoom, onNewProject, toggleDeps, toggleSettings, toggleHistory } = useRoadmapStore()
+  const { view, pxPerDay, showDeps, setView, setScale, zoom, onNewProject, toggleDeps, toggleSettings, toggleHistory, toggleAnalysis } = useRoadmapStore()
   const si = deriveScale(pxPerDay)
   const voice = useVoiceCommand()
   const { t, locale, setLocale } = useTranslation()
@@ -39,6 +39,14 @@ export default function Toolbar() {
         className="flex-none w-7 h-7 border border-[#ececec] bg-white rounded-[7px] cursor-pointer text-[#52525b] flex items-center justify-center p-0"
       >
         <History size={14} />
+      </button>
+
+      <button
+        onClick={toggleAnalysis}
+        title={t('Analyze roadmap')}
+        className="flex-none w-7 h-7 border border-[#ececec] bg-white rounded-[7px] cursor-pointer text-[#52525b] flex items-center justify-center p-0"
+      >
+        <Sparkles size={14} />
       </button>
 
       <div className="w-px h-[22px] bg-[#ececec] flex-none" />

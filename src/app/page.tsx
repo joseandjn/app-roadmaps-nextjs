@@ -13,6 +13,7 @@ import ProjectModal from '@/components/modals/ProjectModal'
 import ResourceModal from '@/components/modals/ResourceModal'
 import ScenarioModal from '@/components/modals/ScenarioModal'
 import HistoryModal from '@/components/modals/HistoryModal'
+import AnalysisModal from '@/components/modals/AnalysisModal'
 import SprintModal from '@/components/modals/SprintModal'
 import SettingsModal from '@/components/modals/SettingsModal'
 import TimelineView from '@/components/views/TimelineView'
@@ -47,6 +48,7 @@ export default function Home() {
       <ResourceModal />
       <ScenarioModal />
       <HistoryModal />
+      <AnalysisModal />
       <SprintModal />
       <SettingsModal />
     </div>

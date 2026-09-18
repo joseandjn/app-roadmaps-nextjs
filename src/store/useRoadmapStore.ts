@@ -19,6 +19,7 @@ type Store = RoadmapState & {
   patchScenarioForm: (p: Partial<{ name: string; note: string }>) => void
   onScenarioFormCancel: () => void
   toggleHistory: () => void
+  toggleAnalysis: () => void
   onNewCheckpoint: () => void
   patchCheckpointForm: (p: Partial<{ name: string; note: string }>) => void
   onCheckpointFormCancel: () => void
@@ -225,6 +226,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     officialScenarioId: null,
     scenarioForm: null,
     historyOpen: false,
+    analysisOpen: false,
     checkpointForm: null,
     resSel: null,
     cell: null,
@@ -261,6 +263,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     patchScenarioForm: p => set(s => ({ scenarioForm: s.scenarioForm ? { ...s.scenarioForm, ...p } : null })),
     onScenarioFormCancel: () => set({ scenarioForm: null }),
     toggleHistory: () => set(s => ({ historyOpen: !s.historyOpen })),
+    toggleAnalysis: () => set(s => ({ analysisOpen: !s.analysisOpen })),
     onNewCheckpoint: () => set({ checkpointForm: { show: true, name: '', note: '' } }),
     patchCheckpointForm: p => set(s => ({ checkpointForm: s.checkpointForm ? { ...s.checkpointForm, ...p } : null })),
     onCheckpointFormCancel: () => set({ checkpointForm: null }),
