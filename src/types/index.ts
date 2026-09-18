@@ -1,0 +1,182 @@
+export type StatusKey = 'In Progress' | 'At Risk' | 'Planned' | 'Done'
+export type ItemType = 'epic' | 'task' | 'milestone' | 'release'
+export type ViewKey = 'timeline' | 'cross' | 'resources' | 'costs' | 'compare'
+export type ScaleIndex = 0 | 1 | 2 | 3
+export type CostUnit = 'month' | 'hour'
+
+export interface Project {
+  id: string
+  name: string
+  desc: string
+  owner: string
+  category: string
+  color: string
+  status: StatusKey
+}
+
+export interface Assignment {
+  r: string
+  pct: number
+}
+
+export interface Item {
+  id: string
+  projectId: string
+  title: string
+  startDay: number
+  dur: number
+  status: StatusKey
+  type: ItemType
+  assignments: Assignment[]
+}
+
+export interface Resource {
+  id: string
+  name: string
+  role: string
+  cost: number // rate in costUnit terms ($/mo or $/hr)
+  costUnit: CostUnit
+}
+
+export interface Dependency {
+  id: string
+  from: string
+  to: string
+}
+
+export interface Sprint {
+  id: string
+  name: string
+  startDay: number
+  dur: number
+}
+
+export interface Settings {
+  workHoursPerDay: number
+  currencyCode: string
+  currencySymbol: string
+  countWeekends: boolean
+  holidays: string[] // 'YYYY-MM-DD'
+}
+
+// A scenario is a full, independent copy of the planning data below — a
+// what-if roadmap variant (add/remove people, shift dates) you can compare
+// against others before promoting one to be the official plan.
+export interface ScenarioData {
+  projects: Project[]
+  items: Item[]
+  resources: Resource[]
+  deps: Dependency[]
+  sprints: Sprint[]
+  settings: Settings
+}
+
+export interface ScenarioMeta {
+  id: string
+  name: string
+  note: string
+  createdAt: string // ISO
+  basedOn: string | null // scenario id it was duplicated from, or null for the original
+}
+
+// Summary numbers used both to compare scenarios and to show how a single
+// scenario's estimate evolved across its checkpoint history.
+export interface ScenarioMetrics {
+  totalCost: number
+  endDay: number | null // last day any item ends, or null if the scenario has no items
+  overallocated: number // # resources with peak concurrent allocation over 100%
+  headcount: number // # resources with at least one assignment
+  itemCount: number
+}
+
+// A named snapshot of a scenario's data at a point in time — how you track
+// "estimate went up/down because scope changed" over the life of a plan.
+export interface CheckpointMeta {
+  id: string
+  name: string
+  note: string
+  createdAt: string // ISO
+  metrics: ScenarioMetrics
+}
+
+export interface Checkpoint extends CheckpointMeta {
+  snapshot: ScenarioData
+}
+
+export interface Draft extends Item {
+  _deps: string[]
+  _new?: boolean
+}
+
+export interface ImpactResult {
+  deps: { item: Item; clash: boolean }[]
+  resources: { rid: string; before: number; after: number; over: boolean }[]
+  projects: string[]
+}
+
+export interface RoadmapState {
+  view: ViewKey
+  pxPerDay: number
+  projects: Project[]
+  items: Item[]
+  resources: Resource[]
+  deps: Dependency[]
+  sprints: Sprint[]
+  settings: Settings
+  settingsOpen: boolean
+  visible: Set<string>
+  expanded: Set<string>
+  railOpen: boolean
+  panel: 'item' | 'cell' | 'res' | null
+  draft: Draft | null
+  draftOrig: Item | null
+  impact: { show: boolean; draft: Draft; orig: Item | null; imp: ImpactResult } | null
+  pform: {
+    show: boolean
+    id: string | null
+    name: string
+    desc: string
+    owner: string
+    category: string
+    startStr: string
+    endStr: string
+    status: StatusKey
+    heading?: string
+    canDelete?: boolean
+    defaultTasks?: boolean
+  } | null
+  rform: {
+    show: boolean
+    id: string | null
+    name: string
+    role: string
+    cost: number
+    costUnit: CostUnit
+    heading?: string
+    canDelete?: boolean
+  } | null
+  sform: {
+    show: boolean
+    id: string | null
+    name: string
+    startStr: string
+    endStr: string
+    canDelete?: boolean
+  } | null
+  scenarios: ScenarioMeta[]
+  activeScenarioId: string | null
+  officialScenarioId: string | null
+  scenarioForm: { show: boolean; name: string; note: string } | null
+  historyOpen: boolean
+  checkpointForm: { show: boolean; name: string; note: string } | null
+  resSel: string | null
+  cell: { rid: string; bIdx: number; bucket: { s: number; d: number; label: string } } | null
+  contextMenu: { x: number; y: number; projectId: string; day: number; itemId: string | null } | null
+  showDeps: boolean
+  filterStartDay: number | null
+  filterEndDay: number | null
+  toast: { show: boolean; text: string } | null
+  viewport: { left: number; width: number }
+  tick: number
+  _tr: boolean
+}

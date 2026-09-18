@@ -1,0 +1,279 @@
+import { START_DATE, TOTAL_DAYS, MONTHS, WEEKDAYS } from '@/data/initialData'
+import type { Item, Resource, ScaleIndex, Settings, ScenarioMetrics } from '@/types'
+
+export const DAY_MS = 86400000
+
+// Milestones/releases are instants on the timeline — their `dur` should
+// always be 0, but treat the type as authoritative rather than trusting a
+// stored `dur` (e.g. data edited before this was enforced), so a stray
+// duration can't make an instant item behave like a multi-day span.
+export function isInstantItem(it: Item): boolean {
+  return it.type === 'milestone' || it.type === 'release'
+}
+
+// End day for scheduling comparisons (clash/dependency checks) — an instant
+// item "ends" the moment it starts, regardless of any stored `dur`.
+export function itemEnd(it: Item): number {
+  return isInstantItem(it) ? it.startDay : it.startDay + it.dur
+}
+
+export function deriveScale(ppd: number): ScaleIndex {
+  if (ppd >= 30) return 0
+  if (ppd >= 11) return 1
+  if (ppd >= 4) return 2
+  return 3
+}
+
+export function addDays(n: number): Date {
+  return new Date(START_DATE.getTime() + n * DAY_MS)
+}
+
+export function fmtDate(d: Date): string {
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${String(d.getFullYear()).slice(2)}`
+}
+
+export function dateStr(off: number): string {
+  const d = addDays(off)
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${day}`
+}
+
+export function offFromStr(s: string): number {
+  const p = s.split('-')
+  return Math.round((new Date(+p[0], +p[1] - 1, +p[2]).getTime() - START_DATE.getTime()) / DAY_MS)
+}
+
+export function isWorkingDay(dayOffset: number, settings: Settings): boolean {
+  const d = addDays(dayOffset)
+  if (!settings.countWeekends && (d.getDay() === 0 || d.getDay() === 6)) return false
+  if (settings.holidays.includes(dateStr(dayOffset))) return false
+  return true
+}
+
+export function workingDaysInRange(startDay: number, dur: number, settings: Settings): number {
+  let n = 0
+  for (let i = 0; i < dur; i++) if (isWorkingDay(startDay + i, settings)) n++
+  return n
+}
+
+export function initials(name: string): string {
+  const p = name.split(' ')
+  return ((p[0][0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase()
+}
+
+export function allocColor(pct: number) {
+  if (pct <= 0) return { bg: '#fbfbfc', fg: '#d4d4d8', bd: '#f4f4f5' }
+  if (pct < 50) return { bg: '#eef3fc', fg: '#5b7fc4', bd: '#e3ebf9' }
+  if (pct < 85) return { bg: '#d9e6fb', fg: '#2f5db0', bd: '#c8dafa' }
+  if (pct <= 100) return { bg: '#bcd2f7', fg: '#1d4ed8', bd: '#a9c6f5' }
+  return { bg: '#f6e2c6', fg: '#9a5b00', bd: '#eecfa3' }
+}
+
+// A monthly Resource.cost is a calendar-month rate — this is the calendar-
+// month average used to prorate it into a daily rate for cost-in-range
+// calculations. An hourly rate is prorated using settings.workHoursPerDay
+// instead (see resourceDailyRate).
+export const AVG_DAYS_PER_MONTH = 30.44
+
+// A resource's cost expressed as a per-working-day rate, regardless of
+// whether it's entered as a monthly or hourly rate.
+export function resourceDailyRate(r: Resource, settings: Settings): number {
+  return r.costUnit === 'hour' ? r.cost * settings.workHoursPerDay : r.cost / AVG_DAYS_PER_MONTH
+}
+
+// Cost of one item's assignments, prorated to the working days (per
+// settings.countWeekends/holidays) of its duration that overlap
+// [rangeStart, rangeEnd). Milestones/releases (dur 0) never carry cost.
+export function itemCostInRange(it: Item, resources: Resource[], rangeStart: number, rangeEnd: number, settings: Settings): number {
+  if (isInstantItem(it) || it.dur <= 0) return 0
+  const s = Math.max(it.startDay, rangeStart)
+  const e = Math.min(it.startDay + it.dur, rangeEnd)
+  if (e <= s) return 0
+  const days = workingDaysInRange(s, e - s, settings)
+  if (days <= 0) return 0
+  let cost = 0
+  for (const a of it.assignments) {
+    const r = resources.find(rr => rr.id === a.r)
+    if (!r) continue
+    cost += resourceDailyRate(r, settings) * (a.pct / 100) * days
+  }
+  return cost
+}
+
+export function fmtMoney(n: number, symbol = '$'): string {
+  return symbol + Math.round(n).toLocaleString('en-US')
+}
+
+export interface PackedItem { it: Item; row: number }
+
+export function pack(list: Item[], ppd: number): { placed: PackedItem[]; rowCount: number } {
+  const sorted = [...list].sort((a, b) => a.startDay - b.startDay)
+  const rows: number[] = []
+  const placed: PackedItem[] = []
+  for (const it of sorted) {
+    const left = it.startDay * ppd
+    const w = it.dur === 0 ? 132 : Math.max(7, it.dur * ppd)
+    const right = left + w + 8
+    let r = 0
+    for (; r < rows.length; r++) { if (rows[r] <= left) break }
+    if (r === rows.length) rows.push(right)
+    else rows[r] = right
+    placed.push({ it, row: r })
+  }
+  return { placed, rowCount: Math.max(1, rows.length) }
+}
+
+// Peak concurrent allocation % for a resource, day by day. Bucketing by a
+// fixed-origin 7-day window (the previous approach) overcounted: two items
+// that don't actually share a single day but both touch the same window —
+// e.g. one ending Tuesday, the next starting Thursday of that window — would
+// sum their percentages and read as over-allocated despite no real overlap.
+export function resPeak(rid: string, items: Item[]): number {
+  const daily: Record<number, number> = {}
+  let peak = 0
+  for (const it of items) {
+    if (isInstantItem(it) || it.dur <= 0) continue
+    for (const as of it.assignments) {
+      if (as.r !== rid) continue
+      for (let d = it.startDay; d < it.startDay + it.dur; d++) {
+        const v = (daily[d] ?? 0) + as.pct
+        daily[d] = v
+        if (v > peak) peak = v
+      }
+    }
+  }
+  return peak
+}
+
+// Summary numbers for a scenario (or a checkpoint snapshot) — cost and
+// schedule totals computed over its full timeline, independent of any date
+// filter, so scenarios/checkpoints stay comparable regardless of what
+// range you happen to be viewing.
+export function computeScenarioMetrics(data: { items: Item[]; resources: Resource[]; settings: Settings }): ScenarioMetrics {
+  if (data.items.length === 0) return { totalCost: 0, endDay: null, overallocated: 0, headcount: 0, itemCount: 0 }
+  let totalCost = 0
+  let endDay = 0
+  const resourceIds = new Set<string>()
+  for (const it of data.items) {
+    totalCost += itemCostInRange(it, data.resources, -Infinity, Infinity, data.settings)
+    endDay = Math.max(endDay, itemEnd(it))
+    for (const a of it.assignments) resourceIds.add(a.r)
+  }
+  const overallocated = data.resources.filter(r => resPeak(r.id, data.items) > 100).length
+  return { totalCost, endDay, overallocated, headcount: resourceIds.size, itemCount: data.items.length }
+}
+
+export interface HeaderBand { label: string; style: React.CSSProperties }
+export interface HeaderTick { label: string; style: React.CSSProperties }
+export interface GridLine { style: React.CSSProperties }
+
+export function buildHeader(
+  scaleIndex: ScaleIndex, ppd: number, totalWidth: number, canvasHeight: number,
+  startDay = 0, totalDays = TOTAL_DAYS
+): { bands: HeaderBand[]; ticks: HeaderTick[]; gridLines: GridLine[] } {
+  const bands: HeaderBand[] = []
+  const ticks: HeaderTick[] = []
+  const gridLines: GridLine[] = []
+  const d0 = addDays(startDay)
+  const td = totalDays - startDay
+
+  const pushBand = (off: number, span: number, label: string) => {
+    const l = Math.max(0, off), rgt = Math.min(off + span, td), w = (rgt - l) * ppd
+    if (w <= 0) return
+    bands.push({ label, style: { position: 'absolute', left: l * ppd, top: 0, height: 25, width: w, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRight: '1px solid #f1f1f1', fontSize: 10, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#a1a1aa', fontFamily: 'ui-monospace,Menlo,monospace', whiteSpace: 'nowrap', overflow: 'hidden' } })
+  }
+
+  const pushTick = (x: number, label: string, strong: boolean) =>
+    ticks.push({ label, style: { position: 'absolute', left: x, top: 25, height: 29, display: 'flex', alignItems: 'center', paddingLeft: 5, borderLeft: `1px solid ${strong ? '#e4e4e7' : '#f4f4f5'}`, fontSize: 11, fontWeight: strong ? 600 : 400, color: strong ? '#52525b' : '#a1a1aa', fontFamily: 'ui-monospace,Menlo,monospace', whiteSpace: 'nowrap' } })
+
+  const gl = (x: number, c: string) =>
+    gridLines.push({ style: { position: 'absolute', left: x, top: 0, width: 1, height: canvasHeight, background: c } })
+
+  const months = () => {
+    let d = new Date(d0.getFullYear(), d0.getMonth(), 1)
+    while ((d.getTime() - d0.getTime()) / DAY_MS < td) {
+      const off = (d.getTime() - d0.getTime()) / DAY_MS
+      const nx = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+      pushBand(off, (nx.getTime() - d.getTime()) / DAY_MS, `${MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`)
+      d = nx
+    }
+  }
+
+  const quarters = () => {
+    let d = new Date(d0.getFullYear(), Math.floor(d0.getMonth() / 3) * 3, 1)
+    while ((d.getTime() - d0.getTime()) / DAY_MS < td) {
+      const off = (d.getTime() - d0.getTime()) / DAY_MS
+      const nx = new Date(d.getFullYear(), d.getMonth() + 3, 1)
+      pushBand(off, (nx.getTime() - d.getTime()) / DAY_MS, `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`)
+      d = nx
+    }
+  }
+
+  const years = () => {
+    let d = new Date(d0.getFullYear(), 0, 1)
+    while ((d.getTime() - d0.getTime()) / DAY_MS < td) {
+      const off = (d.getTime() - d0.getTime()) / DAY_MS
+      const nx = new Date(d.getFullYear() + 1, 0, 1)
+      pushBand(off, (nx.getTime() - d.getTime()) / DAY_MS, String(d.getFullYear()))
+      d = nx
+    }
+  }
+
+  if (scaleIndex === 0) {
+    months()
+    let d = new Date(d0.getFullYear(), d0.getMonth() + 1, 1)
+    while ((d.getTime() - d0.getTime()) / DAY_MS < td) { gl(((d.getTime() - d0.getTime()) / DAY_MS) * ppd, '#f4f4f5'); d = new Date(d.getFullYear(), d.getMonth() + 1, 1) }
+    for (let i = 0; i < td; i++) { const dt = addDays(i); pushTick(i * ppd, `${WEEKDAYS[dt.getDay()]} ${dt.getDate()}`, dt.getDay() === 1) }
+  } else if (scaleIndex === 1) {
+    months()
+    let d = new Date(d0.getFullYear(), d0.getMonth() + 1, 1)
+    while ((d.getTime() - d0.getTime()) / DAY_MS < td) { gl(((d.getTime() - d0.getTime()) / DAY_MS) * ppd, '#f4f4f5'); d = new Date(d.getFullYear(), d.getMonth() + 1, 1) }
+    for (let i = 0; i < td; i++) { const dt = addDays(i); if (dt.getDay() === 1) pushTick(i * ppd, `${MONTHS[dt.getMonth()]} ${dt.getDate()}`, false) }
+  } else if (scaleIndex === 2) {
+    quarters()
+    let d = new Date(d0.getFullYear(), Math.floor(d0.getMonth() / 3) * 3 + 3, 1)
+    while ((d.getTime() - d0.getTime()) / DAY_MS < td) { gl(((d.getTime() - d0.getTime()) / DAY_MS) * ppd, '#eeeeef'); d = new Date(d.getFullYear(), d.getMonth() + 3, 1) }
+    let m = new Date(d0.getFullYear(), d0.getMonth(), 1)
+    while ((m.getTime() - d0.getTime()) / DAY_MS < td) { const off = (m.getTime() - d0.getTime()) / DAY_MS; pushTick(Math.max(0, off * ppd), MONTHS[m.getMonth()], m.getMonth() % 3 === 0); m = new Date(m.getFullYear(), m.getMonth() + 1, 1) }
+  } else {
+    years()
+    let d = new Date(d0.getFullYear() + 1, 0, 1)
+    while ((d.getTime() - d0.getTime()) / DAY_MS < td) { gl(((d.getTime() - d0.getTime()) / DAY_MS) * ppd, '#eeeeef'); d = new Date(d.getFullYear() + 1, 0, 1) }
+    let q = new Date(d0.getFullYear(), Math.floor(d0.getMonth() / 3) * 3, 1)
+    while ((q.getTime() - d0.getTime()) / DAY_MS < td) { const off = (q.getTime() - d0.getTime()) / DAY_MS; pushTick(Math.max(0, off * ppd), `Q${Math.floor(q.getMonth() / 3) + 1}`, q.getMonth() === 0); q = new Date(q.getFullYear(), q.getMonth() + 3, 1) }
+  }
+
+  return { bands, ticks, gridLines }
+}
+
+export interface Bucket { s: number; d: number; label: string }
+
+export function buckets(scaleIndex: ScaleIndex, startDay = 0, totalDays = TOTAL_DAYS): Bucket[] {
+  const out: Bucket[] = []
+  const d0 = addDays(startDay)
+  const td = totalDays - startDay
+
+  if (scaleIndex === 0) {
+    for (let i = 0; i < td; i++) out.push({ s: i, d: 1, label: String(new Date(d0.getTime() + i * DAY_MS).getDate()) })
+  } else if (scaleIndex === 1) {
+    for (let i = 0; i < td; i += 7) { const dt = new Date(d0.getTime() + i * DAY_MS); out.push({ s: i, d: Math.min(7, td - i), label: `${MONTHS[dt.getMonth()]} ${dt.getDate()}` }) }
+  } else if (scaleIndex === 2) {
+    let d = new Date(d0.getFullYear(), d0.getMonth(), 1)
+    while ((d.getTime() - d0.getTime()) / DAY_MS < td) {
+      const off = (d.getTime() - d0.getTime()) / DAY_MS
+      const nx = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+      out.push({ s: Math.max(0, off), d: Math.min((nx.getTime() - d.getTime()) / DAY_MS, td - Math.max(0, off)), label: MONTHS[d.getMonth()] })
+      d = nx
+    }
+  } else {
+    let d = new Date(d0.getFullYear(), Math.floor(d0.getMonth() / 3) * 3, 1)
+    while ((d.getTime() - d0.getTime()) / DAY_MS < td) {
+      const off = (d.getTime() - d0.getTime()) / DAY_MS
+      const nx = new Date(d.getFullYear(), d.getMonth() + 3, 1)
+      out.push({ s: Math.max(0, off), d: Math.min((nx.getTime() - d.getTime()) / DAY_MS, td - Math.max(0, off)), label: `Q${Math.floor(d.getMonth() / 3) + 1}` })
+      d = nx
+    }
+  }
+  return out
+}

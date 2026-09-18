@@ -1,0 +1,263 @@
+import { getLocale, type Locale } from './localeStore'
+
+// English is the app's source language — every string used in JSX/toasts is
+// itself the lookup key, so there's nothing to maintain for `en` (it's a
+// passthrough). Only `es` needs actual entries. `{param}` placeholders are
+// substituted by `translate()`/`t()` below.
+const es: Record<string, string> = {
+  // Toolbar
+  'Timeline': 'Cronograma',
+  'Cross-Project': 'Entre proyectos',
+  'Resources': 'Recursos',
+  'Costs': 'Costos',
+  'Day': 'Día',
+  'Week': 'Semana',
+  'Month': 'Mes',
+  'Quarter': 'Trimestre',
+  'New project': 'Nuevo proyecto',
+  'Dependencies': 'Dependencias',
+  'Voice session active — speak a command, or click to stop': 'Sesión de voz activa — di un comando o haz clic para detener',
+  'Interpreting… click to stop the session': 'Interpretando… haz clic para detener la sesión',
+  'Start a voice session (multiple commands, click again to stop)': 'Iniciar sesión de voz (varios comandos, haz clic de nuevo para detener)',
+  'Switch to Spanish': 'Cambiar a inglés',
+  'Switch to English': 'Cambiar a español',
+
+  // FilterBar
+  'Date range': 'Rango de fechas',
+  'Reset': 'Restablecer',
+  'filtered': 'filtrado',
+
+  // LeftRail
+  'Show sidebar': 'Mostrar barra lateral',
+  'Hide sidebar': 'Ocultar barra lateral',
+  'Projects overlaid': 'Proyectos superpuestos',
+  'Projects': 'Proyectos',
+  '{n} people': '{n} personas',
+  '{n} items': '{n} tareas',
+  'Available': 'Disponible',
+  'Full': 'Completo',
+  '+ Add': '+ Agregar',
+  'Add item': 'Agregar tarea',
+
+  // Status labels (StatusKey values double as translation keys, same as
+  // everything else — the underlying stored/data value never changes,
+  // only this display lookup)
+  'In Progress': 'En progreso',
+  'At Risk': 'En riesgo',
+  'Planned': 'Planeado',
+  'Done': 'Completado',
+
+  // Item type labels (ItemType values, capitalized — see RightPanel)
+  'Epic': 'Épica',
+  'Task': 'Tarea',
+  'Milestone': 'Hito',
+  'Release': 'Lanzamiento',
+
+  // Roles (Resource.role catalog)
+  'Engineering': 'Ingeniería',
+  'Infrastructure': 'Infraestructura',
+  'Mobile': 'Móvil',
+  'Growth': 'Crecimiento',
+  'Design': 'Diseño',
+  'Platform': 'Plataforma',
+  'Product': 'Producto',
+  'Data': 'Datos',
+  'QA': 'QA',
+
+  // Categories (Project.category catalog) — 'Mobile', 'Growth', 'Design',
+  // 'Product' already covered above (shared with Roles)
+  'Infra': 'Infraestructura',
+
+  // RightPanel — item editor
+  'New item': 'Nueva tarea',
+  'Edit item': 'Editar tarea',
+  'Title': 'Título',
+  'Status': 'Estado',
+  'Type': 'Tipo',
+  'Start': 'Inicio',
+  'Date': 'Fecha',
+  'End': 'Fin',
+  'Assignees': 'Asignados',
+  'Add assignee…': 'Agregar asignado…',
+  '{n} working days': '{n} días laborables',
+  '{n}h total': '{n}h en total',
+  'Depends on': 'Depende de',
+  'Clash': 'Conflicto',
+  'Add dependency…': 'Agregar dependencia…',
+  'Delete': 'Eliminar',
+  'Cancel': 'Cancelar',
+  'Create': 'Crear',
+  'Save changes': 'Guardar cambios',
+  // RightPanel — resource summary / cell detail
+  'Resource': 'Recurso',
+  'Edit': 'Editar',
+  'peak allocation': 'asignación máxima',
+  'Free': 'Libre',
+  'Overallocated': 'Sobreasignado',
+  'No assignments in this period.': 'Sin asignaciones en este período.',
+
+  // ProjectModal
+  'Edit project': 'Editar proyecto',
+  'Name': 'Nombre',
+  'Project name': 'Nombre del proyecto',
+  'Description': 'Descripción',
+  'What is this project about?': '¿De qué trata este proyecto?',
+  'Owner': 'Responsable',
+  'Category': 'Categoría',
+  'Add default tasks': 'Agregar tareas predeterminadas',
+  'Desarrollo, Certificación, Gestión de pase, Pase a PRD — spread evenly across the Start–End range above':
+    'Desarrollo, Certificación, Gestión de pase, Pase a PRD — distribuidas uniformemente en el rango de Inicio a Fin indicado arriba',
+  'Create project': 'Crear proyecto',
+
+  // ResourceModal
+  'Add resource': 'Agregar recurso',
+  'Edit resource': 'Editar recurso',
+  'Full name': 'Nombre completo',
+  'Role': 'Rol',
+  'Cost': 'Costo',
+  'Remove': 'Eliminar',
+  'Save': 'Guardar',
+  'Add': 'Agregar',
+
+  // ScenarioModal / ScenarioSwitcher
+  'New scenario': 'Nuevo escenario',
+  'Duplicated from {name}': 'Duplicado de {name}',
+  'Note (optional)': 'Nota (opcional)',
+  'e.g. Plan B — fewer people': 'ej. Plan B — menos gente',
+  'What are you testing with this scenario?': '¿Qué estás probando con este escenario?',
+  'Creating…': 'Creando…',
+  'Scenarios': 'Escenarios',
+  'Official': 'Oficial',
+  'Duplicate as new scenario': 'Duplicar como nuevo escenario',
+  'Make official': 'Marcar como oficial',
+  '"{name}" is now official': '"{name}" ahora es el oficial',
+
+  // HistoryModal
+  'History': 'Historial',
+  'Saving…': 'Guardando…',
+  'Save checkpoint': 'Guardar checkpoint',
+  'e.g. v2 — added QA': 'ej. v2 — se agregó QA',
+  'What changed since the last checkpoint?': '¿Qué cambió desde el último checkpoint?',
+  'No checkpoints yet — save one to start tracking how this scenario evolves.':
+    'Aún no hay checkpoints — guarda uno para empezar a rastrear cómo evoluciona este escenario.',
+  'Restore': 'Restaurar',
+  'Confirm restore': 'Confirmar restaurar',
+  'Restored "{name}"': 'Se restauró "{name}"',
+  'vs {name}': 'vs {name}',
+  '{n}d': '{n} d',
+
+  // ImpactModal
+  'Preview impact': 'Vista previa del impacto',
+  'Confirm new item': 'Confirmar nueva tarea',
+  'Review the cascading effects before applying this change.': 'Revisa los efectos en cadena antes de aplicar este cambio.',
+  'Review effects before creating this item.': 'Revisa los efectos antes de crear esta tarea.',
+  'No conflicts detected.': 'No se detectaron conflictos.',
+  'Resource impact': 'Impacto en recursos',
+  'Dependency impact': 'Impacto en dependencias',
+  'Projects affected': 'Proyectos afectados',
+  'Apply changes': 'Aplicar cambios',
+  'Create item': 'Crear tarea',
+
+  // Views (TimelineView / CrossView / ResourcesView)
+  'Drag to create a dependency': 'Arrastra para crear una dependencia',
+  'Project': 'Proyecto',
+  'Today': 'Hoy',
+
+  // Timeline right-click context menu
+  'New task': 'Nueva tarea',
+  'New epic': 'Nueva épica',
+  'New milestone': 'Nuevo hito',
+  'New release': 'Nuevo lanzamiento',
+  'Duplicate': 'Duplicar',
+  'copy': 'copia',
+
+  // CostsView
+  'Allocated cost (range)': 'Costo asignado (rango)',
+  'Monthly run-rate': 'Costo mensual (run-rate)',
+  'Avg daily burn': 'Gasto diario promedio',
+  '/mo': '/mes',
+  '/hr': '/hora',
+  '/day': '/día',
+  'Cost by project': 'Costo por proyecto',
+  'Cost by person': 'Costo por persona',
+
+  // CompareView
+  'Compare': 'Comparar',
+  'Loading…': 'Cargando…',
+  'Metrics are computed over each scenario\'s full timeline, regardless of the date filter.':
+    'Las métricas se calculan sobre la línea de tiempo completa de cada escenario, sin importar el filtro de fechas.',
+  'Scenario': 'Escenario',
+  'Total cost': 'Costo total',
+  'End date': 'Fecha de fin',
+  'People': 'Personas',
+  'Items': 'Tareas',
+  'Switch to this': 'Cambiar a este',
+
+  // Store toasts
+  'That dependency already exists': 'Esa dependencia ya existe',
+  'Dependency added': 'Dependencia agregada',
+  'Item updated': 'Tarea actualizada',
+  'Item created': 'Tarea creada',
+  'Item deleted': 'Tarea eliminada',
+  'Item duplicated': 'Tarea duplicada',
+  '{proj} rescheduled · {n} conflict': '{proj} reprogramado · {n} conflicto',
+  '{proj} rescheduled · {n} conflicts': '{proj} reprogramado · {n} conflictos',
+  'Rescheduled — no conflicts': 'Reprogramado — sin conflictos',
+  'Change undone': 'Cambio deshecho',
+  'Change redone': 'Cambio rehecho',
+  'Nothing to undo': 'Nada que deshacer',
+  'Nothing to redo': 'Nada que rehacer',
+  'Project updated': 'Proyecto actualizado',
+  'Project created with default tasks': 'Proyecto creado con tareas predeterminadas',
+  'Project created': 'Proyecto creado',
+  'Project deleted': 'Proyecto eliminado',
+  'Resource updated': 'Recurso actualizado',
+  'Resource added': 'Recurso agregado',
+  'Resource removed': 'Recurso eliminado',
+  'Add sprint': 'Agregar sprint',
+  'Edit sprint': 'Editar sprint',
+  'Sprint name': 'Nombre del sprint',
+  'Sprint added': 'Sprint agregado',
+  'Sprint updated': 'Sprint actualizado',
+  'Sprint removed': 'Sprint eliminado',
+  'Sprint rescheduled': 'Sprint reprogramado',
+  'Settings': 'Configuración',
+  'Work hours/day': 'Horas laborales/día',
+  'Currency': 'Moneda',
+  'Custom': 'Personalizado',
+  'Count weekends as working days': 'Contar sábados y domingos como laborables',
+  'Holidays': 'Feriados',
+  'Close': 'Cerrar',
+  'Added {name}': 'Se agregó {name}',
+  "Couldn't find that person": 'No se encontró a esa persona',
+  'Project "{name}" created': 'Proyecto "{name}" creado',
+  "Couldn't find that project": 'No se encontró ese proyecto',
+  'Added "{title}"': 'Se agregó "{title}"',
+  "Couldn't find that item": 'No se encontró esa tarea',
+
+  // Voice hook toasts
+  'Voice command failed': 'Error en el comando de voz',
+  'Showing {name}': 'Mostrando {name}',
+  'Jumped to {date}': 'Se saltó a {date}',
+  'Confirm deleting {name} — click Remove in the panel, or Cancel': 'Confirmar eliminación de {name} — haz clic en Eliminar en el panel, o Cancelar',
+  'Confirm deleting {name} — click Delete in the panel, or Cancel': 'Confirmar eliminación de {name} — haz clic en Eliminar en el panel, o Cancelar',
+  "Couldn't find that task": 'No se encontró esa tarea',
+  "Didn't recognize that action": 'No se reconoció esa acción',
+  'Voice input is not supported in this browser': 'La entrada de voz no es compatible con este navegador',
+  'Voice session stopped — could not hear you': 'Sesión de voz detenida — no se pudo escuchar',
+}
+
+export function translate(locale: Locale, text: string, params?: Record<string, string | number>): string {
+  let s = locale === 'es' ? (es[text] ?? text) : text
+  if (params) {
+    for (const [k, v] of Object.entries(params)) s = s.split(`{${k}}`).join(String(v))
+  }
+  return s
+}
+
+// Non-component usage (the Zustand store, the voice hook's non-React
+// helpers) — reads the current locale directly rather than through the
+// useTranslation() hook, since those call sites aren't React components.
+export function t(text: string, params?: Record<string, string | number>): string {
+  return translate(getLocale(), text, params)
+}

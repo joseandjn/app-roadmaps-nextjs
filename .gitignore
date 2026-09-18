@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# persisted app data (see src/lib/persistence)
+/storage
+
 # next.js
 /.next/
 /out/
