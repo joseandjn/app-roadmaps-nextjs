@@ -1,4 +1,4 @@
-import { ROLES, CATEGORIES, STATUS_ORDER, ITEM_TYPES, TODAY_DAY } from '@/data/initialData'
+import { ROLES, CATEGORIES, STATUS_ORDER, ITEM_TYPES, getTodayDay } from '@/data/initialData'
 import { dateStr } from '@/lib/roadmapUtils'
 
 export type VoiceCommandResult =
@@ -225,7 +225,7 @@ delete_resource, delete_project, and delete_item only open a confirmation panel 
 has to click "Remove"/"Delete" themselves, so it's safe to call them whenever the user clearly
 asks to delete/remove something; you are never directly destroying data.
 
-Today's date, for resolving relative dates like "next month" or "in two weeks": ${dateStr(TODAY_DAY)}
+Today's date, for resolving relative dates like "next month" or "in two weeks": ${dateStr(getTodayDay())}
 
 Existing resources: ${JSON.stringify(resources)}
 Existing projects: ${JSON.stringify(projects)}

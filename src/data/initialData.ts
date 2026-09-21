@@ -60,7 +60,13 @@ export const INITIAL_ITEMS: Item[] = rawItems.map(i => ({ ...i, startDay: i.star
 const maxEnd = Math.max(...INITIAL_ITEMS.map(i => i.startDay + i.dur))
 export const TOTAL_DAYS = maxEnd + 180 // buffer past the last item so there's room to add future work
 
-export const TODAY_DAY = Math.round((new Date().getTime() - START_DATE.getTime()) / 86400000)
+// Evaluated per call, on local calendar days: a module-level constant is frozen at
+// process start, so the server and the browser would disagree about "today".
+export function getTodayDay(): number {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return Math.round((today.getTime() - START_DATE.getTime()) / 86400000)
+}
 
 let de = 1
 const E = (from: string, to: string): Dependency => ({ id: 'e' + de++, from, to })

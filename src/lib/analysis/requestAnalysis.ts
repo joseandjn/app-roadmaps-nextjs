@@ -1,7 +1,7 @@
 'use client'
 
 import type { AnalyzeResponse } from '@engine/index'
-import { TODAY_DAY } from '@/data/initialData'
+import { getTodayDay } from '@/data/initialData'
 import { getLocale } from '@/lib/i18n/localeStore'
 import { dateStr } from '@/lib/roadmapUtils'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
@@ -18,7 +18,7 @@ export async function requestAnalysis(narrate: boolean, signal?: AbortSignal): P
     body: JSON.stringify({
       snapshot: { projects, items, resources, deps, sprints, settings },
       originDate: dateStr(0),
-      todayDay: TODAY_DAY,
+      todayDay: getTodayDay(),
       locale: getLocale(),
       narrate,
     }),

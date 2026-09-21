@@ -3,8 +3,9 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react'
 import { useRoadmapStore, didDrag } from '@/store/useRoadmapStore'
 import { deriveScale, pack, buildHeader, isWorkingDay, fmtDate, addDays, initials, workingDaysInRange, itemEnd } from '@/lib/roadmapUtils'
-import { STATUS_CONFIG, TODAY_DAY, TOTAL_DAYS } from '@/data/initialData'
+import { STATUS_CONFIG, getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useTodayDay } from '@/lib/useTodayDay'
 import ContextMenu from '@/components/ContextMenu'
 
 const ROW = 32, BAR_H = 22, LP = 14
@@ -19,6 +20,7 @@ export default function TimelineView() {
     openContextMenu, editSprint, onNewSprint, startSprintDrag,
   } = useRoadmapStore()
   const { t } = useTranslation()
+  const todayDay = useTodayDay()
 
   // Single scroll container — both axes live here
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -72,7 +74,7 @@ export default function TimelineView() {
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const todayOffset = (TODAY_DAY - baseDay) * ppd
+    const todayOffset = (getTodayDay() - baseDay) * ppd
     el.scrollLeft = Math.max(0, todayOffset - el.clientWidth / 3)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -245,7 +247,7 @@ export default function TimelineView() {
         const w = Math.max(7, it.dur * ppd)
         const showLabel = w > 34
         const isEpic = it.type === 'epic'
-        const prog = isEpic && it.status === 'In Progress' ? Math.max(0, Math.min(1, (TODAY_DAY - it.startDay) / it.dur)) : null
+        const prog = isEpic && it.status === 'In Progress' && todayDay !== null ? Math.max(0, Math.min(1, (todayDay - it.startDay) / it.dur)) : null
 
         bars.push(
           <div
@@ -286,7 +288,7 @@ export default function TimelineView() {
 
   const canvasHeight = Math.max(y, 240)
   const { bands, ticks, gridLines } = buildHeader(si, ppd, totalWidth, canvasHeight, baseDay, lastDay)
-  const todayX = (TODAY_DAY - baseDay) * ppd
+  const todayX = todayDay === null ? null : (todayDay - baseDay) * ppd
 
   // Sprint row — irregular, user-defined boundaries (not derived from the calendar),
   // so it's built here rather than folded into buildHeader (shared with other views).
@@ -478,7 +480,7 @@ export default function TimelineView() {
               {bands.map((b, i) => <div key={i} style={b.style}>{b.label}</div>)}
               {ticks.map((t, i) => <div key={i} style={t.style}>{t.label}</div>)}
               {/* Today chip — only when TODAY falls within the visible range */}
-              {todayX >= 0 && todayX <= totalWidth && (
+              {todayX !== null && todayX >= 0 && todayX <= totalWidth && (
                 <div style={{ position: 'absolute', left: todayX, top: 28, transform: 'translateX(-50%)', background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 5, whiteSpace: 'nowrap', zIndex: 5, fontFamily: 'ui-monospace,Menlo,monospace' }}>
                   {t('Today')}
                 </div>
@@ -514,7 +516,7 @@ export default function TimelineView() {
             <div key={i} style={{ position: 'absolute', left: x, top: 0, width: 1, height: canvasHeight, background: '#e4e4e7', zIndex: 1 }} />
           ))}
           {/* Today line */}
-          <div style={{ position: 'absolute', left: todayX, top: 0, width: 1, height: canvasHeight, background: '#ef4444', opacity: 0.5, zIndex: 2 }} />
+          {todayX !== null && <div style={{ position: 'absolute', left: todayX, top: 0, width: 1, height: canvasHeight, background: '#ef4444', opacity: 0.5, zIndex: 2 }} />}
           {bars}
           {showDeps && (
             <svg style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 1, overflow: 'visible' }} width={totalWidth} height={canvasHeight}>

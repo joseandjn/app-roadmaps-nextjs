@@ -2,7 +2,7 @@
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { initials, allocColor, resPeak, fmtDate, addDays, dateStr, workingDaysInRange, itemEnd } from '@/lib/roadmapUtils'
-import { STATUS_ORDER, ITEM_TYPES, TODAY_DAY } from '@/data/initialData'
+import { STATUS_ORDER, ITEM_TYPES } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 
 const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'

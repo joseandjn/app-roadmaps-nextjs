@@ -3,8 +3,9 @@
 import React, { useRef, useCallback, useEffect } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { deriveScale, pack, buildHeader } from '@/lib/roadmapUtils'
-import { STATUS_CONFIG, TODAY_DAY, TOTAL_DAYS } from '@/data/initialData'
+import { STATUS_CONFIG, getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useTodayDay } from '@/lib/useTodayDay'
 const ROW = 32, BAR_H = 22, RH = 58
 const LABEL_W = 264
 const HEADER_H = 54
@@ -12,6 +13,7 @@ const HEADER_H = 54
 export default function CrossView() {
   const { pxPerDay, projects, items, visible, expanded, _tr, filterStartDay, filterEndDay, setViewport, openItem, toggleExpand } = useRoadmapStore()
   const { t } = useTranslation()
+  const todayDay = useTodayDay()
   const scrollRef = useRef<HTMLDivElement>(null)
   const si = deriveScale(pxPerDay)
   const ppd = pxPerDay
@@ -29,7 +31,7 @@ export default function CrossView() {
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const todayOffset = (TODAY_DAY - baseDay) * ppd
+    const todayOffset = (getTodayDay() - baseDay) * ppd
     el.scrollLeft = Math.max(0, todayOffset - el.clientWidth / 3)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -129,7 +131,7 @@ export default function CrossView() {
 
   const canvasHeight = Math.max(y, 240)
   const { gridLines } = buildHeader(si, ppd, totalWidth, canvasHeight, baseDay, lastDay)
-  const todayX = (TODAY_DAY - baseDay) * ppd
+  const todayX = todayDay === null ? null : (todayDay - baseDay) * ppd
 
   // Overlap bands
   const overlapBands: React.ReactElement[] = []
@@ -162,7 +164,7 @@ export default function CrossView() {
           <div style={{ position: 'relative', width: totalWidth, height: HEADER_H, overflow: 'hidden' }}>
             {bands.map((b, i) => <div key={i} style={b.style}>{b.label}</div>)}
             {ticks.map((t, i) => <div key={i} style={t.style}>{t.label}</div>)}
-            {todayX >= 0 && todayX <= totalWidth && (
+            {todayX !== null && todayX >= 0 && todayX <= totalWidth && (
               <div style={{ position: 'absolute', left: todayX, top: 28, transform: 'translateX(-50%)', background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 5, whiteSpace: 'nowrap', zIndex: 5, fontFamily: 'ui-monospace,Menlo,monospace' }}>{t('Today')}</div>
             )}
           </div>
@@ -175,7 +177,7 @@ export default function CrossView() {
         <div style={{ position: 'relative', width: totalWidth, height: canvasHeight, overflow: 'hidden' }}>
           {laneBgs}
           {gridLines.map((g, i) => <div key={i} style={g.style} />)}
-          <div style={{ position: 'absolute', left: todayX, top: 0, width: 1, height: canvasHeight, background: '#ef4444', opacity: 0.5, zIndex: 2 }} />
+          {todayX !== null && <div style={{ position: 'absolute', left: todayX, top: 0, width: 1, height: canvasHeight, background: '#ef4444', opacity: 0.5, zIndex: 2 }} />}
           {overlapBands}
           {bars}
         </div>

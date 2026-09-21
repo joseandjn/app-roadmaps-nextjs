@@ -2,9 +2,10 @@
 
 import React, { useRef, useCallback, useEffect } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { deriveScale, buckets, buildHeader, initials, allocColor } from '@/lib/roadmapUtils'
-import { TODAY_DAY, TOTAL_DAYS } from '@/data/initialData'
+import { deriveScale, buckets, buildHeader, initials, allocColor, utilizationPct } from '@/lib/roadmapUtils'
+import { getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useTodayDay } from '@/lib/useTodayDay'
 
 const RH = 46
 const LABEL_W = 264
@@ -13,6 +14,7 @@ const HEADER_H = 54
 export default function ResourcesView() {
   const { pxPerDay, resources, items, projects, filterStartDay, filterEndDay, openCell, setViewport } = useRoadmapStore()
   const { t } = useTranslation()
+  const todayDay = useTodayDay()
   const scrollRef = useRef<HTMLDivElement>(null)
   const si = deriveScale(pxPerDay)
   const ppd = pxPerDay
@@ -29,7 +31,7 @@ export default function ResourcesView() {
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const todayOffset = (TODAY_DAY - baseDay) * ppd
+    const todayOffset = (getTodayDay() - baseDay) * ppd
     el.scrollLeft = Math.max(0, todayOffset - el.clientWidth / 3)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -43,7 +45,7 @@ export default function ResourcesView() {
 
   const bkts = buckets(si, baseDay, lastDay)
   const { bands, gridLines } = buildHeader(si, ppd, totalWidth, resources.length * RH, baseDay, lastDay)
-  const todayX = (TODAY_DAY - baseDay) * ppd
+  const todayX = todayDay === null ? null : (todayDay - baseDay) * ppd
 
   const rowLabels: React.ReactElement[] = []
   const cells: React.ReactElement[] = []
@@ -79,7 +81,7 @@ export default function ResourcesView() {
         }
       }
 
-      const col = allocColor(total)
+      const col = allocColor(utilizationPct(total, r))
       const w = b.d * ppd
       const show = w > 30 && total > 0
 
@@ -137,7 +139,7 @@ export default function ResourcesView() {
             <div key={r.id} style={{ position: 'absolute', left: 0, top: i * RH, width: totalWidth, height: RH, background: i % 2 ? '#fcfcfd' : '#fff', borderBottom: '1px solid #f4f4f5' }} />
           ))}
           {gridLines.map((g, i) => <div key={i} style={g.style} />)}
-          <div style={{ position: 'absolute', left: todayX, top: 0, width: 1, height: canvasHeight, background: '#ef4444', opacity: 0.5, zIndex: 2 }} />
+          {todayX !== null && <div style={{ position: 'absolute', left: todayX, top: 0, width: 1, height: canvasHeight, background: '#ef4444', opacity: 0.5, zIndex: 2 }} />}
           {cells}
         </div>
       </div>

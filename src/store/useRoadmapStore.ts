@@ -4,7 +4,7 @@ import { create } from 'zustand'
 import type { RoadmapState, Item, Project, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta } from '@/types'
 import {
   INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, DEFAULT_SETTINGS,
-  TODAY_DAY, SCALE_PRESETS, PROJECT_COLORS, DEFAULT_PROJECT_TASKS,
+  getTodayDay, SCALE_PRESETS, PROJECT_COLORS, DEFAULT_PROJECT_TASKS,
 } from '@/data/initialData'
 import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
@@ -306,7 +306,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     }),
     newItem: pid => set(s => {
       const r = projRange(s.items, pid)
-      const day = r ? Math.round((r.a + r.b) / 2) : TODAY_DAY
+      const day = r ? Math.round((r.a + r.b) / 2) : getTodayDay()
       const draft: Draft = { id: 'i' + Date.now(), projectId: pid, title: 'New item', startDay: day, dur: 21, status: 'Planned', type: 'task', assignments: [], _deps: [], _new: true }
       return { panel: 'item', draft, draftOrig: null, cell: null }
     }),
@@ -447,12 +447,12 @@ export const useRoadmapStore = create<Store>((set, get) => {
     },
 
     onNewProject: () => set(s => ({
-      pform: { show: true, id: null, name: '', desc: '', owner: 'r1', category: 'Product', startStr: dateStr(TODAY_DAY), endStr: dateStr(TODAY_DAY + 90), status: 'Planned', defaultTasks: true }
+      pform: { show: true, id: null, name: '', desc: '', owner: 'r1', category: 'Product', startStr: dateStr(getTodayDay()), endStr: dateStr(getTodayDay() + 90), status: 'Planned', defaultTasks: true }
     })),
     editProject: id => set(s => {
       const p = s.projects.find(pr => pr.id === id)!
       const r = projRange(s.items, id)
-      return { pform: { show: true, id, name: p.name, desc: p.desc, owner: p.owner, category: p.category, startStr: dateStr(r ? r.a : TODAY_DAY), endStr: dateStr(r ? r.b : TODAY_DAY + 90), status: p.status, canDelete: true } }
+      return { pform: { show: true, id, name: p.name, desc: p.desc, owner: p.owner, category: p.category, startStr: dateStr(r ? r.a : getTodayDay()), endStr: dateStr(r ? r.b : getTodayDay() + 90), status: p.status, canDelete: true } }
     }),
     patchPF: p => set(s => ({ pform: s.pform ? { ...s.pform, ...p } : null })),
     onPSave: () => {
