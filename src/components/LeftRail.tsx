@@ -1,7 +1,7 @@
 'use client'
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { resPeak, initials, allocColor } from '@/lib/roadmapUtils'
+import { resPeak, initials, allocColor, utilizationPct, isOverloaded } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, STATUS_ORDER } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 
@@ -57,8 +57,8 @@ export default function LeftRail() {
           <div className="flex-1 overflow-y-auto px-2 pb-3">
             {resources.map(r => {
               const peak = resPeak(r.id, items)
-              const col = allocColor(peak)
-              const over = peak > 100
+              const col = allocColor(utilizationPct(peak, r))
+              const over = isOverloaded(peak, r)
               const sel = resSel === r.id && panel === 'res'
               return (
                 <div

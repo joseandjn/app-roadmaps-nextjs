@@ -46,6 +46,8 @@ export interface Resource {
   role: string
   cost: number // rate in costUnit terms ($/mo or $/hr)
   costUnit: CostUnit
+  // Share of this person's time available for this roadmap, 0-100. Missing means 100.
+  availability?: number
 }
 
 export interface Dependency {
@@ -95,7 +97,7 @@ export interface ScenarioMeta {
 export interface ScenarioMetrics {
   totalCost: number
   endDay: number | null // last day any item ends, or null if the scenario has no items
-  overallocated: number // # resources with peak concurrent allocation over 100%
+  overallocated: number // # resources whose peak concurrent allocation exceeds their availability
   headcount: number // # resources with at least one assignment
   itemCount: number
 }
@@ -121,7 +123,7 @@ export interface Draft extends Item {
 
 export interface ImpactResult {
   deps: { item: Item; clash: boolean }[]
-  resources: { rid: string; before: number; after: number; over: boolean }[]
+  resources: { rid: string; before: number; after: number; capacity: number; over: boolean }[]
   projects: string[]
 }
 
@@ -163,6 +165,7 @@ export interface RoadmapState {
     role: string
     cost: number
     costUnit: CostUnit
+    availability: number
     heading?: string
     canDelete?: boolean
   } | null

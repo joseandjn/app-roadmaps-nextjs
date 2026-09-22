@@ -82,6 +82,10 @@ export function parseAnalyzeRequest(raw: unknown): Parsed {
       resource.cost = r.cost
       resource.costUnit = r.costUnit === 'hour' ? 'hour' : 'month'
     }
+    if (r.availability !== undefined && r.availability !== null) {
+      if (typeof r.availability !== 'number' || !Number.isFinite(r.availability) || r.availability < 0 || r.availability > 100) return fail(`Resource ${r.id}: availability must be a number between 0 and 100.`)
+      resource.availability = r.availability
+    }
     resources.push(resource)
   }
 

@@ -140,3 +140,47 @@ describe('overload analysis', () => {
     assert.match(en.title, /Ana overloaded/)
   })
 })
+
+describe('availability', () => {
+  const partTime = (availability: number | undefined, ...loads: number[]) => snapshot(
+    loads.map((pct, i) => item(`T${i}`, 0, 5, { assignments: load('r1', pct) })),
+    [],
+    { resources: [{ id: 'r1', name: 'Ana', ...(availability === undefined ? {} : { availability }) }] },
+  )
+
+  it('measures load against the person\'s availability instead of 100%', () => {
+    // 30% + 30% = 60%: fine for someone at 100%, overloaded for someone available 50%.
+    assert.equal(overloads(analyzeRoadmap(partTime(undefined, 30, 30), { originDate: ORIGIN })).length, 0)
+    const [f] = overloads(analyzeRoadmap(partTime(50, 30, 30), { originDate: ORIGIN }))
+    assert.equal(f.evidence.peakPct, 60)
+    assert.equal(f.evidence.capacityPct, 50)
+    assert.equal(f.evidence.workingDays, 5)
+    assert.equal(f.evidence.excessPersonDays, 0.5)
+  })
+
+  it('does not flag load that fits exactly within availability', () => {
+    assert.equal(overloads(analyzeRoadmap(partTime(50, 25, 25), { originDate: ORIGIN })).length, 0)
+  })
+
+  it('grades severity by how far the peak is above the person\'s own capacity', () => {
+    // 80% of a 50% capacity is 1.6x; the same 80% for a full-time person is not overloaded at all.
+    assert.equal(overloads(analyzeRoadmap(partTime(50, 80), { originDate: ORIGIN }))[0].severity, 'high')
+    assert.equal(overloads(analyzeRoadmap(partTime(100, 80), { originDate: ORIGIN })).length, 0)
+  })
+
+  it('flags any assignment for someone with 0% availability', () => {
+    const [f] = overloads(analyzeRoadmap(partTime(0, 10), { originDate: ORIGIN }))
+    assert.equal(f.evidence.capacityPct, 0)
+    assert.equal(f.severity, 'high')
+  })
+
+  it('mentions reduced availability in the text, and stays silent for full-time people', () => {
+    const es = overloads(analyzeRoadmap(partTime(50, 30, 30), { originDate: ORIGIN }))[0]
+    const en = overloads(analyzeRoadmap(partTime(50, 30, 30), { originDate: ORIGIN, locale: 'en' }))[0]
+    assert.match(es.title, /disponibilidad 50%/)
+    assert.match(es.detail, /disponibilidad del 50%/)
+    assert.match(en.title, /availability 50%/)
+    const full = overloads(analyzeRoadmap(partTime(undefined, 60, 60), { originDate: ORIGIN }))[0]
+    assert.doesNotMatch(full.title, /isponibilidad/)
+  })
+})

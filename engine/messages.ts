@@ -20,18 +20,20 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
 
 export function overloadText(
   locale: Locale,
-  p: { name: string; peakPct: number; start: string; end: string; days: number; excess: number; items: Array<{ title: string; pct: number }> },
+  p: { name: string; peakPct: number; capacity: number; start: string; end: string; days: number; excess: number; items: Array<{ title: string; pct: number }> },
 ) {
   const items = p.items.map(i => `${i.title} (${i.pct}%)`).join(', ')
   const excess = p.excess.toFixed(1)
+  // Only spelled out when it differs from the default, so full-time people read as before.
+  const reduced = p.capacity < 100
   return locale === 'es'
     ? {
-        title: `Sobrecarga de ${p.name}: hasta ${p.peakPct}%`,
-        detail: `Del ${fmtDate(p.start, 'es')} al ${fmtDate(p.end, 'es')} (${p.days} ${plural(p.days, 'día laborable', 'días laborables')}) supera su capacidad en ${excess} persona-días. Asignado a: ${items}.`,
+        title: `Sobrecarga de ${p.name}: hasta ${p.peakPct}%${reduced ? ` (disponibilidad ${p.capacity}%)` : ''}`,
+        detail: `Del ${fmtDate(p.start, 'es')} al ${fmtDate(p.end, 'es')} (${p.days} ${plural(p.days, 'día laborable', 'días laborables')}) supera su ${reduced ? `disponibilidad del ${p.capacity}%` : 'capacidad'} en ${excess} persona-días. Asignado a: ${items}.`,
       }
     : {
-        title: `${p.name} overloaded: up to ${p.peakPct}%`,
-        detail: `From ${fmtDate(p.start, 'en')} to ${fmtDate(p.end, 'en')} (${p.days} working ${plural(p.days, 'day', 'days')}) it exceeds capacity by ${excess} person-days. Assigned to: ${items}.`,
+        title: `${p.name} overloaded: up to ${p.peakPct}%${reduced ? ` (availability ${p.capacity}%)` : ''}`,
+        detail: `From ${fmtDate(p.start, 'en')} to ${fmtDate(p.end, 'en')} (${p.days} working ${plural(p.days, 'day', 'days')}) it exceeds ${reduced ? `its ${p.capacity}% availability` : 'capacity'} by ${excess} person-days. Assigned to: ${items}.`,
       }
 }
 

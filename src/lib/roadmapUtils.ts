@@ -86,19 +86,28 @@ export function resourceDailyRate(r: Resource, settings: Settings): number {
 // settings.countWeekends/holidays) of its duration that overlap
 // [rangeStart, rangeEnd). Milestones/releases (dur 0) never carry cost.
 export function itemCostInRange(it: Item, resources: Resource[], rangeStart: number, rangeEnd: number, settings: Settings): number {
-  if (isInstantItem(it) || it.dur <= 0) return 0
+  return assignmentCostsInRange(it, resources, rangeStart, rangeEnd, settings).reduce((sum, c) => sum + c.cost, 0)
+}
+
+// Same proration as itemCostInRange, split per assigned resource.
+export function assignmentCostsInRange(it: Item, resources: Resource[], rangeStart: number, rangeEnd: number, settings: Settings): { rid: string; cost: number }[] {
+  if (isInstantItem(it) || it.dur <= 0) return []
   const s = Math.max(it.startDay, rangeStart)
   const e = Math.min(it.startDay + it.dur, rangeEnd)
-  if (e <= s) return 0
+  if (e <= s) return []
   const days = workingDaysInRange(s, e - s, settings)
-  if (days <= 0) return 0
-  let cost = 0
+  if (days <= 0) return []
+  const out: { rid: string; cost: number }[] = []
   for (const a of it.assignments) {
     const r = resources.find(rr => rr.id === a.r)
     if (!r) continue
-    cost += resourceDailyRate(r, settings) * (a.pct / 100) * days
+    out.push({ rid: r.id, cost: resourceDailyRate(r, settings) * (a.pct / 100) * days })
   }
-  return cost
+  return out
+}
+
+export function fmtSigned(n: number, fmt: (n: number) => string): string {
+  return n === 0 ? fmt(0) : (n > 0 ? '+' : '−') + fmt(Math.abs(n))
 }
 
 export function fmtMoney(n: number, symbol = '$'): string {
@@ -122,6 +131,23 @@ export function pack(list: Item[], ppd: number): { placed: PackedItem[]; rowCoun
     placed.push({ it, row: r })
   }
   return { placed, rowCount: Math.max(1, rows.length) }
+}
+
+// How much of a person's time is available for this roadmap (100 unless set lower).
+export function resourceCapacity(r: Pick<Resource, 'availability'>): number {
+  return r.availability ?? 100
+}
+
+// A load (assigned %) as a share of the person's own capacity: 100 means exactly
+// at their availability. Colors and "full/overallocated" tags read this, so a
+// person available 50% is "full" at 50% assigned.
+export function utilizationPct(load: number, r: Pick<Resource, 'availability'>): number {
+  const cap = resourceCapacity(r)
+  return cap > 0 ? (load / cap) * 100 : load > 0 ? Infinity : 0
+}
+
+export function isOverloaded(load: number, r: Pick<Resource, 'availability'>): boolean {
+  return load > resourceCapacity(r)
 }
 
 // Peak concurrent allocation % for a resource, day by day. Bucketing by a
@@ -160,7 +186,7 @@ export function computeScenarioMetrics(data: { items: Item[]; resources: Resourc
     endDay = Math.max(endDay, itemEnd(it))
     for (const a of it.assignments) resourceIds.add(a.r)
   }
-  const overallocated = data.resources.filter(r => resPeak(r.id, data.items) > 100).length
+  const overallocated = data.resources.filter(r => isOverloaded(resPeak(r.id, data.items), r)).length
   return { totalCost, endDay, overallocated, headcount: resourceIds.size, itemCount: data.items.length }
 }
 

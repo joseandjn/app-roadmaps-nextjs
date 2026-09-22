@@ -179,6 +179,13 @@ const es: Record<string, string> = {
   'vs {name}': 'vs {name}',
   '{n}d': '{n} d',
 
+  // Availability
+  'Availability (%)': 'Disponibilidad (%)',
+  'Share of their time available for this roadmap. Assignments above it count as overload.': 'Porcentaje de su tiempo disponible para este roadmap. Las asignaciones por encima cuentan como sobrecarga.',
+  'availability {n}%': 'disponibilidad {n}%',
+  'avail. {n}%': 'disp. {n}%',
+  'Availability: {from} → {to}': 'Disponibilidad: {from} → {to}',
+
   // ImpactModal
   'Preview impact': 'Vista previa del impacto',
   'Confirm new item': 'Confirmar nueva tarea',

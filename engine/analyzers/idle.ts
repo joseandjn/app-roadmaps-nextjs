@@ -1,5 +1,5 @@
 import { dailyRate, fmtMoney } from '../cost.ts'
-import { isInstant, itemEnd } from '../domain.ts'
+import { capacityPct, isInstant, itemEnd } from '../domain.ts'
 import type { EngineItem, EngineResource } from '../domain.ts'
 import type { IdleCapacityFinding, ItemRef, OverloadFinding, Severity, UnassignedResourcesFinding } from '../findings.ts'
 import { idleText, unassignedText } from '../messages.ts'
@@ -17,7 +17,9 @@ const ref = (i: EngineItem): ItemRef => ({ id: i.id, title: i.title, projectId: 
 //    (time after someone's last item is not reported: they would simply take new work);
 //  - everyone with no unfinished work at all, grouped into a single finding.
 // Both are cross-checked against the overload findings, so free people during
-// someone else's overload stand out.
+// someone else's overload stand out. Idle cost counts only the share of a
+// person's rate that is available to this roadmap (their availability), and
+// people with 0% availability are never reported as idle.
 export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]): Array<IdleCapacityFinding | UnassignedResourcesFinding> {
   const { snapshot, calendar, locale, todayDay } = ctx
   const symbol = snapshot.settings.currencySymbol ?? '$'
@@ -73,11 +75,18 @@ export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]):
   const findings: Array<IdleCapacityFinding | UnassignedResourcesFinding> = []
   const unassigned: EngineResource[] = []
 
+  // Rate attributable to this roadmap: the person's rate scaled by availability.
+  const availableRate = (r: EngineResource) => {
+    const rate = dailyRate(r, snapshot.settings)
+    return rate === null ? null : rate * capacityPct(r) / 100
+  }
+
   for (const resource of snapshot.resources) {
+    if (capacityPct(resource) <= 0) continue
     const days = loads.get(resource.id)
     const busy = days ? [...days.entries()].filter(([, l]) => l.total > 0).map(([d]) => d).sort((a, b) => a - b) : []
     if (!days || busy.length === 0) { unassigned.push(resource); continue }
-    const rate = dailyRate(resource, snapshot.settings)
+    const rate = availableRate(resource)
 
     const pick = (day: number, compare: (a: EngineItem, b: EngineItem) => number): EngineItem =>
       [...days.get(day)!.byItem.keys()].map(id => itemById.get(id)!).sort((a, b) => compare(a, b) || a.id.localeCompare(b.id))[0]
@@ -146,7 +155,7 @@ export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]):
     const endDay = lastWorkingBefore(horizonEnd)
     const people = unassigned
       .map(r => {
-        const rate = dailyRate(r, snapshot.settings)
+        const rate = availableRate(r)
         return { resourceId: r.id, resourceName: r.name, role: r.role ?? null, idleCost: rate === null ? null : Math.round(rate * workingDays) }
       })
       .sort((a, b) => (b.idleCost ?? 0) - (a.idleCost ?? 0) || a.resourceName.localeCompare(b.resourceName))

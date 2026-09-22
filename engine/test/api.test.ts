@@ -63,6 +63,18 @@ describe('request validation', () => {
     assert.match(bad(body({ snapshot: { ...overloaded(), settings: { countWeekends: false, holidays: [], workHoursPerDay: 99 } } })), /workHoursPerDay/)
   })
 
+  it('accepts availability between 0 and 100 and rejects anything else', () => {
+    const withResource = (r: object) => body({ snapshot: { ...overloaded(), resources: [{ id: 'r1', name: 'Ana', ...r }] } })
+    const ok = parseAnalyzeRequest(withResource({ availability: 50 }))
+    assert.ok(ok.ok)
+    assert.equal(ok.value.snapshot.resources[0].availability, 50)
+    assert.equal((parseAnalyzeRequest(withResource({ availability: 0 })) as { ok: true; value: { snapshot: { resources: Array<{ availability?: number }> } } }).value.snapshot.resources[0].availability, 0)
+    assert.equal((parseAnalyzeRequest(withResource({})) as { ok: true; value: { snapshot: { resources: Array<{ availability?: number }> } } }).value.snapshot.resources[0].availability, undefined)
+    assert.match(bad(withResource({ availability: 120 })), /availability/)
+    assert.match(bad(withResource({ availability: -5 })), /availability/)
+    assert.match(bad(withResource({ availability: 'half' })), /availability/)
+  })
+
   it('drops unknown fields instead of passing them through', () => {
     const r = parseAnalyzeRequest(body({ snapshot: { ...overloaded(), secret: 'x', items: [{ ...item('A', 0, 3), extra: 1 }] } }))
     assert.ok(r.ok)

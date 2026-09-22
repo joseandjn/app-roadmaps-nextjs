@@ -1,7 +1,7 @@
 'use client'
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { initials, allocColor, resPeak, fmtDate, addDays, dateStr, workingDaysInRange, itemEnd } from '@/lib/roadmapUtils'
+import { initials, allocColor, resPeak, fmtDate, addDays, dateStr, workingDaysInRange, itemEnd, resourceCapacity, utilizationPct, isOverloaded } from '@/lib/roadmapUtils'
 import { STATUS_ORDER, ITEM_TYPES } from '@/data/initialData'
 import { roleIconDef } from '@/data/roleIcons'
 import { useTranslation } from '@/lib/i18n/useTranslation'
@@ -100,12 +100,14 @@ export default function RightPanel() {
                 {draft.assignments.map(a => {
                   const r = resources.find(r => r.id === a.r)!
                   const hours = Math.round(workDays * settings.workHoursPerDay * a.pct / 100)
+                  const cap = resourceCapacity(r)
                   const roleMismatch = !!draft.requiredRole && r.role !== draft.requiredRole
                   return (
                     <div key={a.r} className="flex items-center gap-2">
                       <div className="w-[26px] h-[26px] rounded-[8px] bg-[#ececef] text-[#52525b] text-[10px] font-semibold flex items-center justify-center flex-none">{initials(r.name)}</div>
                       <span className="text-[13px] text-[#27272a] flex-1 truncate">
                         {r.name}
+                        {cap < 100 && <span className="text-[10px] text-[#a1a1aa] ml-1.5">{t('avail. {n}%', { n: cap })}</span>}
                         {roleMismatch && (
                           <span className="text-[10px] text-[#9a5b00] ml-1.5" title={t('{role} does not match the required role', { role: t(r.role) })}>
                             {t('wrong role')}
@@ -113,6 +115,7 @@ export default function RightPanel() {
                         )}
                       </span>
                       <input type="number" min={0} max={200} value={a.pct} onChange={e => setAssignPct(a.r, +e.target.value)}
+                        style={a.pct > cap ? { borderColor: '#e0902a', color: '#9a5b00' } : undefined}
                         className="w-14 text-[12px] text-center border border-[#ececec] rounded-lg px-1 py-1 font-inherit" />
                       <span className="text-[11px] text-[#a1a1aa]">%</span>
                       <span className="text-[11px] text-[#a1a1aa] w-9 text-right tabular-nums">{hours}h</span>
@@ -176,8 +179,10 @@ export default function RightPanel() {
       {panel === 'res' && resSel && (() => {
         const r = resources.find(res => res.id === resSel)!
         const peak = resPeak(resSel, items)
-        const col = allocColor(peak)
-        const over = peak > 100
+        const util = utilizationPct(peak, r)
+        const col = allocColor(util)
+        const over = isOverloaded(peak, r)
+        const capacity = resourceCapacity(r)
         const byProj: Record<string, { it: typeof items[0]; pct: number }[]> = {}
         for (const it of items) {
           if (it.dur <= 0) continue
@@ -185,7 +190,7 @@ export default function RightPanel() {
             if (as.r === resSel) { (byProj[it.projectId] = byProj[it.projectId] ?? []).push({ it, pct: as.pct }) }
           }
         }
-        const tag = peak <= 0 ? t('Free') : peak < 85 ? t('Available') : peak <= 100 ? t('Full') : t('Overallocated')
+        const tag = peak <= 0 ? t('Free') : util < 85 ? t('Available') : util <= 100 ? t('Full') : t('Overallocated')
 
         return (
           <>
@@ -208,10 +213,10 @@ export default function RightPanel() {
 
               <div className="flex items-baseline gap-2 mb-1">
                 <span className="text-[26px] font-bold tracking-tight" style={{ color: over ? '#9a5b00' : '#27272a' }}>{peak}%</span>
-                <span className="text-xs text-[#a1a1aa]">{t('peak allocation')}</span>
+                <span className="text-xs text-[#a1a1aa]">{t('peak allocation')}{capacity < 100 && ` · ${t('availability {n}%', { n: capacity })}`}</span>
               </div>
               <div className="h-1.5 bg-[#f4f4f5] rounded-full mb-5">
-                <div className="h-full rounded-full" style={{ width: `${Math.min(100, peak)}%`, background: over ? '#e0902a' : '#3b6ef5' }} />
+                <div className="h-full rounded-full" style={{ width: `${Math.min(100, util)}%`, background: over ? '#e0902a' : '#3b6ef5' }} />
               </div>
 
               {Object.keys(byProj).map(pid => {
@@ -257,9 +262,10 @@ export default function RightPanel() {
             }
           }
         }
-        const col = allocColor(total)
-        const over = total > 100
-        const tag = total <= 0 ? t('Free') : total < 85 ? t('Available') : total <= 100 ? t('Full') : t('Overallocated')
+        const util = utilizationPct(total, r)
+        const col = allocColor(util)
+        const over = isOverloaded(total, r)
+        const tag = total <= 0 ? t('Free') : util < 85 ? t('Available') : util <= 100 ? t('Full') : t('Overallocated')
 
         return (
           <>

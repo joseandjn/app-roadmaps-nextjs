@@ -71,6 +71,20 @@ export default function ResourceModal() {
               </div>
             </div>
           </div>
+          <div>
+            <div className={labelCls}>{t('Availability (%)')}</div>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={5}
+              className={inputCls}
+              value={rform.availability}
+              onChange={e => patchRF({ availability: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
+              placeholder="100"
+            />
+            <p className="text-[11px] text-[#a1a1aa] mt-1.5">{t('Share of their time available for this roadmap. Assignments above it count as overload.')}</p>
+          </div>
         </div>
 
         <div className="px-5 py-4 border-t border-[#ececec] flex gap-2">

@@ -202,3 +202,40 @@ describe('idle capacity', () => {
     assert.equal(idle(past).length, 0)
   })
 })
+
+describe('availability', () => {
+  const hourly = (availability?: number) => withGap({
+    resources: [{ id: 'r1', name: 'Ana', cost: 100, costUnit: 'hour', ...(availability === undefined ? {} : { availability }) }],
+    settings: { countWeekends: false, holidays: [], workHoursPerDay: 8 },
+  })
+
+  it('prices idle time by the share of the person available to this roadmap', () => {
+    assert.equal(idle(analyzeRoadmap(hourly(), { originDate: ORIGIN }))[0].evidence.idleCost, 4000)
+    assert.equal(idle(analyzeRoadmap(hourly(50), { originDate: ORIGIN }))[0].evidence.idleCost, 2000)
+  })
+
+  it('never reports someone with 0% availability as idle', () => {
+    assert.equal(idle(analyzeRoadmap(hourly(0), { originDate: ORIGIN })).length, 0)
+    const snap = snapshot(
+      [item('A', 0, 10, { assignments: work('r2') })],
+      [],
+      { resources: [{ id: 'r1', name: 'Ana', availability: 0 }, { id: 'r2', name: 'Beto' }] },
+    )
+    assert.equal(unassigned(analyzeRoadmap(snap, { originDate: ORIGIN })).length, 0)
+  })
+
+  it('still lists free people with reduced availability, priced by it', () => {
+    const snap = snapshot(
+      [item('A', 0, 10, { assignments: work('r2') })],
+      [],
+      {
+        resources: [{ id: 'r1', name: 'Ana', cost: 100, costUnit: 'hour', availability: 50 }, { id: 'r2', name: 'Beto' }],
+        settings: { countWeekends: false, holidays: [], workHoursPerDay: 8 },
+      },
+    )
+    const [f] = unassigned(analyzeRoadmap(snap, { originDate: ORIGIN }))
+    assert.deepEqual(f.evidence.people.map(p => p.resourceName), ['Ana'])
+    // Days 0-9 hold 8 working days (one weekend); 100/h * 8h = 800/day, at 50% availability.
+    assert.equal(f.evidence.people[0].idleCost, 8 * 800 * 0.5)
+  })
+})

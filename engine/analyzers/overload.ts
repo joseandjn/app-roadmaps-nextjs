@@ -1,18 +1,20 @@
+import { capacityPct } from '../domain.ts'
 import type { OverloadFinding, Severity } from '../findings.ts'
 import { overloadText } from '../messages.ts'
 import type { AnalysisContext } from './context.ts'
 import { buildLoads } from './load.ts'
 import type { DayLoad } from './load.ts'
 
-const CAPACITY_PCT = 100
-
-function severityFor(peakPct: number, excessPersonDays: number): Severity {
-  if (peakPct >= 150 || excessPersonDays >= 5) return 'high'
-  if (peakPct >= 125 || excessPersonDays >= 1.5) return 'medium'
+// Severity by how far the peak is above the person's own capacity (1.5 = 50% over).
+function severityFor(peakPct: number, capacity: number, excessPersonDays: number): Severity {
+  const ratio = capacity > 0 ? peakPct / capacity : Infinity
+  if (ratio >= 1.5 || excessPersonDays >= 5) return 'high'
+  if (ratio >= 1.25 || excessPersonDays >= 1.5) return 'medium'
   return 'low'
 }
 
-// Finds stretches where a person's concurrent assignments exceed 100%.
+// Finds stretches where a person's concurrent assignments exceed their capacity
+// (their availability, 100% unless set lower).
 // Only working days count (weekends/holidays per settings), finished items
 // are ignored, and so is anything before `todayDay`.
 export function analyzeOverload(ctx: AnalysisContext, slackByItem: Map<string, number>): OverloadFinding[] {
@@ -29,7 +31,8 @@ export function analyzeOverload(ctx: AnalysisContext, slackByItem: Map<string, n
   const findings: OverloadFinding[] = []
   for (const [rid, days] of loads) {
     const resource = resources.get(rid)!
-    const overloaded = [...days.entries()].filter(([, l]) => l.total > CAPACITY_PCT).sort((a, b) => a[0] - b[0])
+    const capacity = capacityPct(resource)
+    const overloaded = [...days.entries()].filter(([, l]) => l.total > capacity).sort((a, b) => a[0] - b[0])
 
     const windows: Array<Array<[number, DayLoad]>> = []
     for (const entry of overloaded) {
@@ -42,7 +45,7 @@ export function analyzeOverload(ctx: AnalysisContext, slackByItem: Map<string, n
       const startDay = win[0][0]
       const endDay = win[win.length - 1][0]
       const peakPct = Math.max(...win.map(([, l]) => l.total))
-      const excessPersonDays = Math.round(win.reduce((sum, [, l]) => sum + (l.total - CAPACITY_PCT) / 100, 0) * 10) / 10
+      const excessPersonDays = Math.round(win.reduce((sum, [, l]) => sum + (l.total - capacity) / 100, 0) * 10) / 10
 
       const pctByItem = new Map<string, number>()
       for (const [, l] of win) for (const [id, pct] of l.byItem) pctByItem.set(id, Math.max(pctByItem.get(id) ?? 0, pct))
@@ -58,9 +61,9 @@ export function analyzeOverload(ctx: AnalysisContext, slackByItem: Map<string, n
       findings.push({
         id: `overload:${rid}:${startDay}-${endDay}`,
         kind: 'overload',
-        severity: severityFor(peakPct, excessPersonDays),
+        severity: severityFor(peakPct, capacity, excessPersonDays),
         score: excessPersonDays,
-        ...overloadText(locale, { name: resource.name, peakPct, start: startDate, end: endDate, days: win.length, excess: excessPersonDays, items }),
+        ...overloadText(locale, { name: resource.name, peakPct, capacity, start: startDate, end: endDate, days: win.length, excess: excessPersonDays, items }),
         evidence: {
           resourceId: rid,
           resourceName: resource.name,
@@ -70,6 +73,7 @@ export function analyzeOverload(ctx: AnalysisContext, slackByItem: Map<string, n
           endDate,
           workingDays: win.length,
           peakPct,
+          capacityPct: capacity,
           excessPersonDays,
           items,
         },

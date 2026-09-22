@@ -14,8 +14,9 @@ RoadmapSnapshot ──► analyzers (deterministic) ──► ranked Findings �
 
 1. **Analyzers** compute facts from the data. Nothing is guessed, so the numbers
    can be trusted and are what the LLM is given as ground truth.
-   - `overload` — stretches where a person's concurrent assignments exceed 100%.
-     Only working days count (weekends/holidays per `settings`); finished items
+   - `overload` — stretches where a person's concurrent assignments exceed their
+     capacity: their `availability` (share of their time available for this roadmap,
+     0-100, default 100). Severity is relative to that capacity. Only working days count (weekends/holidays per `settings`); finished items
      and days before `todayDay` are ignored.
    - `schedule` — dependency conflicts (a dependent starts before what it waits
      on ends), dependency cycles, and one **critical path** per group of linked
@@ -24,7 +25,8 @@ RoadmapSnapshot ──► analyzers (deterministic) ──► ranked Findings �
    - `idle` — paid capacity nobody is scheduled to use: a run of 5+ working days
      between two pieces of one person's work (`idle_capacity`), and everyone with
      no unfinished work at all, grouped into one finding (`unassigned_resources`).
-     Both are priced from each person's rate (a rate of 0 counts as "no rate") and
+     Both are priced from each person's rate scaled by their availability (a rate of
+     0 counts as "no rate"); people with 0% availability are never reported as idle. They are
      cross-checked against overloads, so free people during someone's overload are
      linked to it. Time after someone's last item is not reported.
    - `sprints` — tasks that would fit in one sprint but straddle its boundary
@@ -53,7 +55,7 @@ Dates are integer day offsets from `originDate`, like in the app.
   uses Claude. `OLLAMA_BASE_URL` / `OLLAMA_MODEL` configure Ollama.
 
 Request body (`POST /api/analyze`): `{ snapshot, originDate, locale?, todayDay?, narrate? }`.
-`snapshot.sprints` and the resources' `role`/`cost`/`costUnit` are optional; without
+`snapshot.sprints` and the resources' `role`/`cost`/`costUnit`/`availability` are optional; without
 them the sprint and cost analyses are simply skipped.
 Send `narrate: false` for an instant, LLM-free reply and `narrate: true` to also
 get `narrative` (or `narrativeError` if the LLM is unavailable).

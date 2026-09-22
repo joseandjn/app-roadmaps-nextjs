@@ -1,12 +1,12 @@
 'use client'
 
 import { create } from 'zustand'
-import type { RoadmapState, Item, Project, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta } from '@/types'
+import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta } from '@/types'
 import {
   INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS,
   getTodayDay, SCALE_PRESETS, PROJECT_COLORS, DEFAULT_PROJECT_TASKS,
 } from '@/data/initialData'
-import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd } from '@/lib/roadmapUtils'
+import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
 
 type Store = RoadmapState & {
@@ -115,7 +115,7 @@ function projRange(items: Item[], pid: string) {
   return { a, b }
 }
 
-function computeImpact(draft: Draft, orig: Item | null, items: Item[], deps: RoadmapState['deps']) {
+function computeImpact(draft: Draft, orig: Item | null, items: Item[], deps: RoadmapState['deps'], people: Resource[]) {
   const simItems = orig ? items.map(i => i.id === draft.id ? draft : i) : [...items, draft]
   const depEdges = deps.filter(e => e.to === draft.id)
   const depResults = depEdges.map(e => {
@@ -128,7 +128,9 @@ function computeImpact(draft: Draft, orig: Item | null, items: Item[], deps: Roa
   const resources = [...rset].map(rid => {
     const before = resPeak(rid, items)
     const after = resPeak(rid, simItems)
-    return { rid, before, after, over: after > 100 }
+    const person = people.find(p => p.id === rid)
+    // Over means above the person's own availability, not a flat 100%.
+    return { rid, before, after, capacity: person ? resourceCapacity(person) : 100, over: person ? isOverloaded(after, person) : after > 100 }
   }).filter(r => r.before !== r.after || r.over)
   const pset = new Set<string>([draft.projectId])
   for (const d of depResults) pset.add(d.item.projectId)
@@ -396,7 +398,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     onSaveItem: () => {
       const { draft, draftOrig, items, deps } = get()
       if (!draft) return
-      const imp = computeImpact(draft, draftOrig, items, deps)
+      const imp = computeImpact(draft, draftOrig, items, deps, get().resources)
       set({ impact: { show: true, draft, orig: draftOrig, imp } })
     },
     commitItem: () => {
@@ -443,7 +445,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
         endGesture(takeSnapshot(get()))
         if (!dragMoved) return
         const it2 = get().items.find(i => i.id === id)!
-        const imp = computeImpact({ ...it2, _deps: deps.filter(e => e.from === id).map(e => e.to) }, it2, get().items, deps)
+        const imp = computeImpact({ ...it2, _deps: deps.filter(e => e.from === id).map(e => e.to) }, it2, get().items, deps, get().resources)
         const n = imp.deps.filter(d => d.clash).length + imp.resources.filter(r => r.over).length
         const proj = get().projects.find(p => p.id === it2.projectId)!
         showToast(n ? t(n > 1 ? '{proj} rescheduled · {n} conflicts' : '{proj} rescheduled · {n} conflict', { proj: proj.name.split(' ')[0], n }) : t('Rescheduled — no conflicts'))
@@ -511,20 +513,20 @@ export const useRoadmapStore = create<Store>((set, get) => {
     openRes: rid => set({ resSel: rid, panel: 'res', cell: null, draft: null }),
     openCell: (rid, bIdx, bucket) => set({ cell: { rid, bIdx, bucket }, panel: 'cell' }),
 
-    onNewResource: () => set({ rform: { show: true, id: null, name: '', role: 'Engineering', cost: 0, costUnit: 'month' } }),
+    onNewResource: () => set({ rform: { show: true, id: null, name: '', role: 'Engineering', cost: 0, costUnit: 'month', availability: 100 } }),
     editResource: id => {
       const r = get().resources.find(r => r.id === id)!
-      set({ rform: { show: true, id, name: r.name, role: r.role, cost: r.cost, costUnit: r.costUnit, canDelete: true } })
+      set({ rform: { show: true, id, name: r.name, role: r.role, cost: r.cost, costUnit: r.costUnit, availability: resourceCapacity(r), canDelete: true } })
     },
     patchRF: p => set(s => ({ rform: s.rform ? { ...s.rform, ...p } : null })),
     onRSave: () => {
       const f = get().rform!
       if (f.id) {
-        set(s => ({ resources: s.resources.map(r => r.id === f.id ? { ...r, name: f.name || r.name, role: f.role, cost: f.cost, costUnit: f.costUnit } : r), rform: null }))
+        set(s => ({ resources: s.resources.map(r => r.id === f.id ? { ...r, name: f.name || r.name, role: f.role, cost: f.cost, costUnit: f.costUnit, availability: f.availability } : r), rform: null }))
         showToast(t('Resource updated'))
       } else {
         const id = 'r' + Date.now()
-        set(s => ({ resources: [...s.resources, { id, name: f.name || 'New person', role: f.role || '', cost: f.cost, costUnit: f.costUnit }], rform: null }))
+        set(s => ({ resources: [...s.resources, { id, name: f.name || 'New person', role: f.role || '', cost: f.cost, costUnit: f.costUnit, availability: f.availability }], rform: null }))
         showToast(t('Resource added'))
       }
     },

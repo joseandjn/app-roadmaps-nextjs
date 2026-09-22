@@ -1,7 +1,7 @@
 'use client'
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { initials, allocColor } from '@/lib/roadmapUtils'
+import { initials } from '@/lib/roadmapUtils'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 
 export default function ImpactModal() {
@@ -35,7 +35,6 @@ export default function ImpactModal() {
               <div className="flex flex-col gap-2">
                 {imp.resources.map(rr => {
                   const r = resources.find(res => res.id === rr.rid)!
-                  const col = allocColor(rr.after)
                   return (
                     <div key={rr.rid} className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-[7px] bg-[#ececef] text-[#52525b] text-[10px] font-semibold flex items-center justify-center flex-none">{initials(r.name)}</div>
@@ -43,6 +42,7 @@ export default function ImpactModal() {
                       <span className="text-[12px] text-[#a1a1aa] tabular-nums">{rr.before}%</span>
                       <span className="text-[12px] text-[#a1a1aa]">→</span>
                       <span className="text-[13px] font-bold tabular-nums" style={{ color: rr.over ? '#9a5b00' : '#27272a' }}>{rr.after}%</span>
+                      {rr.capacity < 100 && <span className="text-[11px] text-[#a1a1aa]">/ {rr.capacity}%</span>}
                     </div>
                   )
                 })}

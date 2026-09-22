@@ -31,7 +31,9 @@ export interface OverloadFinding extends FindingBase {
     endDate: string
     workingDays: number
     peakPct: number
-    // Sum over the window of (load - 100%) in person-days: how much work exceeds capacity.
+    // The person's availability (their capacity, 100 unless set lower). Overload means load above this.
+    capacityPct: number
+    // Sum over the window of (load - capacityPct) in person-days: how much work exceeds capacity.
     excessPersonDays: number
     // Items assigned during the window. `slackDays` is how far the item can slip
     // without delaying a dependent, or null when it isn't part of any dependency chain.

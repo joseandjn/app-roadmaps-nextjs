@@ -14,6 +14,9 @@ export interface EngineResource {
   // Rate in `costUnit` terms (per calendar month, or per hour). Cost analysis is skipped without it.
   cost?: number
   costUnit?: 'month' | 'hour'
+  // Share of this person's time available for this roadmap, 0-100 (default 100).
+  // A person at 50 can hold 50% of concurrent assignments before being overloaded.
+  availability?: number
 }
 
 export interface EngineSprint {
@@ -64,6 +67,10 @@ export interface RoadmapSnapshot {
   deps: EngineDependency[]
   sprints?: EngineSprint[]
   settings: EngineSettings
+}
+
+export function capacityPct(resource: Pick<EngineResource, 'availability'>): number {
+  return resource.availability ?? 100
 }
 
 export function isInstant(item: Pick<EngineItem, 'type'>): boolean {
