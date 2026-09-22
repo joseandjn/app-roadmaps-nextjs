@@ -50,6 +50,11 @@ export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]):
       }))
       .filter(o => o.overlapWorkingDays > 0)
 
+  // True only when both roles are known and differ — a person can't be suggested to pick up
+  // work outside their role, but with no role recorded on either side we can't tell, so that
+  // stays permissive rather than silently hiding every relief suggestion.
+  const rolesConflict = (a?: string, b?: string) => a !== undefined && b !== undefined && a !== b
+
   const findings: Array<IdleCapacityFinding | UnassignedResourcesFinding> = []
   const unassigned: EngineResource[] = []
 
@@ -71,6 +76,7 @@ export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]):
       const beforeItem = pick(busy[i], (a, b) => itemEnd(b) - itemEnd(a))
       const afterItem = pick(busy[i + 1], (a, b) => a.startDay - b.startDay)
       const relief = overloadedDuring(startDay, endDay, resource.id)
+        .filter(o => !rolesConflict(resource.role, resourceById.get(o.resourceId)?.role))
         .map(o => ({ ...o, sameRole: resource.role !== undefined && resourceById.get(o.resourceId)?.role === resource.role }))
         .sort((a, b) => Number(b.sameRole) - Number(a.sameRole) || b.overlapWorkingDays - a.overlapWorkingDays || a.resourceName.localeCompare(b.resourceName))
         .slice(0, MAX_RELIEF)
@@ -124,7 +130,12 @@ export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]):
       })
       .sort((a, b) => (b.idleCost ?? 0) - (a.idleCost ?? 0) || a.resourceName.localeCompare(b.resourceName))
     const totalIdleCost = people.some(p => p.idleCost !== null) ? people.reduce((sum, p) => sum + (p.idleCost ?? 0), 0) : null
-    const overloaded = overloadedDuring(startDay, endDay, null).sort((a, b) => b.overlapWorkingDays - a.overlapWorkingDays || a.resourceName.localeCompare(b.resourceName)).slice(0, MAX_RELIEF)
+    // Only cite an overloaded person here if at least one idle person could plausibly cover
+    // for them — same reasoning as the per-person relief filter above.
+    const overloaded = overloadedDuring(startDay, endDay, null)
+      .filter(o => unassigned.some(u => !rolesConflict(u.role, resourceById.get(o.resourceId)?.role)))
+      .sort((a, b) => b.overlapWorkingDays - a.overlapWorkingDays || a.resourceName.localeCompare(b.resourceName))
+      .slice(0, MAX_RELIEF)
     const startDate = calendar.toIso(startDay)
     const endDate = calendar.toIso(endDay)
 

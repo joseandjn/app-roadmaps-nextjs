@@ -119,6 +119,47 @@ describe('idle capacity', () => {
     assert.match(f.detail, /Elvis \(mismo rol\)/)
   })
 
+  it('never suggests relief from someone whose role is known to differ', () => {
+    const snap = snapshot(
+      [
+        item('A', 0, 5, { assignments: work('r1') }), item('B', 14, 5, { assignments: work('r1') }),
+        item('E1', 7, 3, { assignments: work('r2', 60) }), item('E2', 7, 3, { assignments: work('r2', 60) }),
+      ],
+      [],
+      { resources: [{ id: 'r1', name: 'Ana', role: 'QA' }, { id: 'r2', name: 'Elvis', role: 'Eng' }] },
+    )
+    const [f] = idle(analyzeRoadmap(snap, { originDate: ORIGIN }))
+    assert.equal(f.evidence.relief.length, 0)
+    assert.doesNotMatch(f.detail, /Elvis/)
+  })
+
+  it('still offers relief when role is unrecorded on one side', () => {
+    const snap = snapshot(
+      [
+        item('A', 0, 5, { assignments: work('r1') }), item('B', 14, 5, { assignments: work('r1') }),
+        item('E1', 7, 3, { assignments: work('r2', 60) }), item('E2', 7, 3, { assignments: work('r2', 60) }),
+      ],
+      [],
+      { resources: [{ id: 'r1', name: 'Ana', role: 'QA' }, { id: 'r2', name: 'Elvis' }] },
+    )
+    const [f] = idle(analyzeRoadmap(snap, { originDate: ORIGIN }))
+    assert.equal(f.evidence.relief.length, 1)
+    assert.equal(f.evidence.relief[0].sameRole, false)
+    assert.doesNotMatch(f.detail, /Elvis \(mismo rol\)/)
+    assert.match(f.detail, /Elvis/)
+  })
+
+  it('drops a role-mismatched overloaded person from the unassigned-group finding', () => {
+    const snap = snapshot(
+      [item('E1', 0, 3, { assignments: work('r2', 60) }), item('E2', 0, 3, { assignments: work('r2', 60) }), item('L', 10, 5)],
+      [],
+      { resources: [{ id: 'r1', name: 'Ana', role: 'QA' }, { id: 'r2', name: 'Elvis', role: 'Eng' }] },
+    )
+    const [f] = unassigned(analyzeRoadmap(snap, { originDate: ORIGIN }))
+    assert.equal(f.evidence.overloadedDuring.length, 0)
+    assert.doesNotMatch(f.detail, /Elvis/)
+  })
+
   it('ignores finished work and days before today', () => {
     const done = snapshot([item('A', 0, 5, { assignments: work('r1'), status: 'Done' }), item('B', 14, 5, { assignments: work('r1') })])
     assert.equal(idle(analyzeRoadmap(done, { originDate: ORIGIN })).length, 0)
