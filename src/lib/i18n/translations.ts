@@ -8,7 +8,7 @@ const es: Record<string, string> = {
   // Toolbar
   'Timeline': 'Cronograma',
   'Cross-Project': 'Entre proyectos',
-  'Resources': 'Recursos',
+  'Resources': 'Equipo',
   'Costs': 'Costos',
   'Day': 'Día',
   'Week': 'Semana',
