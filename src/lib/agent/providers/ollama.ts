@@ -1,4 +1,4 @@
-import { AGENT_TOOLS, buildSystemPrompt, type ItemContext, type ProjectContext, type ResourceContext, type VoiceCommandResult } from '../shared'
+import { buildSystemPrompt, type AgentToolDef, type ItemContext, type ProjectContext, type ResourceContext, type VoiceCommandResult } from '../shared'
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'qwen2.5:latest'
@@ -15,7 +15,8 @@ export async function interpretWithOllama(
   transcript: string,
   resources: ResourceContext[],
   projects: ProjectContext[],
-  items: ItemContext[]
+  items: ItemContext[],
+  agentTools: AgentToolDef[]
 ): Promise<VoiceCommandResult> {
   const res = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
     method: 'POST',
@@ -27,7 +28,7 @@ export async function interpretWithOllama(
         { role: 'system', content: buildSystemPrompt(resources, projects, items) },
         { role: 'user', content: transcript },
       ],
-      tools: AGENT_TOOLS.map(t => ({
+      tools: agentTools.map(t => ({
         type: 'function',
         function: { name: t.name, description: t.description, parameters: t.parameters },
       })),

@@ -1,6 +1,6 @@
 export type StatusKey = 'In Progress' | 'At Risk' | 'Planned' | 'Done'
 export type ItemType = 'epic' | 'task' | 'milestone' | 'release'
-export type ViewKey = 'timeline' | 'cross' | 'resources' | 'costs' | 'compare'
+export type ViewKey = 'timeline' | 'cross' | 'resources' | 'costs' | 'compare' | 'settings'
 export type ScaleIndex = 0 | 1 | 2 | 3
 export type CostUnit = 'month' | 'hour'
 
@@ -28,6 +28,16 @@ export interface Item {
   status: StatusKey
   type: ItemType
   assignments: Assignment[]
+  // Role a person needs to take this on (one of ROLES). Missing/undefined means any role can.
+  requiredRole?: string
+}
+
+// A role in the roles catalog (Settings → Roles): the name is what
+// Resource.role / Item.requiredRole actually store, `icon` is a key into
+// the icon registry (src/data/roleIcons.ts).
+export interface Role {
+  name: string
+  icon: string
 }
 
 export interface Resource {
@@ -69,6 +79,7 @@ export interface ScenarioData {
   deps: Dependency[]
   sprints: Sprint[]
   settings: Settings
+  roles: Role[]
 }
 
 export interface ScenarioMeta {
@@ -123,7 +134,7 @@ export interface RoadmapState {
   deps: Dependency[]
   sprints: Sprint[]
   settings: Settings
-  settingsOpen: boolean
+  roles: Role[]
   visible: Set<string>
   expanded: Set<string>
   railOpen: boolean

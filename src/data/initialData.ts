@@ -1,4 +1,5 @@
-import type { Project, Item, Resource, Dependency, Sprint, Settings } from '@/types'
+import type { Project, Item, Resource, Dependency, Sprint, Settings, Role } from '@/types'
+import { iconForRoleName } from './roleIcons'
 
 export const INITIAL_RESOURCES: Resource[] = [
   { id: 'r1', name: 'Sara Klein', role: 'Engineering', cost: 14000, costUnit: 'month' },
@@ -119,7 +120,11 @@ export const STATUS_ORDER: Item['status'][] = ['In Progress', 'At Risk', 'Planne
 export const ITEM_TYPES: Item['type'][] = ['epic', 'task', 'milestone', 'release']
 export const CATEGORIES = ['Product', 'Infra', 'Mobile', 'Growth', 'Design']
 export const DEFAULT_PROJECT_TASKS = ['Desarrollo', 'Certificación', 'Gestión de pase', 'Pase a PRD']
-export const ROLES = ['Engineering', 'Infrastructure', 'Mobile', 'Growth', 'Design', 'Platform', 'Product', 'Data', 'QA']
+// The roles catalog seed — editable at runtime from Settings → Roles (add/rename/
+// remove, change icon). Icons are auto-picked here from each name via
+// iconForRoleName(), same as when a user adds a new role from the UI.
+const ROLE_NAMES = ['Engineering', 'Infrastructure', 'Mobile', 'Growth', 'Design', 'Platform', 'Product', 'Data', 'QA']
+export const INITIAL_ROLES: Role[] = ROLE_NAMES.map(name => ({ name, icon: iconForRoleName(name) }))
 export const SCALE_PRESETS = [46, 17, 6.5, 2.4]
 export const PROJECT_COLORS = ['#3b6ef5','#0ea5e9','#8b5cf6','#e0902a','#14b8a6','#ef4444','#64748b']
 export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']

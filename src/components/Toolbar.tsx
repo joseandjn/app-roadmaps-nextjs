@@ -1,6 +1,6 @@
 'use client'
 
-import { Mic, Loader2, Settings, History, Sparkles } from 'lucide-react'
+import { Mic, Loader2, History, Sparkles } from 'lucide-react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { deriveScale } from '@/lib/roadmapUtils'
 import { SCALE_PRESETS } from '@/data/initialData'
@@ -9,11 +9,11 @@ import { useTranslation } from '@/lib/i18n/useTranslation'
 import ScenarioSwitcher from '@/components/ScenarioSwitcher'
 import type { ViewKey } from '@/types'
 
-const TABS: [ViewKey, string][] = [['timeline', 'Timeline'], ['cross', 'Cross-Project'], ['resources', 'Resources'], ['costs', 'Costs'], ['compare', 'Compare']]
+const TABS: [ViewKey, string][] = [['timeline', 'Timeline'], ['cross', 'Cross-Project'], ['resources', 'Resources'], ['costs', 'Costs'], ['compare', 'Compare'], ['settings', 'Settings']]
 const SCALE_LABELS = ['Day', 'Week', 'Month', 'Quarter']
 
 export default function Toolbar() {
-  const { view, pxPerDay, showDeps, setView, setScale, zoom, onNewProject, toggleDeps, toggleSettings, toggleHistory, toggleAnalysis } = useRoadmapStore()
+  const { view, pxPerDay, showDeps, setView, setScale, zoom, onNewProject, toggleDeps, toggleHistory, toggleAnalysis } = useRoadmapStore()
   const si = deriveScale(pxPerDay)
   const voice = useVoiceCommand()
   const { t, locale, setLocale } = useTranslation()
@@ -130,15 +130,6 @@ export default function Toolbar() {
             : <Mic size={14} />}
         </button>
       )}
-
-      {/* Settings */}
-      <button
-        onClick={toggleSettings}
-        title={t('Settings')}
-        className="flex-none w-7 h-7 border border-[#ececec] bg-white rounded-[7px] cursor-pointer text-[#52525b] flex items-center justify-center p-0"
-      >
-        <Settings size={14} />
-      </button>
 
       {/* Language toggle */}
       <button

@@ -1,4 +1,4 @@
-import { ROLES, CATEGORIES, STATUS_ORDER, ITEM_TYPES, getTodayDay } from '@/data/initialData'
+import { CATEGORIES, STATUS_ORDER, ITEM_TYPES, getTodayDay } from '@/data/initialData'
 import { dateStr } from '@/lib/roadmapUtils'
 
 export type VoiceCommandResult =
@@ -33,179 +33,189 @@ export interface ItemContext {
   projectId: string
   type: string
   status: string
+  requiredRole: string | null
 }
 
-export const AGENT_TOOLS: AgentToolDef[] = [
-  {
-    name: 'create_resource',
-    description: 'Add a new person to the roadmap as a resource.',
-    parameters: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: "The person's full name" },
-        role: { type: 'string', enum: [...ROLES] },
-        cost: { type: 'number', description: 'Cost rate in USD, in the unit given by costUnit. Use 0 if not mentioned.' },
-        costUnit: { type: 'string', enum: ['month', 'hour'], description: 'Whether cost is a monthly or hourly rate. Defaults to month if not mentioned.' },
+// Roles are a user-editable catalog (Settings → Roles), not a fixed list, so
+// the tool schema is built per request from whatever the active scenario's
+// roles currently are — a role added or renamed there is immediately valid
+// here too, and a deleted one immediately stops being offered.
+export function buildAgentTools(roleNames: string[]): AgentToolDef[] {
+  const roleEnum = { type: 'string', enum: [...roleNames] }
+  return [
+    {
+      name: 'create_resource',
+      description: 'Add a new person to the roadmap as a resource.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: "The person's full name" },
+          role: { ...roleEnum, description: "The person's role, from the existing roles list" },
+          cost: { type: 'number', description: 'Cost rate in USD, in the unit given by costUnit. Use 0 if not mentioned.' },
+          costUnit: { type: 'string', enum: ['month', 'hour'], description: 'Whether cost is a monthly or hourly rate. Defaults to month if not mentioned.' },
+        },
+        required: ['name', 'role', 'cost'],
       },
-      required: ['name', 'role', 'cost'],
     },
-  },
-  {
-    name: 'update_resource',
-    description: "Update an existing person's role and/or monthly cost. Only include fields the user actually wants changed.",
-    parameters: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'id of the resource to update, from the existing resources list' },
-        name: { type: 'string' },
-        role: { type: 'string', enum: [...ROLES] },
-        cost: { type: 'number', description: 'Cost rate in USD, in the unit given by costUnit' },
-        costUnit: { type: 'string', enum: ['month', 'hour'], description: 'Whether cost is a monthly or hourly rate' },
+    {
+      name: 'update_resource',
+      description: "Update an existing person's role and/or monthly cost. Only include fields the user actually wants changed.",
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'id of the resource to update, from the existing resources list' },
+          name: { type: 'string' },
+          role: { ...roleEnum, description: "The person's role, from the existing roles list" },
+          cost: { type: 'number', description: 'Cost rate in USD, in the unit given by costUnit' },
+          costUnit: { type: 'string', enum: ['month', 'hour'], description: 'Whether cost is a monthly or hourly rate' },
+        },
+        required: ['id'],
       },
-      required: ['id'],
     },
-  },
-  {
-    name: 'create_project',
-    description: 'Create a new project on the roadmap.',
-    parameters: {
-      type: 'object',
-      properties: {
-        name: { type: 'string' },
-        desc: { type: 'string', description: 'Short one-sentence description' },
-        owner: { type: 'string', description: 'id of the owning resource, from the existing resources list' },
-        category: { type: 'string', enum: [...CATEGORIES] },
-        status: { type: 'string', enum: [...STATUS_ORDER] },
+    {
+      name: 'create_project',
+      description: 'Create a new project on the roadmap.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          desc: { type: 'string', description: 'Short one-sentence description' },
+          owner: { type: 'string', description: 'id of the owning resource, from the existing resources list' },
+          category: { type: 'string', enum: [...CATEGORIES] },
+          status: { type: 'string', enum: [...STATUS_ORDER] },
+        },
+        required: ['name', 'owner'],
       },
-      required: ['name', 'owner'],
     },
-  },
-  {
-    name: 'update_project',
-    description: "Update an existing project's name, description, owner, category, and/or status. Only include fields the user actually wants changed.",
-    parameters: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'id of the project to update, from the existing projects list' },
-        name: { type: 'string' },
-        desc: { type: 'string' },
-        owner: { type: 'string', description: 'id of the owning resource, from the existing resources list' },
-        category: { type: 'string', enum: [...CATEGORIES] },
-        status: { type: 'string', enum: [...STATUS_ORDER] },
+    {
+      name: 'update_project',
+      description: "Update an existing project's name, description, owner, category, and/or status. Only include fields the user actually wants changed.",
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'id of the project to update, from the existing projects list' },
+          name: { type: 'string' },
+          desc: { type: 'string' },
+          owner: { type: 'string', description: 'id of the owning resource, from the existing resources list' },
+          category: { type: 'string', enum: [...CATEGORIES] },
+          status: { type: 'string', enum: [...STATUS_ORDER] },
+        },
+        required: ['id'],
       },
-      required: ['id'],
     },
-  },
-  {
-    name: 'show_resource',
-    description: 'Show an existing resource\'s summary (peak allocation, assigned projects). Use for "show me X" / "what does X have going on" requests.',
-    parameters: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'id of the resource, from the existing resources list' },
+    {
+      name: 'show_resource',
+      description: 'Show an existing resource\'s summary (peak allocation, assigned projects). Use for "show me X" / "what does X have going on" requests.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'id of the resource, from the existing resources list' },
+        },
+        required: ['id'],
       },
-      required: ['id'],
     },
-  },
-  {
-    name: 'show_project',
-    description: 'Show an existing project\'s details. Use for "show me project X" / "open X" requests.',
-    parameters: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'id of the project, from the existing projects list' },
+    {
+      name: 'show_project',
+      description: 'Show an existing project\'s details. Use for "show me project X" / "open X" requests.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'id of the project, from the existing projects list' },
+        },
+        required: ['id'],
       },
-      required: ['id'],
     },
-  },
-  {
-    name: 'go_to_date',
-    description: 'Jump the roadmap view to a specific date, e.g. "go to July 2026" or "show me next month". Resolve relative dates using today\'s date given below.',
-    parameters: {
-      type: 'object',
-      properties: {
-        date: { type: 'string', description: 'Target date in YYYY-MM-DD format' },
+    {
+      name: 'go_to_date',
+      description: 'Jump the roadmap view to a specific date, e.g. "go to July 2026" or "show me next month". Resolve relative dates using today\'s date given below.',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'Target date in YYYY-MM-DD format' },
+        },
+        required: ['date'],
       },
-      required: ['date'],
     },
-  },
-  {
-    name: 'delete_resource',
-    description: 'Request deletion of an existing resource. This does NOT delete anything by itself — it only opens a confirmation panel that a human must explicitly approve.',
-    parameters: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'id of the resource to delete, from the existing resources list' },
+    {
+      name: 'delete_resource',
+      description: 'Request deletion of an existing resource. This does NOT delete anything by itself — it only opens a confirmation panel that a human must explicitly approve.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'id of the resource to delete, from the existing resources list' },
+        },
+        required: ['id'],
       },
-      required: ['id'],
     },
-  },
-  {
-    name: 'delete_project',
-    description: 'Request deletion of an existing project. This does NOT delete anything by itself — it only opens a confirmation panel that a human must explicitly approve.',
-    parameters: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'id of the project to delete, from the existing projects list' },
+    {
+      name: 'delete_project',
+      description: 'Request deletion of an existing project. This does NOT delete anything by itself — it only opens a confirmation panel that a human must explicitly approve.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'id of the project to delete, from the existing projects list' },
+        },
+        required: ['id'],
       },
-      required: ['id'],
     },
-  },
-  {
-    name: 'create_item',
-    description: 'Add a new task/epic/milestone/release to an existing project on the Timeline.',
-    parameters: {
-      type: 'object',
-      properties: {
-        projectId: { type: 'string', description: 'id of the project this belongs to, from the existing projects list' },
-        title: { type: 'string' },
-        type: { type: 'string', enum: [...ITEM_TYPES], description: 'milestone and release are instants with no end date; epic and task span a date range' },
-        startDate: { type: 'string', description: 'Start date in YYYY-MM-DD format' },
-        endDate: { type: 'string', description: 'End date in YYYY-MM-DD format. Omit for milestone/release, or if not mentioned (defaults to a 3-week span).' },
-        status: { type: 'string', enum: [...STATUS_ORDER], description: 'Defaults to Planned if not mentioned' },
+    {
+      name: 'create_item',
+      description: 'Add a new task/epic/milestone/release to an existing project on the Timeline.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectId: { type: 'string', description: 'id of the project this belongs to, from the existing projects list' },
+          title: { type: 'string' },
+          type: { type: 'string', enum: [...ITEM_TYPES], description: 'milestone and release are instants with no end date; epic and task span a date range' },
+          startDate: { type: 'string', description: 'Start date in YYYY-MM-DD format' },
+          endDate: { type: 'string', description: 'End date in YYYY-MM-DD format. Omit for milestone/release, or if not mentioned (defaults to a 3-week span).' },
+          status: { type: 'string', enum: [...STATUS_ORDER], description: 'Defaults to Planned if not mentioned' },
+          requiredRole: { ...roleEnum, description: 'Role a person needs to take this on. Only set it if the user names a role or a kind of specialist; otherwise omit it (any role can take it).' },
+        },
+        required: ['projectId', 'title', 'type', 'startDate'],
       },
-      required: ['projectId', 'title', 'type', 'startDate'],
     },
-  },
-  {
-    name: 'update_item',
-    description: 'Update an existing task/epic/milestone/release — rename, change status/type, or move/resize its dates. Only include fields the user actually wants changed. To move an item, give only startDate (keeps its current duration); to resize, give endDate; give both to reposition entirely.',
-    parameters: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'id of the item to update, from the existing items list' },
-        title: { type: 'string' },
-        type: { type: 'string', enum: [...ITEM_TYPES] },
-        status: { type: 'string', enum: [...STATUS_ORDER] },
-        startDate: { type: 'string', description: 'New start date in YYYY-MM-DD format' },
-        endDate: { type: 'string', description: 'New end date in YYYY-MM-DD format' },
+    {
+      name: 'update_item',
+      description: 'Update an existing task/epic/milestone/release — rename, change status/type, or move/resize its dates. Only include fields the user actually wants changed. To move an item, give only startDate (keeps its current duration); to resize, give endDate; give both to reposition entirely.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'id of the item to update, from the existing items list' },
+          title: { type: 'string' },
+          type: { type: 'string', enum: [...ITEM_TYPES] },
+          status: { type: 'string', enum: [...STATUS_ORDER] },
+          startDate: { type: 'string', description: 'New start date in YYYY-MM-DD format' },
+          endDate: { type: 'string', description: 'New end date in YYYY-MM-DD format' },
+          requiredRole: { type: 'string', enum: [...roleNames, ''], description: 'Role a person needs to take this on. Use an empty string to clear it (any role can take it).' },
+        },
+        required: ['id'],
       },
-      required: ['id'],
     },
-  },
-  {
-    name: 'show_item',
-    description: 'Select and show an existing task/epic/milestone/release\'s details. Use for "select X" / "show me X" / "open X" requests about a task.',
-    parameters: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'id of the item, from the existing items list' },
+    {
+      name: 'show_item',
+      description: 'Select and show an existing task/epic/milestone/release\'s details. Use for "select X" / "show me X" / "open X" requests about a task.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'id of the item, from the existing items list' },
+        },
+        required: ['id'],
       },
-      required: ['id'],
     },
-  },
-  {
-    name: 'delete_item',
-    description: 'Request deletion of an existing task/epic/milestone/release. This does NOT delete anything by itself — it only opens a confirmation panel that a human must explicitly approve.',
-    parameters: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'id of the item to delete, from the existing items list' },
+    {
+      name: 'delete_item',
+      description: 'Request deletion of an existing task/epic/milestone/release. This does NOT delete anything by itself — it only opens a confirmation panel that a human must explicitly approve.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'id of the item to delete, from the existing items list' },
+        },
+        required: ['id'],
       },
-      required: ['id'],
     },
-  },
-]
+  ]
+}
 
 export function buildSystemPrompt(
   resources: ResourceContext[],

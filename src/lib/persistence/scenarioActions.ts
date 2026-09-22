@@ -58,11 +58,11 @@ export async function fetchCheckpoints(scenarioId: string): Promise<CheckpointMe
 // Flush any pending debounced edit first so the checkpoint reflects the
 // latest changes rather than a stale save.
 export async function saveCheckpoint(scenarioId: string, name: string, note: string): Promise<CheckpointMeta | null> {
-  const { projects, items, resources, deps, sprints, settings } = useRoadmapStore.getState()
+  const { projects, items, resources, deps, sprints, settings, roles } = useRoadmapStore.getState()
   await fetch(`/api/scenarios/${scenarioId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projects, items, resources, deps, sprints, settings }),
+    body: JSON.stringify({ projects, items, resources, deps, sprints, settings, roles }),
   }).catch(() => {})
 
   const res = await fetch(`/api/scenarios/${scenarioId}/checkpoints`, {

@@ -38,22 +38,37 @@ export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]):
   const firstWorkingFrom = (d: number) => { while (!calendar.isWorking(d)) d++; return d }
   const lastWorkingBefore = (d: number) => { d--; while (!calendar.isWorking(d)) d--; return d }
 
-  // Overloaded people (other than `except`) whose overload overlaps [startDay, endDay].
+  // Overloaded people (other than `except`) whose overload overlaps [startDay, endDay], plus
+  // the roles the overloaded window's own items call for (empty when none declare one).
   const overloadedDuring = (startDay: number, endDay: number, except: string | null) =>
     overloads
       .filter(o => o.evidence.resourceId !== except)
       .map(o => ({
         resourceId: o.evidence.resourceId,
         resourceName: o.evidence.resourceName,
+        resourceRole: resourceById.get(o.evidence.resourceId)?.role,
         overlapWorkingDays: countWorking(Math.max(startDay, o.evidence.startDay), Math.min(endDay, o.evidence.endDay) + 1),
         overloadFindingId: o.id,
+        requiredRoles: [...new Set(o.evidence.items.map(i => i.requiredRole).filter((r): r is string => r !== null))],
       }))
       .filter(o => o.overlapWorkingDays > 0)
 
-  // True only when both roles are known and differ — a person can't be suggested to pick up
-  // work outside their role, but with no role recorded on either side we can't tell, so that
-  // stays permissive rather than silently hiding every relief suggestion.
-  const rolesConflict = (a?: string, b?: string) => a !== undefined && b !== undefined && a !== b
+  // Whether a candidate can be ruled out for this overloaded window. When at least one of the
+  // window's items declares a required role, that's ground truth: only a real mismatch against
+  // those roles counts, and a candidate with no role recorded stays permissive (nothing to rule
+  // out). With no item-level role at all — the common case while this field is new — fall back
+  // to comparing against the overloaded person's own role, the closest guess without better data.
+  const rolesConflict = (candidateRole: string | undefined, overloadedRole: string | undefined, requiredRoles: string[]): boolean =>
+    requiredRoles.length > 0
+      ? candidateRole !== undefined && !requiredRoles.includes(candidateRole)
+      : candidateRole !== undefined && overloadedRole !== undefined && candidateRole !== overloadedRole
+
+  // "Clean match" flag shown in the finding text: role confirmed against the task(s) themselves
+  // when we have that, else confirmed only against the overloaded person's own role.
+  const sameRole = (candidateRole: string | undefined, overloadedRole: string | undefined, requiredRoles: string[]): boolean =>
+    requiredRoles.length > 0
+      ? candidateRole !== undefined && requiredRoles.includes(candidateRole)
+      : candidateRole !== undefined && overloadedRole !== undefined && candidateRole === overloadedRole
 
   const findings: Array<IdleCapacityFinding | UnassignedResourcesFinding> = []
   const unassigned: EngineResource[] = []
@@ -76,8 +91,14 @@ export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]):
       const beforeItem = pick(busy[i], (a, b) => itemEnd(b) - itemEnd(a))
       const afterItem = pick(busy[i + 1], (a, b) => a.startDay - b.startDay)
       const relief = overloadedDuring(startDay, endDay, resource.id)
-        .filter(o => !rolesConflict(resource.role, resourceById.get(o.resourceId)?.role))
-        .map(o => ({ ...o, sameRole: resource.role !== undefined && resourceById.get(o.resourceId)?.role === resource.role }))
+        .filter(o => !rolesConflict(resource.role, o.resourceRole, o.requiredRoles))
+        .map(o => ({
+          resourceId: o.resourceId,
+          resourceName: o.resourceName,
+          overlapWorkingDays: o.overlapWorkingDays,
+          overloadFindingId: o.overloadFindingId,
+          sameRole: sameRole(resource.role, o.resourceRole, o.requiredRoles),
+        }))
         .sort((a, b) => Number(b.sameRole) - Number(a.sameRole) || b.overlapWorkingDays - a.overlapWorkingDays || a.resourceName.localeCompare(b.resourceName))
         .slice(0, MAX_RELIEF)
       const idleCost = rate === null ? null : rate * idleWorkingDays
@@ -133,9 +154,10 @@ export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]):
     // Only cite an overloaded person here if at least one idle person could plausibly cover
     // for them — same reasoning as the per-person relief filter above.
     const overloaded = overloadedDuring(startDay, endDay, null)
-      .filter(o => unassigned.some(u => !rolesConflict(u.role, resourceById.get(o.resourceId)?.role)))
+      .filter(o => unassigned.some(u => !rolesConflict(u.role, o.resourceRole, o.requiredRoles)))
       .sort((a, b) => b.overlapWorkingDays - a.overlapWorkingDays || a.resourceName.localeCompare(b.resourceName))
       .slice(0, MAX_RELIEF)
+      .map(({ resourceId, resourceName, overlapWorkingDays, overloadFindingId }) => ({ resourceId, resourceName, overlapWorkingDays, overloadFindingId }))
     const startDate = calendar.toIso(startDay)
     const endDate = calendar.toIso(endDay)
 

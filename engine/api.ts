@@ -112,11 +112,13 @@ export function parseAnalyzeRequest(raw: unknown): Parsed {
       if (!isObject(a) || !isString(a.r) || typeof a.pct !== 'number' || !Number.isFinite(a.pct) || a.pct < 0 || a.pct > 1000) return fail(`Item ${it.id}: invalid assignment.`)
       assignments.push({ r: a.r, pct: a.pct })
     }
-    items.push({
+    const item: EngineItem = {
       id: it.id, projectId: it.projectId, title: it.title,
       startDay: it.startDay as number, dur: it.dur as number,
       status: it.status as ItemStatus, type: it.type as ItemType, assignments,
-    })
+    }
+    if (typeof it.requiredRole === 'string') item.requiredRole = it.requiredRole
+    items.push(item)
   }
 
   const deps: RoadmapSnapshot['deps'] = []

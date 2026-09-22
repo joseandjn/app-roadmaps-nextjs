@@ -1,14 +1,14 @@
 'use client'
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { ROLES } from '@/data/initialData'
+import { roleIconDef } from '@/data/roleIcons'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 
 const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'
 const inputCls = 'w-full text-[13px] text-[#27272a] bg-white border border-[#ececec] rounded-lg px-2.5 py-2 font-inherit'
 
 export default function ResourceModal() {
-  const { rform, settings, patchRF, onRSave, onRCancel, onRDelete } = useRoadmapStore()
+  const { rform, settings, roles, patchRF, onRSave, onRCancel, onRDelete } = useRoadmapStore()
   const { t } = useTranslation()
 
   if (!rform?.show) return null
@@ -27,9 +27,19 @@ export default function ResourceModal() {
           </div>
           <div>
             <div className={labelCls}>{t('Role')}</div>
-            <select className={inputCls} value={rform.role} onChange={e => patchRF({ role: e.target.value })}>
-              {ROLES.map(r => <option key={r} value={r}>{t(r)}</option>)}
-            </select>
+            <div className="flex items-center gap-2">
+              {(() => {
+                const { Icon } = roleIconDef(roles.find(r => r.name === rform.role)?.icon)
+                return (
+                  <div className="w-9 h-9 rounded-lg bg-[#f4f4f5] flex items-center justify-center flex-none">
+                    <Icon size={10} className="text-[#52525b]" />
+                  </div>
+                )
+              })()}
+              <select className={`${inputCls} flex-1 min-w-0`} value={rform.role} onChange={e => patchRF({ role: e.target.value })}>
+                {roles.map(r => <option key={r.name} value={r.name}>{t(r.name)}</option>)}
+              </select>
+            </div>
           </div>
           <div>
             <div className={labelCls}>{t('Cost')} ({settings.currencySymbol})</div>

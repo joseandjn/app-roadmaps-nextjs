@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { AGENT_TOOLS, buildSystemPrompt, type ItemContext, type ProjectContext, type ResourceContext, type VoiceCommandResult } from '../shared'
+import { buildSystemPrompt, type AgentToolDef, type ItemContext, type ProjectContext, type ResourceContext, type VoiceCommandResult } from '../shared'
 
 const client = new Anthropic()
 
@@ -7,9 +7,10 @@ export async function interpretWithClaude(
   transcript: string,
   resources: ResourceContext[],
   projects: ProjectContext[],
-  items: ItemContext[]
+  items: ItemContext[],
+  agentTools: AgentToolDef[]
 ): Promise<VoiceCommandResult> {
-  const tools: Anthropic.Tool[] = AGENT_TOOLS.map(t => ({
+  const tools: Anthropic.Tool[] = agentTools.map(t => ({
     name: t.name,
     description: t.description,
     input_schema: t.parameters as Anthropic.Tool['input_schema'],

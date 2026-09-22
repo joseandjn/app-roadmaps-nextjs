@@ -160,6 +160,40 @@ describe('idle capacity', () => {
     assert.doesNotMatch(f.detail, /Elvis/)
   })
 
+  it('excludes a candidate whose role matches the overloaded person but not the actual task', () => {
+    // Elvis (role 'Eng') is overloaded on QA-only work — the old person-role heuristic would
+    // have offered any idle 'Eng' as relief, which is wrong: the task itself needs QA.
+    const snap = snapshot(
+      [
+        item('A', 0, 5, { assignments: work('r1') }), item('B', 14, 5, { assignments: work('r1') }),
+        item('E1', 7, 3, { assignments: work('r2', 60), requiredRole: 'QA' }), item('E2', 7, 3, { assignments: work('r2', 60), requiredRole: 'QA' }),
+      ],
+      [],
+      { resources: [{ id: 'r1', name: 'Ana', role: 'Eng' }, { id: 'r2', name: 'Elvis', role: 'Eng' }] },
+    )
+    const [f] = idle(analyzeRoadmap(snap, { originDate: ORIGIN }))
+    assert.equal(f.evidence.relief.length, 0)
+    assert.doesNotMatch(f.detail, /Elvis/)
+  })
+
+  it('includes a candidate whose role fits the actual task even when it differs from the overloaded person', () => {
+    // Elvis (role 'Eng') is overloaded on QA-only work — the old person-role heuristic would
+    // have skipped Ana even though her role is exactly what the task needs.
+    const snap = snapshot(
+      [
+        item('A', 0, 5, { assignments: work('r1') }), item('B', 14, 5, { assignments: work('r1') }),
+        item('E1', 7, 3, { assignments: work('r2', 60), requiredRole: 'QA' }), item('E2', 7, 3, { assignments: work('r2', 60), requiredRole: 'QA' }),
+      ],
+      [],
+      { resources: [{ id: 'r1', name: 'Ana', role: 'QA' }, { id: 'r2', name: 'Elvis', role: 'Eng' }] },
+    )
+    const [f] = idle(analyzeRoadmap(snap, { originDate: ORIGIN }))
+    assert.equal(f.evidence.relief.length, 1)
+    assert.equal(f.evidence.relief[0].resourceName, 'Elvis')
+    assert.equal(f.evidence.relief[0].sameRole, true)
+    assert.match(f.detail, /Elvis \(mismo rol\)/)
+  })
+
   it('ignores finished work and days before today', () => {
     const done = snapshot([item('A', 0, 5, { assignments: work('r1'), status: 'Done' }), item('B', 14, 5, { assignments: work('r1') })])
     assert.equal(idle(analyzeRoadmap(done, { originDate: ORIGIN })).length, 0)

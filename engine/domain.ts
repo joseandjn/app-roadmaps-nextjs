@@ -39,6 +39,8 @@ export interface EngineItem {
   status: ItemStatus
   type: ItemType
   assignments: EngineAssignment[]
+  // Role a person needs to take this on. Missing means any role can.
+  requiredRole?: string
 }
 
 // `from` depends on `to`: `to` must finish before `from` starts.

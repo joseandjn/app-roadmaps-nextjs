@@ -3,7 +3,7 @@
 import { create } from 'zustand'
 import type { RoadmapState, Item, Project, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta } from '@/types'
 import {
-  INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, DEFAULT_SETTINGS,
+  INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS,
   getTodayDay, SCALE_PRESETS, PROJECT_COLORS, DEFAULT_PROJECT_TASKS,
 } from '@/data/initialData'
 import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd } from '@/lib/roadmapUtils'
@@ -46,6 +46,7 @@ type Store = RoadmapState & {
   onDraftTitle: (v: string) => void
   onDraftStatus: (v: string) => void
   onDraftType: (v: string) => void
+  onDraftRequiredRole: (v: string) => void
   onDraftStart: (v: string) => void
   onDraftEnd: (v: string) => void
   onAddAssignee: (id: string) => void
@@ -85,10 +86,14 @@ type Store = RoadmapState & {
   undo: () => void
   redo: () => void
   // settings
-  toggleSettings: () => void
   patchSettings: (p: Partial<Settings>) => void
   addHoliday: (date: string) => void
   removeHoliday: (date: string) => void
+  // roles catalog (Settings → Roles)
+  addRole: (name: string, icon: string) => void
+  removeRole: (name: string) => void
+  renameRole: (oldName: string, newName: string) => void
+  setRoleIcon: (name: string, icon: string) => void
   toggleDeps: () => void
   addDependency: (fromId: string, toId: string) => void
   setFilter: (startDay: number | null, endDay: number | null) => void
@@ -98,8 +103,8 @@ type Store = RoadmapState & {
   agentUpdateResource: (id: string, patch: Partial<{ name: string; role: string; cost: number; costUnit: 'month' | 'hour' }>) => void
   agentCreateProject: (data: { name: string; desc?: string; owner: string; category?: string; status?: Project['status'] }) => void
   agentUpdateProject: (id: string, patch: Partial<{ name: string; desc: string; owner: string; category: string; status: Project['status'] }>) => void
-  agentCreateItem: (data: { projectId: string; title: string; type: Item['type']; startDay: number; dur: number; status?: Item['status'] }) => void
-  agentUpdateItem: (id: string, patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number }>) => void
+  agentCreateItem: (data: { projectId: string; title: string; type: Item['type']; startDay: number; dur: number; status?: Item['status']; requiredRole?: string }) => void
+  agentUpdateItem: (id: string, patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number; requiredRole: string | undefined }>) => void
 }
 
 function projRange(items: Item[], pid: string) {
@@ -133,7 +138,7 @@ function computeImpact(draft: Draft, orig: Item | null, items: Item[], deps: Roa
 // Undo/redo history over the persisted planning data only — UI state (panels,
 // zoom, filters) is never recorded. Snapshots are reference-only (state is
 // immutable), so keeping 100 of them is cheap.
-type Snapshot = Pick<RoadmapState, 'projects' | 'items' | 'resources' | 'deps' | 'sprints' | 'settings'>
+type Snapshot = Pick<RoadmapState, 'projects' | 'items' | 'resources' | 'deps' | 'sprints' | 'settings' | 'roles'>
 const HISTORY_LIMIT = 100
 const past: Snapshot[] = []
 const future: Snapshot[] = []
@@ -141,11 +146,11 @@ let historyPaused = false
 let gestureStart: Snapshot | null = null
 
 const takeSnapshot = (s: Snapshot): Snapshot => ({
-  projects: s.projects, items: s.items, resources: s.resources, deps: s.deps, sprints: s.sprints, settings: s.settings,
+  projects: s.projects, items: s.items, resources: s.resources, deps: s.deps, sprints: s.sprints, settings: s.settings, roles: s.roles,
 })
 const sameRefs = (a: Snapshot, b: Snapshot) =>
   a.projects === b.projects && a.items === b.items && a.resources === b.resources &&
-  a.deps === b.deps && a.sprints === b.sprints && a.settings === b.settings
+  a.deps === b.deps && a.sprints === b.sprints && a.settings === b.settings && a.roles === b.roles
 
 function recordPast(snap: Snapshot) {
   past.push(snap)
@@ -210,7 +215,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     deps: INITIAL_DEPS,
     sprints: INITIAL_SPRINTS,
     settings: DEFAULT_SETTINGS,
-    settingsOpen: false,
+    roles: INITIAL_ROLES,
     visible: new Set(INITIAL_PROJECTS.map(p => p.id)),
     expanded: new Set<string>(),
     railOpen: true,
@@ -251,6 +256,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
         deps: data.deps,
         sprints: data.sprints,
         settings: data.settings,
+        roles: data.roles,
         visible: new Set(data.projects.map(p => p.id)),
         panel: null, draft: null, draftOrig: null, cell: null, contextMenu: null, impact: null, resSel: null,
       })
@@ -343,6 +349,8 @@ export const useRoadmapStore = create<Store>((set, get) => {
 
     onDraftTitle: v => get().patchDraft({ title: v }),
     onDraftStatus: v => get().patchDraft({ status: v as Item['status'] }),
+    // Empty option means "any role" — stored as undefined, not ''.
+    onDraftRequiredRole: v => get().patchDraft({ requiredRole: v || undefined }),
     onDraftType: v => {
       const t = v as Item['type']
       const p: Partial<Draft> = { type: t }
@@ -615,13 +623,42 @@ export const useRoadmapStore = create<Store>((set, get) => {
       showToast(t('Change redone'))
     },
 
-    toggleSettings: () => set(s => ({ settingsOpen: !s.settingsOpen })),
     patchSettings: p => set(s => ({ settings: { ...s.settings, ...p } })),
     addHoliday: date => set(s => {
       if (s.settings.holidays.includes(date)) return s
       return { settings: { ...s.settings, holidays: [...s.settings.holidays, date].sort() } }
     }),
     removeHoliday: date => set(s => ({ settings: { ...s.settings, holidays: s.settings.holidays.filter(h => h !== date) } })),
+
+    addRole: (name, icon) => {
+      const trimmed = name.trim()
+      if (!trimmed) return
+      if (get().roles.some(r => r.name.toLowerCase() === trimmed.toLowerCase())) { showToast(t('That role already exists')); return }
+      set(s => ({ roles: [...s.roles, { name: trimmed, icon }] }))
+      showToast(t('Role added'))
+    },
+    // Blocked while in use rather than cascaded: unlike a resource (whose
+    // assignments are just removable list entries), Resource.role is a
+    // required field — clearing it on delete would leave people with no
+    // role instead of a clean removal.
+    removeRole: name => {
+      const inUse = get().resources.some(r => r.role === name) || get().items.some(i => i.requiredRole === name)
+      if (inUse) { showToast(t('Remove it from people and tasks before deleting')); return }
+      set(s => ({ roles: s.roles.filter(r => r.name !== name) }))
+      showToast(t('Role removed'))
+    },
+    renameRole: (oldName, newName) => {
+      const trimmed = newName.trim()
+      if (!trimmed || trimmed === oldName) return
+      if (get().roles.some(r => r.name.toLowerCase() === trimmed.toLowerCase() && r.name !== oldName)) { showToast(t('That role already exists')); return }
+      set(s => ({
+        roles: s.roles.map(r => r.name === oldName ? { ...r, name: trimmed } : r),
+        resources: s.resources.map(r => r.role === oldName ? { ...r, role: trimmed } : r),
+        items: s.items.map(i => i.requiredRole === oldName ? { ...i, requiredRole: trimmed } : i),
+      }))
+      showToast(t('Role renamed'))
+    },
+    setRoleIcon: (name, icon) => set(s => ({ roles: s.roles.map(r => r.name === name ? { ...r, icon } : r) })),
 
     agentCreateResource: data => {
       const id = 'r' + Date.now()
@@ -656,6 +693,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
         id, projectId: data.projectId, title: data.title, type: data.type,
         startDay: data.startDay, dur: isInstant ? 0 : Math.max(1, data.dur),
         status: data.status ?? 'Planned', assignments: [],
+        ...(data.requiredRole && { requiredRole: data.requiredRole }),
       }
       set(s => ({ items: [...s.items, item] }))
       showToast(t('Added "{title}"', { title: data.title }))

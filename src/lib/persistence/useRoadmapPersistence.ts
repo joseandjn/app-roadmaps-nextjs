@@ -48,12 +48,12 @@ export function useRoadmapPersistence() {
 
   useEffect(() => {
     const saveScenario = () => {
-      const { activeScenarioId, projects, items, resources, deps, sprints, settings } = useRoadmapStore.getState()
+      const { activeScenarioId, projects, items, resources, deps, sprints, settings, roles } = useRoadmapStore.getState()
       if (!activeScenarioId) return
       fetch(`/api/scenarios/${activeScenarioId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projects, items, resources, deps, sprints, settings }),
+        body: JSON.stringify({ projects, items, resources, deps, sprints, settings, roles }),
       }).catch(() => {})
     }
     const saveView = () => {
@@ -75,7 +75,8 @@ export function useRoadmapPersistence() {
         state.resources !== prevState.resources ||
         state.deps !== prevState.deps ||
         state.sprints !== prevState.sprints ||
-        state.settings !== prevState.settings
+        state.settings !== prevState.settings ||
+        state.roles !== prevState.roles
       ) {
         if (scenarioSaveTimer.current) clearTimeout(scenarioSaveTimer.current)
         scenarioSaveTimer.current = setTimeout(saveScenario, SAVE_DEBOUNCE_MS)
