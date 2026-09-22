@@ -1,28 +1,28 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { fetchCheckpoints, saveCheckpoint, deleteCheckpointAction, restoreCheckpointAction } from '@/lib/persistence/scenarioActions'
-import { fmtMoney, fmtDate, addDays } from '@/lib/roadmapUtils'
+import { fetchCheckpoints, fetchCheckpoint, saveCheckpoint, deleteCheckpointAction, restoreCheckpointAction } from '@/lib/persistence/scenarioActions'
+import ScenarioDiffPanel from '@/components/ScenarioDiffPanel'
+import { fmtMoney, fmtDate, addDays, fmtSigned } from '@/lib/roadmapUtils'
 import { useTranslation } from '@/lib/i18n/useTranslation'
-import type { CheckpointMeta } from '@/types'
+import type { CheckpointMeta, ScenarioData } from '@/types'
 
 const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'
 const inputCls = 'w-full text-[13px] text-[#27272a] bg-white border border-[#ececec] rounded-lg px-2.5 py-2 font-inherit'
 
-function signed(n: number, fmt: (n: number) => string): string {
-  return n === 0 ? fmt(0) : (n > 0 ? '+' : '−') + fmt(Math.abs(n))
-}
-
 export default function HistoryModal() {
   const {
-    historyOpen, activeScenarioId, scenarios, settings,
+    historyOpen, activeScenarioId, scenarios, settings, projects, items, resources, deps, sprints, roles,
     checkpointForm, toggleHistory, onNewCheckpoint, patchCheckpointForm, onCheckpointFormCancel, showToast,
   } = useRoadmapStore()
   const { t } = useTranslation()
   const [checkpoints, setCheckpoints] = useState<CheckpointMeta[] | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [diffId, setDiffId] = useState<string | null>(null)
+  const [diffBase, setDiffBase] = useState<ScenarioData | null>(null)
+  const current = useMemo<ScenarioData>(() => ({ projects, items, resources, deps, sprints, settings, roles }), [projects, items, resources, deps, sprints, settings, roles])
 
   const scenario = scenarios.find(s => s.id === activeScenarioId)
   const fm = (n: number) => fmtMoney(n, settings.currencySymbol)
@@ -45,6 +45,14 @@ export default function HistoryModal() {
     if (meta) setCheckpoints(cs => [...(cs ?? []), meta])
   }
 
+  const toggleDiff = async (cp: CheckpointMeta) => {
+    if (diffId === cp.id) { setDiffId(null); setDiffBase(null); return }
+    setDiffId(cp.id)
+    setDiffBase(null)
+    const full = await fetchCheckpoint(activeScenarioId, cp.id)
+    setDiffBase(full?.snapshot ?? null)
+  }
+
   const removeCheckpoint = async (id: string) => {
     await deleteCheckpointAction(activeScenarioId, id)
     setCheckpoints(cs => (cs ?? []).filter(c => c.id !== id))
@@ -63,7 +71,7 @@ export default function HistoryModal() {
 
   return (
     <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-[460px] max-h-[85vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-[520px] max-h-[85vh] flex flex-col">
         <div className="px-5 pt-5 pb-4 border-b border-[#ececec] flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-[#18181b]">{t('History')}</h2>
@@ -140,6 +148,7 @@ export default function HistoryModal() {
                       </>
                     ) : (
                       <>
+                        <button onClick={() => toggleDiff(cp)} className="text-[11px] font-semibold text-[#52525b] border border-[#ececec] rounded-md px-2 py-1 bg-white cursor-pointer hover:bg-[#f4f4f5]">{diffId === cp.id ? t('Hide changes') : t('Compare with current')}</button>
                         <button onClick={() => setConfirmingId(cp.id)} className="text-[11px] font-semibold text-[#52525b] border border-[#ececec] rounded-md px-2 py-1 bg-white cursor-pointer hover:bg-[#f4f4f5]">{t('Restore')}</button>
                         <button onClick={() => removeCheckpoint(cp.id)} className="text-[#a1a1aa] text-sm cursor-pointer border-none bg-transparent p-0 px-1">×</button>
                       </>
@@ -150,15 +159,20 @@ export default function HistoryModal() {
                 <div className="flex items-center gap-3 mt-2 text-[11px]">
                   <span className="font-semibold text-[#27272a]">{fm(cp.metrics.totalCost)}</span>
                   {deltaCost !== null && deltaCost !== 0 && (
-                    <span style={{ color: deltaCost > 0 ? '#9a5b00' : '#1f7a3d' }}>{signed(deltaCost, fm)} {t('vs {name}', { name: prev!.name })}</span>
+                    <span style={{ color: deltaCost > 0 ? '#9a5b00' : '#1f7a3d' }}>{fmtSigned(deltaCost, fm)} {t('vs {name}', { name: prev!.name })}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-[11px]">
                   <span className="text-[#52525b]">{cp.metrics.endDay !== null ? fmtDate(addDays(cp.metrics.endDay)) : '—'}</span>
                   {deltaEnd !== null && deltaEnd !== 0 && (
-                    <span style={{ color: deltaEnd > 0 ? '#9a5b00' : '#1f7a3d' }}>{signed(deltaEnd, n => t('{n}d', { n }))} {t('vs {name}', { name: prev!.name })}</span>
+                    <span style={{ color: deltaEnd > 0 ? '#9a5b00' : '#1f7a3d' }}>{fmtSigned(deltaEnd, n => t('{n}d', { n }))} {t('vs {name}', { name: prev!.name })}</span>
                   )}
                 </div>
+                {diffId === cp.id && (
+                  <div className="mt-3 pt-3 border-t border-[#f1f1f1]">
+                    {diffBase ? <ScenarioDiffPanel base={diffBase} target={current} /> : <p className="text-[12px] text-[#a1a1aa]">{t('Loading…')}</p>}
+                  </div>
+                )}
               </div>
             )
           })}

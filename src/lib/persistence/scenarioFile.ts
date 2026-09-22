@@ -133,4 +133,5 @@ export async function deleteScenario(id: string): Promise<void> {
   index.scenarios = index.scenarios.filter(s => s.id !== id)
   await writeIndex(index)
   await fs.rm(scenarioFile(id), { force: true })
+  await fs.rm(path.join(SCENARIOS_DIR, `${id}.checkpoints.json`), { force: true })
 }

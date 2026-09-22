@@ -1,7 +1,7 @@
 'use client'
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import type { ScenarioData, ScenarioMeta, CheckpointMeta } from '@/types'
+import type { ScenarioData, ScenarioMeta, CheckpointMeta, Checkpoint } from '@/types'
 
 function saveView(activeScenarioId: string) {
   const { filterStartDay, filterEndDay } = useRoadmapStore.getState()
@@ -52,6 +52,11 @@ export async function fetchCheckpoints(scenarioId: string): Promise<CheckpointMe
   const res = await fetch(`/api/scenarios/${scenarioId}/checkpoints`)
   if (!res.ok) return []
   return res.json() as Promise<CheckpointMeta[]>
+}
+
+export async function fetchCheckpoint(scenarioId: string, checkpointId: string): Promise<Checkpoint | null> {
+  const res = await fetch(`/api/scenarios/${scenarioId}/checkpoints/${checkpointId}`)
+  return res.ok ? res.json() as Promise<Checkpoint> : null
 }
 
 // Saves a checkpoint of whatever's currently persisted for this scenario.

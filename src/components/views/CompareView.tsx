@@ -5,6 +5,7 @@ import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { computeScenarioMetrics, fmtMoney, fmtDate, addDays } from '@/lib/roadmapUtils'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { switchScenario, promoteScenario } from '@/lib/persistence/scenarioActions'
+import ScenarioDiffPanel from '@/components/ScenarioDiffPanel'
 import type { ScenarioData, ScenarioMeta } from '@/types'
 
 interface Row {
@@ -32,6 +33,8 @@ export default function CompareView() {
   const { scenarios, officialScenarioId, activeScenarioId, showToast } = useRoadmapStore()
   const { t } = useTranslation()
   const [rows, setRows] = useState<Row[] | null>(null)
+  const [baseChoice, setBaseChoice] = useState<string | null>(null)
+  const [targetChoice, setTargetChoice] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -48,13 +51,20 @@ export default function CompareView() {
   const ends = rows.filter(r => r.endDay !== null).map(r => r.endDay!)
   const minEnd = ends.length ? Math.min(...ends) : null
 
+  const withData = rows.filter(r => r.data)
+  const baseRow = withData.find(r => r.meta.id === baseChoice) ?? withData.find(r => r.meta.id === officialScenarioId) ?? withData[0]
+  const targetRow = withData.find(r => r.meta.id === targetChoice && r.meta.id !== baseRow?.meta.id)
+    ?? withData.find(r => r.meta.id === activeScenarioId && r.meta.id !== baseRow?.meta.id)
+    ?? withData.find(r => r.meta.id !== baseRow?.meta.id)
+  const selectCls = 'text-[12px] text-[#27272a] bg-white border border-[#ececec] rounded-lg px-2.5 py-1.5 font-inherit'
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
       <p className="text-[13px] text-[#71717a] mb-4 max-w-[560px]">
         {t('Metrics are computed over each scenario\'s full timeline, regardless of the date filter.')}
       </p>
 
-      <div className="border border-[#ececec] rounded-xl overflow-hidden max-w-[900px]">
+      <div className="border border-[#ececec] rounded-xl overflow-x-auto max-w-[1040px]">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-[#fcfcfd] border-b border-[#ececec]">
@@ -120,6 +130,22 @@ export default function CompareView() {
           </tbody>
         </table>
       </div>
+
+      {baseRow && targetRow && (
+        <section className="mt-8 max-w-[900px]">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a1a1aa] mb-3">{t('Changes between scenarios')}</h3>
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <select className={selectCls} value={baseRow.meta.id} onChange={e => setBaseChoice(e.target.value)}>
+              {withData.map(r => <option key={r.meta.id} value={r.meta.id}>{r.meta.name}</option>)}
+            </select>
+            <span className="text-[12px] text-[#a1a1aa]">→</span>
+            <select className={selectCls} value={targetRow.meta.id} onChange={e => setTargetChoice(e.target.value)}>
+              {withData.filter(r => r.meta.id !== baseRow.meta.id).map(r => <option key={r.meta.id} value={r.meta.id}>{r.meta.name}</option>)}
+            </select>
+          </div>
+          <ScenarioDiffPanel base={baseRow.data!} target={targetRow.data!} />
+        </section>
+      )}
     </div>
   )
 }

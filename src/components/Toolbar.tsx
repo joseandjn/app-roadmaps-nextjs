@@ -19,14 +19,14 @@ export default function Toolbar() {
   const { t, locale, setLocale } = useTranslation()
 
   return (
-    <header className="h-[53px] flex-none flex items-center gap-3.5 px-4 border-b border-[#ececec] bg-white" style={{ position: 'relative', zIndex: 45 }}>
+    <header className="h-[53px] flex-none flex items-center gap-1.5 min-[1320px]:gap-2 min-[1480px]:gap-3.5 px-4 border-b border-[#ececec] bg-white" style={{ position: 'relative', zIndex: 45 }}>
       {/* Logo */}
       <div className="flex items-center gap-2.5 flex-none">
         <div className="w-[18px] h-[18px] rounded-[5px] bg-[#18181b] flex items-center justify-center">
           <div className="w-2 h-2 border-[1.5px] border-white rounded-[2px]" />
         </div>
         <span className="text-sm font-semibold tracking-tight whitespace-nowrap">Roadmap</span>
-        <span className="text-[13px] text-[#a1a1aa] whitespace-nowrap">Management</span>
+        <span className="hidden min-[1760px]:inline text-[13px] text-[#a1a1aa] whitespace-nowrap">Management</span>
       </div>
 
       <div className="w-px h-[22px] bg-[#ececec] flex-none" />
@@ -59,7 +59,7 @@ export default function Toolbar() {
             <button
               key={k}
               onClick={() => setView(k)}
-              className="border-none bg-transparent text-[13px] px-2.5 py-1.5 rounded-[7px] cursor-pointer font-inherit"
+              className="border-none bg-transparent text-[13px] px-2 min-[1480px]:px-2.5 py-1.5 rounded-[7px] cursor-pointer font-inherit whitespace-nowrap"
               style={{
                 color: active ? '#18181b' : '#71717a',
                 fontWeight: active ? 600 : 500,
@@ -82,7 +82,7 @@ export default function Toolbar() {
             <button
               key={l}
               onClick={() => setScale(i)}
-              className="border-none text-xs px-[11px] py-[5px] rounded-md cursor-pointer font-inherit"
+              className="border-none text-xs px-2 min-[1480px]:px-[11px] py-[5px] rounded-md cursor-pointer font-inherit"
               style={{
                 background: active ? '#fff' : 'transparent',
                 color: active ? '#18181b' : '#71717a',
@@ -143,16 +143,19 @@ export default function Toolbar() {
       {/* New project */}
       <button
         onClick={onNewProject}
-        className="flex-none flex items-center gap-1.5 bg-[#18181b] text-white border-none rounded-lg px-3 py-[7px] text-xs font-semibold cursor-pointer font-inherit"
+        title={t('New project')}
+        className="flex-none flex items-center gap-1.5 bg-[#18181b] text-white border-none rounded-lg px-3 py-[7px] text-xs font-semibold cursor-pointer font-inherit whitespace-nowrap"
       >
-        <span className="text-sm leading-none">+</span> {t('New project')}
+        <span className="text-sm leading-none">+</span>
+        <span className="hidden min-[1700px]:inline">{t('New project')}</span>
       </button>
 
       {/* Deps toggle — only on timeline */}
       {view === 'timeline' && (
         <button
           onClick={toggleDeps}
-          className="flex items-center gap-[7px] h-[30px] px-[11px] border rounded-lg cursor-pointer text-xs font-semibold font-inherit"
+          title={t('Dependencies')}
+          className="flex-none flex items-center gap-[7px] h-[30px] px-[9px] min-[1700px]:px-[11px] border rounded-lg cursor-pointer text-xs font-semibold font-inherit whitespace-nowrap"
           style={{
             borderColor: showDeps ? '#c2d4ff' : '#ececec',
             background: showDeps ? '#eaf1ff' : '#fff',
@@ -168,7 +171,7 @@ export default function Toolbar() {
           >
             {showDeps ? '✓' : ''}
           </span>
-          {t('Dependencies')}
+          <span className="hidden min-[1700px]:inline">{t('Dependencies')}</span>
         </button>
       )}
     </header>

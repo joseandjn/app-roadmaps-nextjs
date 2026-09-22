@@ -186,6 +186,28 @@ const es: Record<string, string> = {
   'avail. {n}%': 'disp. {n}%',
   'Availability: {from} → {to}': 'Disponibilidad: {from} → {to}',
 
+  // Scenario diff
+  'Changes between scenarios': 'Cambios entre escenarios',
+  'Compare with current': 'Comparar con actual',
+  'Hide changes': 'Ocultar cambios',
+  'Changes in people': 'Cambios en personas',
+  'Changes in items': 'Cambios en tareas',
+  'No differences.': 'Sin diferencias.',
+  'Added': 'Agregado',
+  'Removed': 'Quitado',
+  'Modified': 'Modificado',
+  'Renamed from "{name}"': 'Renombrada (antes "{name}")',
+  'Project: {from} → {to}': 'Proyecto: {from} → {to}',
+  'Status: {from} → {to}': 'Estado: {from} → {to}',
+  'Type: {from} → {to}': 'Tipo: {from} → {to}',
+  'Moved {n}': 'Movida {n}',
+  'Start: {from} → {to}': 'Inicio: {from} → {to}',
+  'End: {from} → {to}': 'Fin: {from} → {to}',
+  'Cost changed (rate or settings)': 'El costo cambió (tarifa o configuración)',
+  'Name: {from} → {to}': 'Nombre: {from} → {to}',
+  'Role: {from} → {to}': 'Rol: {from} → {to}',
+  'Rate: {from} → {to}': 'Tarifa: {from} → {to}',
+
   // ImpactModal
   'Preview impact': 'Vista previa del impacto',
   'Confirm new item': 'Confirmar nueva tarea',

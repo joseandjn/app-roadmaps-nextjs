@@ -23,15 +23,16 @@ export default function ScenarioSwitcher() {
   if (!active) return null
 
   return (
-    <div ref={ref} style={{ position: 'relative' }} className="flex-none">
+    <div ref={ref} style={{ position: 'relative' }} className="min-w-[150px] shrink">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 h-[30px] px-2.5 border border-[#ececec] rounded-lg cursor-pointer text-xs font-semibold text-[#27272a] bg-white font-inherit max-w-[180px]"
+        title={active.id === officialScenarioId ? `${active.name} · ${t('Official')}` : active.name}
+        className="flex items-center gap-1.5 h-[30px] w-full px-2.5 border border-[#ececec] rounded-lg cursor-pointer text-xs font-semibold text-[#27272a] bg-white font-inherit max-w-[180px]"
       >
         <GitBranch size={13} className="text-[#a1a1aa] flex-none" />
         <span className="truncate">{active.name}</span>
         {active.id === officialScenarioId && (
-          <span className="flex-none text-[9px] font-semibold uppercase tracking-[0.04em] text-[#1d4ed8] bg-[#eaf1ff] rounded-full px-1.5 py-0.5">{t('Official')}</span>
+          <span className="hidden min-[1480px]:inline flex-none text-[9px] font-semibold uppercase tracking-[0.04em] text-[#1d4ed8] bg-[#eaf1ff] rounded-full px-1.5 py-0.5">{t('Official')}</span>
         )}
         <ChevronDown size={13} className="text-[#a1a1aa] flex-none" />
       </button>
