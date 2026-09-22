@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react'
 import { useRoadmapStore, didDrag } from '@/store/useRoadmapStore'
 import { deriveScale, pack, buildHeader, isWorkingDay, fmtDate, addDays, initials, workingDaysInRange, itemEnd } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, getTodayDay, TOTAL_DAYS } from '@/data/initialData'
+import { roleIconDef } from '@/data/roleIcons'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useTodayDay } from '@/lib/useTodayDay'
 import ContextMenu from '@/components/ContextMenu'
@@ -129,6 +130,7 @@ export default function TimelineView() {
   // project's lane a right-click landed in.
   const laneRanges: { id: string; top: number; height: number }[] = []
   const resources = useRoadmapStore.getState().resources
+  const roles = useRoadmapStore.getState().roles
 
   // Dependency clash/cycle detection — computed unconditionally (not gated
   // by `showDeps`) so bars can flag a scheduling conflict even when the
@@ -266,6 +268,15 @@ export default function TimelineView() {
               <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${(prog ?? 0) * 100}%`, background: 'rgba(59,110,245,0.16)', borderRadius: 'inherit', overflow: 'hidden' }} />
             )}
             {showLabel && <span style={{ position: 'relative', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{it.title}</span>}
+            {it.requiredRoles && it.requiredRoles.length > 0 && (
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 2, flex: '0 0 auto' }}>
+                {it.requiredRoles.slice(0, 3).map(roleName => {
+                  const { Icon } = roleIconDef(roles.find(r => r.name === roleName)?.icon)
+                  return <Icon key={roleName} size={10} />
+                })}
+                {it.requiredRoles.length > 3 && <span style={{ fontSize: 9, fontWeight: 700 }}>+{it.requiredRoles.length - 3}</span>}
+              </div>
+            )}
             <div
               style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 7, cursor: 'ew-resize', zIndex: 3, touchAction: 'none' }}
               onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'resize', e.clientX) }}
@@ -336,6 +347,19 @@ export default function TimelineView() {
               <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 5, background: '#fdf1e3', color: '#9a5b00', border: '1px solid #f1d3a8' }}>{t('Clash')}</span>
             )}
           </div>
+          {it.requiredRoles && it.requiredRoles.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+              {it.requiredRoles.map(roleName => {
+                const { Icon } = roleIconDef(roles.find(r => r.name === roleName)?.icon)
+                return (
+                  <span key={roleName} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 999, background: '#f4f4f5', color: '#52525b' }}>
+                    <Icon size={9} />
+                    {t(roleName)}
+                  </span>
+                )
+              })}
+            </div>
+          )}
           <div style={{ fontSize: 11, color: '#52525b' }}>
             {isInstant ? fmtDate(addDays(it.startDay)) : `${fmtDate(addDays(it.startDay))} – ${fmtDate(addDays(it.startDay + it.dur))}`}
           </div>
