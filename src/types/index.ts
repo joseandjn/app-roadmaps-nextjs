@@ -121,6 +121,22 @@ export interface Draft extends Item {
   _new?: boolean
 }
 
+// View filters beyond the date range and per-project visibility (which stays
+// in `visible`). Empty lists mean "no restriction"; values within a list are
+// OR'ed, different fields are AND'ed. UI state only — never in undo history.
+export interface Filters {
+  resourceIds: string[]
+  roles: string[]
+  statuses: StatusKey[]
+  types: ItemType[]
+  onlyIssues: boolean
+  unassigned: boolean
+  focusItemId: string | null // dependency chain of this item
+  text: string
+}
+
+export type FilterListKey = 'resourceIds' | 'roles' | 'statuses' | 'types'
+
 export interface ImpactResult {
   deps: { item: Item; clash: boolean }[]
   resources: { rid: string; before: number; after: number; capacity: number; over: boolean }[]
@@ -190,6 +206,7 @@ export interface RoadmapState {
   showDeps: boolean
   filterStartDay: number | null
   filterEndDay: number | null
+  filters: Filters
   toast: { show: boolean; text: string } | null
   viewport: { left: number; width: number }
   tick: number

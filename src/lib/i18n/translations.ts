@@ -26,6 +26,10 @@ const es: Record<string, string> = {
   'Date range': 'Rango de fechas',
   'Reset': 'Restablecer',
   'filtered': 'filtrado',
+  'Search…': 'Buscar…',
+  'No matches': 'Sin resultados',
+  'Select all': 'Seleccionar todo',
+  'Clear': 'Limpiar',
 
   // LeftRail
   'Show sidebar': 'Mostrar barra lateral',

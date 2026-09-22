@@ -1,0 +1,460 @@
+# Backlog: Filtros para análisis y visibilidad del plan
+
+Lista de trabajo para agregar filtros al roadmap, de a una tarea por vez.
+Cada tarea es independiente dentro de su orden. Incluye el contexto, los
+archivos involucrados, las decisiones ya tomadas y los criterios de
+aceptación, para poder retomarla sin volver a investigar el código.
+
+> Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
+
+---
+
+## Contexto general (leer antes de cualquier tarea)
+
+### Qué existe hoy
+
+| Filtro | Dónde vive | Quién lo respeta |
+|---|---|---|
+| Rango de fechas | `filterStartDay` / `filterEndDay` en `useRoadmapStore`, UI en `src/components/FilterBar.tsx` | Timeline, Cross, Resources, Costs. **No** Compare (a propósito, ver `CompareView.tsx:64`) |
+| Visibilidad por proyecto | `visible: Set<string>` en el store, se cambia con `toggleProject(id)` desde el cuadrito de color del `LeftRail` | **Solo** Timeline (`visProjects`) y Cross (`CrossView.tsx:46`). Resources, Costs y el `LeftRail` de Resources (`resPeak`) **lo ignoran** |
+
+- El rango de fechas se guarda en `storage/view.json` a través de `/api/view`
+  (`src/lib/persistence/viewFile.ts`, `src/app/api/view/route.ts`, y el
+  `subscribe` de `useRoadmapPersistence.ts`, que hace el guardado con debounce).
+- `visible` **no** se guarda: al cargar un escenario se reinicia con todos los proyectos visibles
+  (`useRoadmapStore.ts:263`). Al restaurar un checkpoint, los proyectos
+  nuevos se marcan como visibles (`:202`), y crear un proyecto también lo marca (`:504`, `:692`).
+- El undo/redo **no** registra el estado de UI (filtros incluidos),
+  `useRoadmapStore.ts:141`. Hay que mantenerlo así.
+- i18n: cada texto en inglés es su propia clave. Solo hay que agregar la traducción `es`
+  en `src/lib/i18n/translations.ts` (hay una sección `// FilterBar`).
+- Las vistas pintan con estilos inline y valores fijos
+  (`#ececec`, `#fafafa`, `#71717a`, `#3b6ef5`…). El `FilterBar` usa Tailwind con
+  esos mismos colores. Hay que copiar ese estilo.
+- **No hay test runner para `src/`**. Solo `engine/` tiene `node --test`
+  (`npm run engine:test`). Para validar, usar `npm run lint`, `npx tsc --noEmit`
+  y probar en la app con `npm run dev`.
+- `AGENTS.md`: esta versión de Next.js (16.x) tiene cambios incompatibles.
+  Antes de tocar rutas de API o archivos de `app/`, revisar `node_modules/next/dist/docs/`.
+
+### Datos disponibles para filtrar (`src/types/index.ts`)
+
+- `Project`: `id, name, owner (resource id), category, color, status`
+- `Item`: `projectId, status, type ('epic'|'task'|'milestone'|'release'), assignments[{r, pct}], requiredRoles?[]`
+  (`requiredRoles` vacío o ausente = acepta cualquier rol)
+- `Resource`: `id, name, role, availability?` (si falta, vale 100)
+- `Dependency`: `from` depende de `to` (`to` es la predecesora; hay conflicto si `itemEnd(to) > from.startDay`)
+
+### Decisiones de diseño ya acordadas
+
+1. **Un solo lugar para la lógica.** Todo pasa por `src/lib/filters.ts`. Las
+   vistas no reimplementan reglas de filtrado.
+2. **Ocultar o atenuar.**
+   - Proyectos, Estado y Tipo **ocultan**.
+   - Personas y Roles **atenúan** en Timeline y Cross (opacidad ~0.25, siguen siendo clickeables)
+     para no perder el contexto de las dependencias. En Resources **ocultan** filas.
+3. **Métricas.** Costs y los KPIs se recalculan con los filtros activos y lo indican
+   con el badge "filtrado". Compare, los checkpoints (`computeScenarioMetrics`) y el
+   Analysis modal **ignoran** los filtros: miden el plan completo, igual que hoy con las fechas.
+4. **Semántica entre filtros:** AND entre dimensiones distintas, OR dentro de la misma
+   (ej. `Estado ∈ {At Risk, In Progress}` **y** `Persona ∈ {Ana, Luis}`).
+5. **Proyectos:** `visible` sigue siendo la fuente de verdad para no romper
+   los flujos de crear, restaurar y cargar. Los filtros por categoría u owner son atajos que
+   modifican `visible`.
+
+---
+
+## F1 · Base: estado de filtros + helper central + componente chip `[x]`
+
+> **Hecho.** Lo que quedó implementado (difiere un poco del plan original):
+> - `Filters` y `FilterListKey` en `src/types/index.ts`; `filters` en el store con
+>   `setFilters`, `toggleFilterValue`, y `clearFilter` que ahora limpia todo (incluye `visible`).
+> - `src/lib/filters.ts`: `EMPTY_FILTERS`, `itemMatch` (por ahora solo `visible`),
+>   `itemsForMetrics`, `activeFilterCount`, `pruneFilters`. `resourceMatches` **no** se creó:
+>   se agrega en F4 cuando tenga reglas reales.
+> - Limpieza de referencias: en vez de tocar cada acción, un único `subscribe` al final del
+>   store llama a `pruneFilters` cuando cambian `items`/`resources`/`roles` (cubre borrar,
+>   undo/redo, restaurar checkpoint y cambiar de escenario). `renameRole` renombra el rol en el filtro.
+> - `src/components/filters/FilterChip.tsx`: popover propio (click fuera / Esc cierran), **sin**
+>   dependencia nueva. Props: `label, options[{value,label,hint?,color?,icon?}], selected, onToggle,
+>   onSetAll, header?`. "Vacío = sin restricción".
+> - `FilterBar`: badge "filtrado · N" y "Restablecer" basados en `activeFilterCount`.
+>   Todavía no hay chips montados (se agregan desde F2).
+> - i18n: `Search…`, `No matches`, `Select all`, `Clear`.
+> - Verificado en el navegador con un chip temporal (popover, contador, Restablecer, proyecto oculto → badge).
+>
+> Plan original de referencia:
+
+**Objetivo:** dejar la infraestructura para que las tareas siguientes solo
+agreguen una dimensión cada una. Esta tarea no cambia nada visible.
+
+**Cambios**
+
+1. `src/types/index.ts`: agregar
+   ```ts
+   export interface Filters {
+     resourceIds: string[]   // Personas
+     roles: string[]         // nombres de rol del catálogo
+     statuses: StatusKey[]
+     types: ItemType[]
+     onlyIssues: boolean
+     unassigned: boolean
+     focusItemId: string | null   // ruta de dependencias (F9)
+     text: string                 // búsqueda (F12)
+   }
+   ```
+   y `filters: Filters` en `RoadmapState`. Los proyectos siguen en `visible`.
+2. `src/store/useRoadmapStore.ts`:
+   - `EMPTY_FILTERS` y estado inicial `filters: EMPTY_FILTERS`.
+   - Acciones `setFilters(patch: Partial<Filters>)` y `toggleFilterValue(key, value)`
+     para los arrays. `clearFilter` pasa a limpiar **todo**: fechas, `filters` y `visible` con todos los proyectos.
+   - Ninguna de estas acciones debe pasar por el historial de undo.
+   - En `loadScenario` / hidratación, limpiar las referencias que ya no existen
+     (resourceIds borrados, roles eliminados, focusItemId de un item borrado). También en `removeResource`,
+     `deleteRole`, `deleteItem`, y al restaurar un checkpoint.
+3. `src/lib/filters.ts` (nuevo, funciones puras sin React ni store):
+   - `activeFilterCount(filters, visible, projects, dateRange)`: número de filtros activos para el badge.
+   - `itemMatch(item, ctx): 'show' | 'dim' | 'hide'`, donde `ctx = { filters, visible, resources, deps, items, derived }`.
+     Por ahora solo aplica `visible`. Las demás dimensiones se agregan en F3–F12.
+   - `resourceMatches(resource, ctx): boolean` (para las filas de Resources).
+   - `itemsForMetrics(items, ctx): Item[]` devuelve los items que cuentan para carga y costo
+     (los `'hide'` quedan afuera y los `'dim'` cuentan).
+4. `src/components/filters/FilterChip.tsx` (nuevo): botón tipo chip con popover
+   multi-select, con checkboxes, búsqueda interna si hay más de 8 opciones, "Seleccionar todo / ninguno"
+   y un contador en el chip ("Personas · 2"). Se puede reusar `@radix-ui/react-*`,
+   que ya está instalado (select y dialog). Si hace falta un popover, evaluar
+   `@radix-ui/react-popover`, que es una dependencia nueva y hay que confirmarla antes.
+5. `FilterBar.tsx`: reorganizar en `[Rango de fechas] [chips…] [Restablecer] [badge filtrado]`.
+   El `isActive` actual pasa a ser `activeFilterCount(...) > 0`.
+
+**Criterios de aceptación**
+- La app se ve y funciona igual que antes. `npm run lint` y `npx tsc --noEmit` pasan limpios.
+- "Restablecer" limpia también `visible` (hoy no lo hace).
+- Undo/redo no registra cambios de filtros.
+
+**Fuera de alcance:** persistir los filtros (F10).
+
+---
+
+## F2 · Proyectos: aplicar en todas las vistas + chip en el FilterBar `[ ]`
+
+**Problema actual:** si ocultas un proyecto en el `LeftRail`, desaparece de Timeline
+y Cross, pero Resources y Costs siguen contando sus asignaciones y costos.
+
+**Cambios**
+1. `ResourcesView.tsx`: en el loop de celdas (`for (const it of items)`, ~línea 70)
+   usar `itemsForMetrics`. La barrita de colores por proyecto y el % de la celda
+   solo reflejan los proyectos visibles.
+2. `CostsView.tsx`:
+   - `byProject`, `byResource` y `total` se calculan sobre los items filtrados.
+   - `projectRows` solo con proyectos visibles.
+   - `runRate`: se calcula sobre todas las personas y no depende de los
+     proyectos. Dejarlo así, pero si hay filtros activos mostrar un subtítulo
+     "(equipo completo)" para que no se lea como filtrado.
+3. `LeftRail.tsx` (modo Resources): `resPeak(r.id, items)` pasa a usar los items filtrados.
+4. `RightPanel.tsx` (panel `res` y `cell`): revisar que el detalle de una persona o celda
+   use los mismos items filtrados. Si no, los números del panel no coinciden con la celda.
+5. Chip **Proyectos** en el `FilterBar`: multi-select sincronizado con `visible`
+   (usa `toggleProject`). Ojo: en `FilterChip` "vacío = sin restricción", pero en proyectos
+   `visible` vacío = nada visible. Pasar `selected` = ids visibles solo si hay alguno oculto
+   (si están todos, `[]` para que el chip se vea inactivo), y agregar una acción
+   `setVisibleProjects(ids)` en el store para `onSetAll` (con `[]` → todos visibles). Adentro, dos secciones de atajos:
+   - **Por categoría** (`Project.category`): marca solo los proyectos de esa categoría.
+   - **Por owner** (`Project.owner` → nombre del resource).
+   - **Por estado del proyecto** (`Project.status`), opcional si queda simple.
+6. `LeftRail`: el contador `visCount/projects.length` ya existe y queda como está.
+
+**Decisión abierta: carga en Resources.** Con un filtro de proyectos, ¿la celda
+muestra solo la carga de esos proyectos o la carga total de la persona?
+- **Recomendación:** mostrar la carga filtrada (responde "cuánto de Ana consume
+  este subconjunto"). Si la persona tiene carga fuera del filtro, agregar un borde punteado a la celda
+  y, en el panel de la celda, la línea "Carga total: X% (Y% fuera del filtro)".
+  La sobrecarga (color ámbar) se sigue evaluando con la **carga total**, para que
+  un filtro no esconda una sobrecarga real.
+
+**Criterios de aceptación**
+- Si ocultas un proyecto, desaparece también de Resources (celdas y barrita) y de Costs (filas y totales).
+- El total de Costs con todos los proyectos visibles es igual al de hoy.
+- El chip y el `LeftRail` siempre muestran la misma selección.
+- `docs/resources-view.md` y `docs/cross-view.md` quedan actualizados con el comportamiento nuevo.
+
+---
+
+## F3 · Filtro por Estado del item `[ ]`
+
+**Pregunta que responde:** "¿Qué está en riesgo?", "Ocultar lo terminado".
+
+**Cambios**
+1. `filters.statuses` (vacío = todos). Regla en `itemMatch`: si el estado no está incluido, se oculta (`'hide'`).
+2. Chip **Estado** con los 4 valores de `STATUS_ORDER` y su punto de color
+   (`STATUS_CONFIG[s].dot`), igual que la leyenda del `LeftRail`.
+3. Atajo de un clic: "Ocultar Done", porque va a ser el uso más común.
+4. Timeline: el `pack()` recibe solo los items visibles, así se compactan las filas y no quedan huecos.
+   Ojo: `pack` hoy recibe `items.filter(i => i.projectId === p.id)` (`TimelineView.tsx:183`).
+5. Cross: el envelope y los ticks usan solo los items que pasan el filtro. Si un proyecto
+   se queda sin items, se omite su lane (hoy ya se omiten los proyectos sin items).
+6. Dependencias: si se oculta un extremo de una flecha, la flecha no se dibuja.
+   El cálculo de `conflictedIds` sigue hecho sobre **todos** los items, para no perder la señal de conflicto.
+
+**Criterios de aceptación**
+- Con "At Risk" seleccionado, en Timeline solo se ven los items en riesgo, sin filas vacías.
+- Resources y Costs dejan de contar los items ocultos.
+
+---
+
+## F4 · Filtro por Personas `[ ]`
+
+**Pregunta que responde:** "¿En qué está metida Ana?", "¿Qué hacen Ana y Luis esta semana?"
+
+**Regla:** un item coincide si alguna de sus `assignments[].r` está en `filters.resourceIds`.
+- Timeline y Cross: si no coincide, se atenúa (`'dim'`). Hay que agregar `opacity` al estilo de la barra
+  y del milestone. Si la persona está asignada a un epic y a sus tasks, se resaltan todos.
+- Resources: se muestran solo las filas de las personas seleccionadas (`resourceMatches`).
+- Costs: `byResource` solo con esas personas. `byProject` y `total` suman **solo los costos de las
+  asignaciones de esas personas**. Usar `assignmentCostsInRange`
+  (`roadmapUtils.ts:93`), que ya devuelve el costo por `rid`.
+
+**UI**
+- Chip **Personas**: opciones con iniciales, nombre y rol. Búsqueda interna.
+- Acceso rápido: en el `LeftRail` de Resources, un botón o ícono "Filtrar por esta persona" en cada fila.
+  El clic actual abre el panel, así que **no** hay que cambiarlo.
+- Opcional: opción "Sin asignar" dentro del mismo chip. Mejor dejarla para F8.
+
+**Criterios de aceptación**
+- Con Ana seleccionada, en Timeline se leen claramente sus barras y el resto queda atenuado pero visible.
+- En Costs, el total coincide con la suma de sus asignaciones en el rango.
+- Si se borra una persona que estaba seleccionada, sale del filtro sin errores.
+
+---
+
+## F5 · Filtro por Roles `[ ]`
+
+**Pregunta que responde:** "¿Cuánta demanda de Backend hay y quién la cubre?"
+
+**Regla** (dos lados del rol, hay que dejarlo explícito en la UI):
+- Un item coincide con el rol R si `requiredRoles` incluye R, **o** si alguna persona asignada tiene
+  `role === R`. Los items con `requiredRoles` vacío solo coinciden por asignación.
+- Timeline y Cross: atenuar (`'dim'`), igual que en F4.
+- Resources: filas de las personas con `role ∈ filters.roles`.
+- Costs: costo de las asignaciones de personas con ese rol.
+
+**UI**
+- Chip **Roles** con el ícono de cada rol (`src/data/roleIcons.ts`, catálogo `roles` del store).
+- Un toggle dentro del chip: "Coincidir por: [Rol requerido] [Rol de la persona] [Ambos]".
+  El default es *Ambos*. Si complica mucho, dejar solo *Ambos* y anotarlo.
+
+**Relación con F4:** Personas y Roles se combinan con AND. Por ejemplo "Backend" + "Ana"
+muestra los items de Ana que además son de Backend.
+
+**Criterios de aceptación**
+- Un item que requiere "Designer" pero tiene asignado a un "Frontend" aparece con los
+  dos filtros: con Designer por el rol requerido y con Frontend por la persona.
+- Si se borra un rol en Settings → Roles, sale del filtro.
+
+---
+
+## F6 · Filtro por Tipo de item `[ ]`
+
+**Pregunta que responde:** "Vista ejecutiva: solo hitos y releases" o "solo epics".
+
+**Cambios**
+- `filters.types`, que oculta. Chip **Tipo** con 4 opciones.
+- Atajo "Vista ejecutiva" = `['milestone', 'release', 'epic']`.
+- Los items de duración 0 (milestone o release) no suman carga ni costo. Filtrarlos no cambia las métricas, y es correcto que así sea.
+
+**Criterios de aceptación**
+- Con solo milestone y release, el Timeline muestra los diamantes en filas compactas.
+
+---
+
+## F7 · "Solo con problemas" `[ ]`
+
+**Pregunta que responde:** "Muéstrame solo lo que necesita atención".
+
+**Qué cuenta como problema** (cálculo en el cliente, sin llamar a `/api/analyze`):
+1. **Conflicto de dependencias o ciclo.** Hoy se calcula dentro de `TimelineView.tsx` (~líneas 125–150,
+   `depAdj`, `depCycles`, `conflictedIds`). **Extraerlo** a
+   `roadmapUtils.ts` como `dependencyConflicts(items, deps): Set<string>` y
+   usarlo en Timeline y en `filters.ts`.
+2. **Persona sobrecargada durante el item.** Algún `assignments[].r` cuya carga diaria total
+   supera `resourceCapacity(r)` en algún día del rango del item. Crear
+   `overloadedItemIds(items, resources): Set<string>` en `roadmapUtils.ts`, que reutiliza
+   la lógica de `resPeak` / `isOverloaded`, pero por día y no solo como pico global.
+3. **Rol no compatible.** Hay alguna asignación con `requiredRoles.length > 0 && !requiredRoles.includes(r.role)`.
+   Es la misma regla que `RightPanel.tsx:111` (`roleMismatch`). Extraerla a un helper
+   `roleMismatch(item, resource)` y usarla en los dos lugares.
+4. **Estado At Risk.**
+
+**Cambios**
+- `derived` en el `ctx` de `filters.ts`, memoizado con `useMemo` en cada vista (o un selector
+  compartido `useFilterContext()` en `src/lib/filters.ts` o un hook aparte, para no recalcular 4 veces).
+- Toggle **"Solo con problemas"** en el `FilterBar`, con el contador al lado ("⚠ 7").
+- Tooltip o `title` en cada barra que explique por qué aparece (conflicto, sobrecarga, rol).
+- Opcional: link desde el `AnalysisModal`. En cada hallazgo (`engine/findings.ts`, `ItemRef`)
+  poner un botón "Ver en el Timeline" que aplique `focusItemId` o un filtro por esos ids. Si se
+  hace, agregar `filters.itemIds?: string[]` como filtro temporal.
+
+**Nota:** el motor (`engine/analyzers/*`) tiene reglas más completas (idle, sprint spillover, critical path).
+Este filtro usa a propósito solo las señales baratas y en vivo. Documentar la diferencia.
+
+**Criterios de aceptación**
+- Arrastrar una tarea hasta crear un conflicto la hace aparecer en el filtro al instante.
+- El contador del toggle coincide con el número de items que se muestran.
+
+---
+
+## F8 · "Sin asignar" / "Rol sin cubrir" `[ ]`
+
+**Pregunta que responde:** "¿Qué huecos tiene el plan?"
+
+**Reglas**
+- **Sin asignar:** `type` es `epic` o `task`, `dur > 0` y `assignments.length === 0`.
+  Los milestones y releases no cuentan.
+- **Rol sin cubrir:** `requiredRoles.length > 0` y ninguna persona asignada tiene un rol incluido
+  (o sea, no hay asignaciones o todas son incompatibles).
+
+**UI:** dos toggles dentro de un chip **Huecos** (o dentro de "+ Más"). Se combinan con
+OR entre sí y con AND con el resto.
+
+**Extra de valor:** en Resources, si el filtro "Rol sin cubrir" está activo, mostrar arriba
+un resumen del tipo "Backend: 3 items / 18 días sin cubrir". Esto anticipa el análisis de capacidad por rol,
+así que evaluar si conviene hacerlo en esta tarea o en una aparte.
+
+**Criterios de aceptación**
+- Un item nuevo creado desde el menú contextual (sin asignaciones) aparece en "Sin asignar".
+
+---
+
+## F9 · Ruta de dependencias de un item `[ ]`
+
+**Pregunta que responde:** "Si esta tarea se atrasa, ¿qué arrastra?" y "¿de qué depende?"
+
+**Cambios**
+- `filters.focusItemId`. En `filters.ts`, `dependencyChain(itemId, deps)` devuelve
+  `{ upstream: Set, downstream: Set }` recorriendo `deps` en las dos direcciones (con protección contra ciclos).
+- Todo lo que queda fuera de la cadena se atenúa (no se oculta, para mantener la posición en el tiempo).
+- Se activa desde el menú contextual de un item (`ContextMenu.tsx`: "Mostrar ruta de dependencias")
+  y desde el `RightPanel` del item. Se sale con Esc, con "Restablecer" o con un chip "Ruta: <título> ✕".
+- Mientras la ruta está activa, se fuerza `showDeps = true` solo para esa vista, **sin** cambiar la preferencia guardada.
+  Otra opción es dibujar solo las flechas de la cadena.
+
+**Criterios de aceptación**
+- En una cadena A → B → C, al enfocar B se resaltan A, B y C, y lo demás queda atenuado.
+- Un ciclo no cuelga la app.
+
+---
+
+## F10 · Persistir los filtros en la vista `[ ]`
+
+**Objetivo:** que al recargar se mantengan los filtros, como ya pasa con el rango de fechas.
+
+**Cambios**
+1. `viewFile.ts`: `ViewState` agrega `filters?: Filters` y `hiddenProjectIds?: string[]`.
+   Se guarda la lista de **ocultos** y no la de visibles, para que los proyectos nuevos aparezcan por defecto.
+   Al leer, completar lo que falte con los defaults (compatibilidad con `view.json` viejos).
+2. `api/view/route.ts`: ampliar `isValidViewState` (con validación de tipos, sin confiar en el body).
+3. `useRoadmapPersistence.ts`:
+   - `saveView` envía también `filters` y `hiddenProjectIds`.
+   - El `subscribe` dispara el guardado cuando cambian `filters` o `visible` (hoy solo mira las fechas).
+   - En el boot, aplicar la vista **después** de cargar el escenario y limpiar los ids que ya no existen.
+4. `store.hydrateView` acepta los campos nuevos.
+5. `scenarioActions.ts:7` también manda el view. Actualizarlo.
+6. **Decisión:** ¿los filtros son por escenario o globales? Recomendación: **globales**, que
+   es como funciona hoy el rango de fechas. Si al cambiar de escenario desaparecen ids, se limpian solos.
+7. `focusItemId` y `text` **no** se persisten, porque son efímeros.
+8. Actualizar `docs/persistence.md`.
+
+**Criterios de aceptación**
+- Filtrar por Ana + At Risk y recargar deja la misma vista.
+- Un `view.json` sin los campos nuevos sigue cargando.
+
+---
+
+## F11 · Vistas guardadas (presets) `[ ]`
+
+**Depende de:** F10.
+
+**Objetivo:** guardar combinaciones con nombre ("Equipo Backend Q4", "Riesgos", "Ejecutivo").
+
+**Cambios**
+- Tipo `SavedView { id, name, dateRange, filters, hiddenProjectIds }`.
+- Se guardan en `view.json` (lista `savedViews`), porque son globales como el resto de la vista.
+- UI: dropdown "Vistas ▾" al inicio del `FilterBar`: aplicar, guardar la actual, renombrar, borrar.
+  Se puede usar el `ScenarioSwitcher.tsx` como referencia de estilo.
+- Presets de fábrica, no editables: "Riesgos" (At Risk + solo con problemas), "Ejecutivo"
+  (milestone, release, epic) y "Huecos" (sin asignar + rol sin cubrir).
+- Si los filtros actuales ya no coinciden con el preset aplicado, mostrar "Nombre (modificada)".
+
+**Criterios de aceptación**
+- Guardar, recargar y aplicar devuelve exactamente el mismo estado de filtros.
+
+---
+
+## F12 · Búsqueda por texto `[ ]`
+
+- `filters.text`, con debounce de ~150 ms. Busca en `item.title` y en el nombre del proyecto,
+  sin distinguir mayúsculas ni acentos (`normalize('NFD')`).
+- Los items que coinciden se resaltan y el resto se atenúa. Enter centra el scroll en el primero y
+  Enter otra vez va al siguiente.
+- Atajo `/` o `Cmd+F` para enfocar el input, sin interferir con `useUndoShortcuts`.
+- No se persiste.
+
+---
+
+## F13 · Filtros por voz / agente `[ ]`
+
+**Contexto:** el agente de voz (`src/lib/agent/shared.ts`, con tools como `go_to_date`,
+`show_resource`…) y el ejecutor `src/lib/voice/useVoiceCommand.ts`.
+Ver `docs/voice-agent.md`.
+
+**Cambios**
+- Tool nueva `set_filters` con `{ projectIds?, resourceIds?, roles?, statuses?, types?, onlyIssues?, unassigned?, clear? }`,
+  usando enums con los ids y roles reales (igual que `roleEnum` en `shared.ts:173`).
+- Implementarla en los dos proveedores (`providers/anthropic.ts`, `providers/ollama.ts`) si
+  tienen listas de tools separadas.
+- Ejemplos de prueba: "muéstrame solo lo de Ana", "qué está en riesgo en el proyecto X",
+  "quita los filtros".
+- Toast de confirmación con el resumen de lo aplicado.
+
+---
+
+## F14 · Pulido y documentación `[ ]`
+
+- `docs/filters.md` (nuevo): reglas de cada filtro, la tabla de ocultar/atenuar y qué métricas
+  respetan filtros y cuáles no.
+- Actualizar `docs/timeline-view.md`, `docs/cross-view.md`, `docs/resources-view.md`,
+  `docs/components.md` y `ARCHITECTURE.md`.
+- Revisar el responsive del `FilterBar` (hay commits recientes de ajustes responsive en el toolbar):
+  en pantallas angostas, los chips se agrupan en "Filtros · N".
+- Estado vacío: si los filtros no dejan nada visible, mostrar el mensaje
+  "Ningún item coincide con los filtros" con el botón **Restablecer** en cada vista.
+- Revisar todas las traducciones `es` nuevas.
+
+---
+
+## Orden sugerido y dependencias
+
+```
+F1 ──► F2 ──► F3 ──► F4 ──► F5 ──► F6
+                         └─► F7 ──► F8
+                         └─► F9
+F1..F8 ──► F10 ──► F11
+F12, F13 y F14 en cualquier momento después de F4
+```
+
+| Tarea | Tamaño aprox. | Valor |
+|---|---|---|
+| F1 Base | M | Habilita todo |
+| F2 Proyectos | M | Alto (corrige una inconsistencia actual) |
+| F3 Estado | S | Alto |
+| F4 Personas | M | Alto |
+| F5 Roles | M | Alto |
+| F6 Tipo | S | Medio |
+| F7 Solo problemas | L | Muy alto para análisis |
+| F8 Huecos | S | Alto |
+| F9 Ruta de dependencias | M | Medio-alto |
+| F10 Persistencia | S | Medio |
+| F11 Presets | M | Medio |
+| F12 Búsqueda | S | Medio |
+| F13 Voz | S | Bajo-medio |
+| F14 Pulido/docs | S | Necesario |

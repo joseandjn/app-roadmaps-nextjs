@@ -4,11 +4,13 @@ import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { dateStr, offFromStr } from '@/lib/roadmapUtils'
 import { TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { activeFilterCount } from '@/lib/filters'
 
 export default function FilterBar() {
-  const { filterStartDay, filterEndDay, setFilter, clearFilter } = useRoadmapStore()
+  const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
   const { t } = useTranslation()
-  const isActive = filterStartDay !== null || filterEndDay !== null
+  const activeCount = activeFilterCount({ filters, visible, projects, filterStartDay, filterEndDay })
+  const isActive = activeCount > 0
 
   const startVal = dateStr(filterStartDay ?? 0)
   const endVal   = dateStr(filterEndDay   ?? TOTAL_DAYS)
@@ -58,7 +60,7 @@ export default function FilterBar() {
 
       {isActive && (
         <span className="ml-1 text-[11px] font-medium text-[#3b6ef5] bg-[#eaf1ff] border border-[#c2d4ff] rounded-full px-2 py-0.5">
-          {t('filtered')}
+          {t('filtered')}{activeCount > 1 && ` · ${activeCount}`}
         </span>
       )}
     </div>

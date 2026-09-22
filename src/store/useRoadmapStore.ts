@@ -1,13 +1,14 @@
 'use client'
 
 import { create } from 'zustand'
-import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta } from '@/types'
+import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta, Filters, FilterListKey } from '@/types'
 import {
   INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS,
   getTodayDay, SCALE_PRESETS, PROJECT_COLORS, DEFAULT_PROJECT_TASKS,
 } from '@/data/initialData'
 import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
+import { EMPTY_FILTERS, pruneFilters } from '@/lib/filters'
 
 type Store = RoadmapState & {
   // persistence
@@ -98,6 +99,9 @@ type Store = RoadmapState & {
   toggleDeps: () => void
   addDependency: (fromId: string, toId: string) => void
   setFilter: (startDay: number | null, endDay: number | null) => void
+  setFilters: (patch: Partial<Filters>) => void
+  toggleFilterValue: (key: FilterListKey, value: string) => void
+  // Resets every filter: date range, `filters`, and hidden projects.
   clearFilter: () => void
   // voice agent — direct mutations from structured LLM output, bypassing pform/rform staging
   agentCreateResource: (data: { name: string; role: string; cost: number; costUnit?: 'month' | 'hour' }) => void
@@ -242,6 +246,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     showDeps: false,
     filterStartDay: null,
     filterEndDay: null,
+    filters: EMPTY_FILTERS,
     toast: null,
     viewport: { left: 0, width: 1000 },
     tick: 0,
@@ -306,7 +311,16 @@ export const useRoadmapStore = create<Store>((set, get) => {
       showToast(t('Dependency added'))
     },
     setFilter: (startDay, endDay) => set({ filterStartDay: startDay, filterEndDay: endDay }),
-    clearFilter: () => set({ filterStartDay: null, filterEndDay: null }),
+    setFilters: patch => set(s => ({ filters: { ...s.filters, ...patch } })),
+    toggleFilterValue: (key, value) => set(s => {
+      const list = s.filters[key] as string[]
+      const next = list.includes(value) ? list.filter(v => v !== value) : [...list, value]
+      return { filters: { ...s.filters, [key]: next } }
+    }),
+    clearFilter: () => set(s => ({
+      filterStartDay: null, filterEndDay: null, filters: EMPTY_FILTERS,
+      visible: new Set(s.projects.map(p => p.id)),
+    })),
 
     openItem: id => set(s => {
       const it = s.items.find(i => i.id === id)!
@@ -667,6 +681,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
         roles: s.roles.map(r => r.name === oldName ? { ...r, name: trimmed } : r),
         resources: s.resources.map(r => r.role === oldName ? { ...r, role: trimmed } : r),
         items: s.items.map(i => i.requiredRoles?.includes(oldName) ? { ...i, requiredRoles: i.requiredRoles!.map(r => r === oldName ? trimmed : r) } : i),
+        filters: s.filters.roles.includes(oldName) ? { ...s.filters, roles: s.filters.roles.map(r => r === oldName ? trimmed : r) } : s.filters,
       }))
       showToast(t('Role renamed'))
     },
@@ -721,4 +736,13 @@ export const useRoadmapStore = create<Store>((set, get) => {
 useRoadmapStore.subscribe((state, prev) => {
   if (historyPaused || gestureStart || sameRefs(state, prev)) return
   recordPast(takeSnapshot(prev))
+})
+
+// Keep filters pointing at data that exists — covers deletes, undo/redo,
+// checkpoint restores and scenario switches in one place. Only filters
+// change here, so the history subscriber above sees same refs and ignores it.
+useRoadmapStore.subscribe((state, prev) => {
+  if (state.items === prev.items && state.resources === prev.resources && state.roles === prev.roles) return
+  const filters = pruneFilters(state.filters, state)
+  if (filters !== state.filters) useRoadmapStore.setState({ filters })
 })
