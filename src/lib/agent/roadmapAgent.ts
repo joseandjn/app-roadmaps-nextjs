@@ -20,7 +20,7 @@ export async function interpretVoiceCommand(transcript: string): Promise<VoiceCo
   const { projects, resources, items, roles } = data
   const resourceContext = resources.map(r => ({ id: r.id, name: r.name, role: r.role, cost: r.cost, costUnit: r.costUnit }))
   const projectContext = projects.map(p => ({ id: p.id, name: p.name, owner: p.owner, category: p.category, status: p.status }))
-  const itemContext = items.map(i => ({ id: i.id, title: i.title, projectId: i.projectId, type: i.type, status: i.status, requiredRole: i.requiredRole ?? null }))
+  const itemContext = items.map(i => ({ id: i.id, title: i.title, projectId: i.projectId, type: i.type, status: i.status, requiredRoles: i.requiredRoles ?? [] }))
   const tools = buildAgentTools(roles.map(r => r.name))
 
   return activeProvider() === 'anthropic'

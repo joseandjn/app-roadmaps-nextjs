@@ -52,7 +52,7 @@ export function analyzeOverload(ctx: AnalysisContext, slackByItem: Map<string, n
       const items = [...pctByItem.entries()]
         .map(([id, pct]) => {
           const it = itemById.get(id)!
-          return { id, title: it.title, projectId: it.projectId, pct, slackDays: slackByItem.get(id) ?? null, requiredRole: it.requiredRole ?? null }
+          return { id, title: it.title, projectId: it.projectId, pct, slackDays: slackByItem.get(id) ?? null, requiredRoles: it.requiredRoles ?? [] }
         })
         .sort((a, b) => b.pct - a.pct || a.title.localeCompare(b.title))
 

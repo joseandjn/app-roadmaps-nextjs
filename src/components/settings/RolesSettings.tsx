@@ -64,7 +64,7 @@ function RoleRow({ role }: { role: Role }) {
     setName(role.name)
   }
 
-  const inUse = resources.some(r => r.role === role.name) || items.some(i => i.requiredRole === role.name)
+  const inUse = resources.some(r => r.role === role.name) || items.some(i => i.requiredRoles?.includes(role.name))
 
   const commit = () => {
     const trimmed = name.trim()

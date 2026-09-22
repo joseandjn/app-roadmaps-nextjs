@@ -13,7 +13,7 @@ export default function RightPanel() {
   const {
     panel, draft, draftOrig, resSel, cell,
     resources, items, projects, deps, settings, roles,
-    clearPanel, onDraftTitle, onDraftStatus, onDraftType, onDraftRequiredRole, onDraftStart, onDraftEnd,
+    clearPanel, onDraftTitle, onDraftStatus, onDraftType, onAddDraftRequiredRole, onRemoveDraftRequiredRole, onDraftStart, onDraftEnd,
     onAddAssignee, setAssignPct, removeAssign, onAddDep, removeDep,
     onSaveItem, onDeleteItem, editResource,
   } = useRoadmapStore()
@@ -58,21 +58,28 @@ export default function RightPanel() {
               </div>
             </div>
             <div>
-              <div className={labelCls}>{t('Required role')}</div>
-              <div className="flex items-center gap-2">
-                {draft.requiredRole && (() => {
-                  const { Icon } = roleIconDef(roles.find(r => r.name === draft.requiredRole)?.icon)
+              <div className={labelCls}>{t('Required roles')}</div>
+              <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                {(draft.requiredRoles ?? []).map(roleName => {
+                  const { Icon } = roleIconDef(roles.find(r => r.name === roleName)?.icon)
                   return (
-                    <div className="w-7 h-7 rounded-lg bg-[#f4f4f5] flex items-center justify-center flex-none">
-                      <Icon size={10} className="text-[#52525b]" />
+                    <div key={roleName} className="flex items-center gap-1 pl-1 pr-1.5 py-1 border border-[#ececec] rounded-full bg-[#f4f4f5]">
+                      <div className="w-4 h-4 rounded-full bg-white flex items-center justify-center flex-none">
+                        <Icon size={10} className="text-[#52525b]" />
+                      </div>
+                      <span className="text-[12px] text-[#27272a]">{t(roleName)}</span>
+                      <button onClick={() => onRemoveDraftRequiredRole(roleName)} className="text-[#a1a1aa] text-xs leading-none cursor-pointer border-none bg-transparent p-0 ml-0.5">×</button>
                     </div>
                   )
-                })()}
-                <select className={`${inputCls} flex-1 min-w-0`} value={draft.requiredRole ?? ''} onChange={e => onDraftRequiredRole(e.target.value)}>
-                  <option value="">{t('Any role')}</option>
-                  {roles.map(role => <option key={role.name} value={role.name}>{t(role.name)}</option>)}
-                </select>
+                })}
+                {(draft.requiredRoles ?? []).length === 0 && <span className="text-[12px] text-[#a1a1aa] py-1">{t('Any role')}</span>}
               </div>
+              <select className={inputCls} onChange={e => { if (e.target.value) onAddDraftRequiredRole(e.target.value); e.target.value = '' }} defaultValue="">
+                <option value="" disabled>{t('Add role…')}</option>
+                {roles.filter(role => !draft.requiredRoles?.includes(role.name)).map(role => (
+                  <option key={role.name} value={role.name}>{t(role.name)}</option>
+                ))}
+              </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -101,7 +108,7 @@ export default function RightPanel() {
                   const r = resources.find(r => r.id === a.r)!
                   const hours = Math.round(workDays * settings.workHoursPerDay * a.pct / 100)
                   const cap = resourceCapacity(r)
-                  const roleMismatch = !!draft.requiredRole && r.role !== draft.requiredRole
+                  const roleMismatch = !!draft.requiredRoles?.length && !draft.requiredRoles.includes(r.role)
                   return (
                     <div key={a.r} className="flex items-center gap-2">
                       <div className="w-[26px] h-[26px] rounded-[8px] bg-[#ececef] text-[#52525b] text-[10px] font-semibold flex items-center justify-center flex-none">{initials(r.name)}</div>
@@ -127,7 +134,7 @@ export default function RightPanel() {
               <select className={inputCls} onChange={e => { onAddAssignee(e.target.value); e.target.value = '' }} defaultValue="">
                 <option value="" disabled>{t('Add assignee…')}</option>
                 {resources.filter(r => !draft.assignments.some(a => a.r === r.id)).map(r => (
-                  <option key={r.id} value={r.id}>{r.name}{draft.requiredRole && r.role !== draft.requiredRole ? ` — ${t(r.role)} ⚠` : ''}</option>
+                  <option key={r.id} value={r.id}>{r.name}{draft.requiredRoles?.length && !draft.requiredRoles.includes(r.role) ? ` — ${t(r.role)} ⚠` : ''}</option>
                 ))}
               </select>
             </div>

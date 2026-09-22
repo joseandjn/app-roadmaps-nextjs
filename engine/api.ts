@@ -33,7 +33,7 @@ export interface ApiResult {
 
 const STATUSES: ReadonlySet<string> = new Set<ItemStatus>(['In Progress', 'At Risk', 'Planned', 'Done'])
 const TYPES: ReadonlySet<string> = new Set<ItemType>(['epic', 'task', 'milestone', 'release'])
-const LIMITS = { items: 5000, resources: 1000, projects: 1000, deps: 20000, sprints: 2000, assignments: 100, holidays: 1000, maxDur: 3650, maxDay: 1_000_000 }
+const LIMITS = { items: 5000, resources: 1000, projects: 1000, deps: 20000, sprints: 2000, assignments: 100, requiredRoles: 50, holidays: 1000, maxDur: 3650, maxDay: 1_000_000 }
 
 type Parsed = { ok: true; value: AnalyzeRequest } | { ok: false; error: string }
 
@@ -121,7 +121,12 @@ export function parseAnalyzeRequest(raw: unknown): Parsed {
       startDay: it.startDay as number, dur: it.dur as number,
       status: it.status as ItemStatus, type: it.type as ItemType, assignments,
     }
-    if (typeof it.requiredRole === 'string') item.requiredRole = it.requiredRole
+    if (it.requiredRoles !== undefined) {
+      if (!Array.isArray(it.requiredRoles) || it.requiredRoles.length > LIMITS.requiredRoles || !it.requiredRoles.every((r: unknown) => typeof r === 'string')) {
+        return fail(`Item ${it.id}: requiredRoles must be an array of strings.`)
+      }
+      if (it.requiredRoles.length > 0) item.requiredRoles = it.requiredRoles as string[]
+    }
     items.push(item)
   }
 

@@ -37,8 +37,8 @@ export interface OverloadFinding extends FindingBase {
     excessPersonDays: number
     // Items assigned during the window. `slackDays` is how far the item can slip
     // without delaying a dependent, or null when it isn't part of any dependency chain.
-    // `requiredRole` is the role that item needs, or null when any role can take it.
-    items: Array<ItemRef & { pct: number; slackDays: number | null; requiredRole: string | null }>
+    // `requiredRoles` are the roles that item accepts (any one of them), or empty when any role can take it.
+    items: Array<ItemRef & { pct: number; slackDays: number | null; requiredRoles: string[] }>
   }
 }
 

@@ -33,7 +33,7 @@ export interface ItemContext {
   projectId: string
   type: string
   status: string
-  requiredRole: string | null
+  requiredRoles: string[]
 }
 
 // Roles are a user-editable catalog (Settings → Roles), not a fixed list, so
@@ -170,7 +170,7 @@ export function buildAgentTools(roleNames: string[]): AgentToolDef[] {
           startDate: { type: 'string', description: 'Start date in YYYY-MM-DD format' },
           endDate: { type: 'string', description: 'End date in YYYY-MM-DD format. Omit for milestone/release, or if not mentioned (defaults to a 3-week span).' },
           status: { type: 'string', enum: [...STATUS_ORDER], description: 'Defaults to Planned if not mentioned' },
-          requiredRole: { ...roleEnum, description: 'Role a person needs to take this on. Only set it if the user names a role or a kind of specialist; otherwise omit it (any role can take it).' },
+          requiredRoles: { type: 'array', items: roleEnum, description: 'Roles a person can take this on with — any one of them counts as a fit. Only set it if the user names one or more roles or kinds of specialist; otherwise omit it (any role can take it).' },
         },
         required: ['projectId', 'title', 'type', 'startDate'],
       },
@@ -187,7 +187,7 @@ export function buildAgentTools(roleNames: string[]): AgentToolDef[] {
           status: { type: 'string', enum: [...STATUS_ORDER] },
           startDate: { type: 'string', description: 'New start date in YYYY-MM-DD format' },
           endDate: { type: 'string', description: 'New end date in YYYY-MM-DD format' },
-          requiredRole: { type: 'string', enum: [...roleNames, ''], description: 'Role a person needs to take this on. Use an empty string to clear it (any role can take it).' },
+          requiredRoles: { type: 'array', items: roleEnum, description: 'Roles a person can take this on with — any one of them counts as a fit. Use an empty array to clear it (any role can take it).' },
         },
         required: ['id'],
       },

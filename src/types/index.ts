@@ -28,12 +28,12 @@ export interface Item {
   status: StatusKey
   type: ItemType
   assignments: Assignment[]
-  // Role a person needs to take this on (one of ROLES). Missing/undefined means any role can.
-  requiredRole?: string
+  // Roles a person can take this on with (any one of them counts as a fit). Missing/empty means any role can.
+  requiredRoles?: string[]
 }
 
 // A role in the roles catalog (Settings → Roles): the name is what
-// Resource.role / Item.requiredRole actually store, `icon` is a key into
+// Resource.role / Item.requiredRoles actually store, `icon` is a key into
 // the icon registry (src/data/roleIcons.ts).
 export interface Role {
   name: string

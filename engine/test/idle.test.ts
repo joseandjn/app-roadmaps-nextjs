@@ -166,7 +166,7 @@ describe('idle capacity', () => {
     const snap = snapshot(
       [
         item('A', 0, 5, { assignments: work('r1') }), item('B', 14, 5, { assignments: work('r1') }),
-        item('E1', 7, 3, { assignments: work('r2', 60), requiredRole: 'QA' }), item('E2', 7, 3, { assignments: work('r2', 60), requiredRole: 'QA' }),
+        item('E1', 7, 3, { assignments: work('r2', 60), requiredRoles: ['QA'] }), item('E2', 7, 3, { assignments: work('r2', 60), requiredRoles: ['QA'] }),
       ],
       [],
       { resources: [{ id: 'r1', name: 'Ana', role: 'Eng' }, { id: 'r2', name: 'Elvis', role: 'Eng' }] },
@@ -182,7 +182,7 @@ describe('idle capacity', () => {
     const snap = snapshot(
       [
         item('A', 0, 5, { assignments: work('r1') }), item('B', 14, 5, { assignments: work('r1') }),
-        item('E1', 7, 3, { assignments: work('r2', 60), requiredRole: 'QA' }), item('E2', 7, 3, { assignments: work('r2', 60), requiredRole: 'QA' }),
+        item('E1', 7, 3, { assignments: work('r2', 60), requiredRoles: ['QA'] }), item('E2', 7, 3, { assignments: work('r2', 60), requiredRoles: ['QA'] }),
       ],
       [],
       { resources: [{ id: 'r1', name: 'Ana', role: 'QA' }, { id: 'r2', name: 'Elvis', role: 'Eng' }] },
@@ -192,6 +192,25 @@ describe('idle capacity', () => {
     assert.equal(f.evidence.relief[0].resourceName, 'Elvis')
     assert.equal(f.evidence.relief[0].sameRole, true)
     assert.match(f.detail, /Elvis \(mismo rol\)/)
+  })
+
+  it('accepts a candidate matching any one of several required roles', () => {
+    // The task accepts either QA or Backend — Ana (QA) should still count as a fit,
+    // and a Design-only candidate should still be excluded.
+    const snap = snapshot(
+      [
+        item('A', 0, 5, { assignments: work('r1') }), item('B', 14, 5, { assignments: work('r1') }),
+        item('C', 0, 5, { assignments: work('r3') }), item('D', 14, 5, { assignments: work('r3') }),
+        item('E1', 7, 3, { assignments: work('r2', 60), requiredRoles: ['QA', 'Backend'] }),
+        item('E2', 7, 3, { assignments: work('r2', 60), requiredRoles: ['QA', 'Backend'] }),
+      ],
+      [],
+      { resources: [{ id: 'r1', name: 'Ana', role: 'QA' }, { id: 'r2', name: 'Elvis', role: 'Eng' }, { id: 'r3', name: 'Design Dana', role: 'Design' }] },
+    )
+    const [ana, dana] = idle(analyzeRoadmap(snap, { originDate: ORIGIN }))
+    assert.equal(ana.evidence.relief.length, 1)
+    assert.equal(ana.evidence.relief[0].resourceName, 'Elvis')
+    assert.equal(dana.evidence.relief.length, 0)
   })
 
   it('ignores finished work and days before today', () => {

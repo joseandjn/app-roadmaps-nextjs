@@ -46,7 +46,8 @@ type Store = RoadmapState & {
   onDraftTitle: (v: string) => void
   onDraftStatus: (v: string) => void
   onDraftType: (v: string) => void
-  onDraftRequiredRole: (v: string) => void
+  onAddDraftRequiredRole: (role: string) => void
+  onRemoveDraftRequiredRole: (role: string) => void
   onDraftStart: (v: string) => void
   onDraftEnd: (v: string) => void
   onAddAssignee: (id: string) => void
@@ -103,8 +104,8 @@ type Store = RoadmapState & {
   agentUpdateResource: (id: string, patch: Partial<{ name: string; role: string; cost: number; costUnit: 'month' | 'hour' }>) => void
   agentCreateProject: (data: { name: string; desc?: string; owner: string; category?: string; status?: Project['status'] }) => void
   agentUpdateProject: (id: string, patch: Partial<{ name: string; desc: string; owner: string; category: string; status: Project['status'] }>) => void
-  agentCreateItem: (data: { projectId: string; title: string; type: Item['type']; startDay: number; dur: number; status?: Item['status']; requiredRole?: string }) => void
-  agentUpdateItem: (id: string, patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number; requiredRole: string | undefined }>) => void
+  agentCreateItem: (data: { projectId: string; title: string; type: Item['type']; startDay: number; dur: number; status?: Item['status']; requiredRoles?: string[] }) => void
+  agentUpdateItem: (id: string, patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number; requiredRoles: string[] | undefined }>) => void
 }
 
 function projRange(items: Item[], pid: string) {
@@ -352,7 +353,16 @@ export const useRoadmapStore = create<Store>((set, get) => {
     onDraftTitle: v => get().patchDraft({ title: v }),
     onDraftStatus: v => get().patchDraft({ status: v as Item['status'] }),
     // Empty option means "any role" — stored as undefined, not ''.
-    onDraftRequiredRole: v => get().patchDraft({ requiredRole: v || undefined }),
+    onAddDraftRequiredRole: role => {
+      const d = get().draft!
+      if (d.requiredRoles?.includes(role)) return
+      get().patchDraft({ requiredRoles: [...(d.requiredRoles ?? []), role] })
+    },
+    onRemoveDraftRequiredRole: role => {
+      const d = get().draft!
+      const next = (d.requiredRoles ?? []).filter(r => r !== role)
+      get().patchDraft({ requiredRoles: next.length ? next : undefined })
+    },
     onDraftType: v => {
       const t = v as Item['type']
       const p: Partial<Draft> = { type: t }
@@ -644,7 +654,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     // required field — clearing it on delete would leave people with no
     // role instead of a clean removal.
     removeRole: name => {
-      const inUse = get().resources.some(r => r.role === name) || get().items.some(i => i.requiredRole === name)
+      const inUse = get().resources.some(r => r.role === name) || get().items.some(i => i.requiredRoles?.includes(name))
       if (inUse) { showToast(t('Remove it from people and tasks before deleting')); return }
       set(s => ({ roles: s.roles.filter(r => r.name !== name) }))
       showToast(t('Role removed'))
@@ -656,7 +666,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
       set(s => ({
         roles: s.roles.map(r => r.name === oldName ? { ...r, name: trimmed } : r),
         resources: s.resources.map(r => r.role === oldName ? { ...r, role: trimmed } : r),
-        items: s.items.map(i => i.requiredRole === oldName ? { ...i, requiredRole: trimmed } : i),
+        items: s.items.map(i => i.requiredRoles?.includes(oldName) ? { ...i, requiredRoles: i.requiredRoles!.map(r => r === oldName ? trimmed : r) } : i),
       }))
       showToast(t('Role renamed'))
     },
@@ -695,7 +705,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
         id, projectId: data.projectId, title: data.title, type: data.type,
         startDay: data.startDay, dur: isInstant ? 0 : Math.max(1, data.dur),
         status: data.status ?? 'Planned', assignments: [],
-        ...(data.requiredRole && { requiredRole: data.requiredRole }),
+        ...(data.requiredRoles && data.requiredRoles.length > 0 && { requiredRoles: data.requiredRoles }),
       }
       set(s => ({ items: [...s.items, item] }))
       showToast(t('Added "{title}"', { title: data.title }))

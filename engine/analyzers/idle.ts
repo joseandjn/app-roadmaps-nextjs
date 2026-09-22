@@ -51,7 +51,7 @@ export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]):
         resourceRole: resourceById.get(o.evidence.resourceId)?.role,
         overlapWorkingDays: countWorking(Math.max(startDay, o.evidence.startDay), Math.min(endDay, o.evidence.endDay) + 1),
         overloadFindingId: o.id,
-        requiredRoles: [...new Set(o.evidence.items.map(i => i.requiredRole).filter((r): r is string => r !== null))],
+        requiredRoles: [...new Set(o.evidence.items.flatMap(i => i.requiredRoles))],
       }))
       .filter(o => o.overlapWorkingDays > 0)
 

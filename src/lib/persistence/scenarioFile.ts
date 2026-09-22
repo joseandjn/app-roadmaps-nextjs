@@ -32,7 +32,7 @@ function ensureRoles(data: ScenarioData): ScenarioData {
   const known = new Set(INITIAL_ROLES.map(r => r.name))
   const extra = new Set<string>()
   for (const r of data.resources) if (r.role && !known.has(r.role)) extra.add(r.role)
-  for (const it of data.items) if (it.requiredRole && !known.has(it.requiredRole)) extra.add(it.requiredRole)
+  for (const it of data.items) for (const rr of it.requiredRoles ?? []) if (!known.has(rr)) extra.add(rr)
   return { ...data, roles: [...INITIAL_ROLES, ...[...extra].map(name => ({ name, icon: iconForRoleName(name) }))] }
 }
 

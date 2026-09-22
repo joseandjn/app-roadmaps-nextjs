@@ -132,19 +132,19 @@ export function useVoiceCommand() {
             startDay,
             dur,
             status: input.status as Item['status'] | undefined,
-            requiredRole: input.requiredRole as string | undefined,
+            requiredRoles: Array.isArray(input.requiredRoles) ? input.requiredRoles as string[] : undefined,
           })
           break
         }
         case 'update_item': {
           const it = items.find(x => x.id === input.id)
           if (!it) { showToast(t("Couldn't find that task")); break }
-          const patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number; requiredRole: string | undefined }> = {}
+          const patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number; requiredRoles: string[] | undefined }> = {}
           if (input.title) patch.title = input.title as string
           if (input.status) patch.status = input.status as Item['status']
           if (input.type) patch.type = input.type as Item['type']
-          // The tool uses '' to mean "clear it" (undefined means "not mentioned, leave as is").
-          if (typeof input.requiredRole === 'string') patch.requiredRole = input.requiredRole || undefined
+          // The tool uses [] to mean "clear it" (undefined means "not mentioned, leave as is").
+          if (Array.isArray(input.requiredRoles)) patch.requiredRoles = (input.requiredRoles as string[]).length ? input.requiredRoles as string[] : undefined
           const isInstant = (patch.type ?? it.type) === 'milestone' || (patch.type ?? it.type) === 'release'
           // No endDate: a move that preserves duration. No startDate: a resize
           // that keeps the current start. Both: an explicit reposition.
