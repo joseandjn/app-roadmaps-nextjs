@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 
 export interface FilterOption {
@@ -63,7 +64,7 @@ export default function FilterChip({ label, options, selected, onToggle, onSetAl
       >
         {label}
         {active && <span className="tabular-nums font-semibold">· {selected.length}</span>}
-        <span className="text-[9px] opacity-60">▾</span>
+        <ChevronDown size={12} className="opacity-60" />
       </button>
 
       {open && (

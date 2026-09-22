@@ -136,7 +136,24 @@ agreguen una dimensión cada una. Esta tarea no cambia nada visible.
 
 ---
 
-## F2 · Proyectos: aplicar en todas las vistas + chip en el FilterBar `[ ]`
+## F2 · Proyectos: aplicar en todas las vistas + chip en el FilterBar `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - Resources (celdas y barrita por proyecto), `LeftRail` en modo Resources, los paneles de persona
+>   y de celda, y Costs usan `itemsForMetrics`. Costs lista solo los proyectos visibles y, si hay
+>   items filtrados, el run-rate muestra la nota "Todo el equipo, sin filtrar".
+> - Se aplicó la decisión recomendada sobre la carga: el número es la carga filtrada, el color usa
+>   `colorLoad()` (la carga total si esa supera la capacidad), las celdas con carga fuera del filtro
+>   tienen borde punteado y tooltip, y los paneles muestran la carga o el pico total.
+> - Se corrigió un bug previo: el panel de celda no sumaba `filterStartDay` al bucket, así que con un
+>   rango de fechas mostraba otros items que la celda.
+> - `setVisibleProjects(ids)` en el store (`[]` = todos). `ProjectsFilter.tsx` envuelve `FilterChip`
+>   con atajos "Por categoría" y "Por responsable" (los owners que no existen salen como "Sin responsable").
+> - `FilterChip` ahora usa `ChevronDown` de lucide-react.
+> - Documentado en `docs/resources-view.md` (sección "Filters"). `cross-view.md` no cambió porque
+>   Cross ya respetaba `visible`.
+>
+> Plan original de referencia:
 
 **Problema actual:** si ocultas un proyecto en el `LeftRail`, desaparece de Timeline
 y Cross, pero Resources y Costs siguen contando sus asignaciones y costos.

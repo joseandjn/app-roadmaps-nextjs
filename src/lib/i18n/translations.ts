@@ -30,6 +30,12 @@ const es: Record<string, string> = {
   'No matches': 'Sin resultados',
   'Select all': 'Seleccionar todo',
   'Clear': 'Limpiar',
+  'By category': 'Por categoría',
+  'By owner': 'Por responsable',
+  'No owner': 'Sin responsable',
+  'Whole team, not filtered': 'Todo el equipo, sin filtrar',
+  'Total load {full}% ({n}% outside the filters)': 'Carga total {full}% ({n}% fuera de los filtros)',
+  'Total peak {n}% including items outside the filters': 'Pico total {n}% contando lo que está fuera de los filtros',
 
   // LeftRail
   'Show sidebar': 'Mostrar barra lateral',

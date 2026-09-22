@@ -30,6 +30,8 @@ type Store = RoadmapState & {
   zoom: (f: number) => void
   toggleRail: () => void
   toggleProject: (id: string) => void
+  // Shows exactly these projects; an empty list means all of them.
+  setVisibleProjects: (ids: string[]) => void
   toggleExpand: (id: string) => void
   setViewport: (v: { left: number; width: number }) => void
   showToast: (text: string) => void
@@ -291,6 +293,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
       if (v.has(id)) v.delete(id); else v.add(id)
       return { visible: v }
     }),
+    setVisibleProjects: ids => set(s => ({ visible: new Set(ids.length ? ids : s.projects.map(p => p.id)) })),
     toggleExpand: id => set(s => {
       const e = new Set(s.expanded)
       if (e.has(id)) e.delete(id); else e.add(id)

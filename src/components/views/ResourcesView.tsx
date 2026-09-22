@@ -1,18 +1,19 @@
 'use client'
 
-import React, { useRef, useCallback, useEffect } from 'react'
+import React, { useRef, useCallback, useEffect, useMemo } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { deriveScale, buckets, buildHeader, initials, allocColor, utilizationPct } from '@/lib/roadmapUtils'
 import { getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useTodayDay } from '@/lib/useTodayDay'
+import { itemsForMetrics, colorLoad } from '@/lib/filters'
 
 const RH = 46
 const LABEL_W = 264
 const HEADER_H = 54
 
 export default function ResourcesView() {
-  const { pxPerDay, resources, items, projects, filterStartDay, filterEndDay, openCell, setViewport } = useRoadmapStore()
+  const { pxPerDay, resources, items, projects, filterStartDay, filterEndDay, filters, visible, openCell, setViewport } = useRoadmapStore()
   const { t } = useTranslation()
   const todayDay = useTodayDay()
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -22,6 +23,7 @@ export default function ResourcesView() {
   const lastDay   = Math.min(TOTAL_DAYS, filterEndDay ?? TOTAL_DAYS)
   const visibleDays = Math.max(1, lastDay - baseDay)
   const totalWidth = visibleDays * ppd
+  const counted = useMemo(() => new Set(itemsForMetrics(items, { filters, visible }).map(i => i.id)), [items, filters, visible])
 
   const syncViewport = useCallback(() => {
     const el = scrollRef.current
@@ -68,7 +70,8 @@ export default function ResourcesView() {
 
     for (let bi = 0; bi < bkts.length; bi++) {
       const b = bkts[bi]
-      let total = 0
+      let total = 0 // load from items the filters keep
+      let full = 0  // load from every item, to flag overloads the filters would hide
       const pAgg: Record<string, number> = {}
 
       const absS = baseDay + b.s
@@ -77,13 +80,16 @@ export default function ResourcesView() {
         if (it.dur <= 0) continue
         if (it.startDay >= absE || it.startDay + it.dur <= absS) continue
         for (const as of it.assignments) {
-          if (as.r === r.id) { total += as.pct; pAgg[it.projectId] = (pAgg[it.projectId] ?? 0) + as.pct }
+          if (as.r !== r.id) continue
+          full += as.pct
+          if (counted.has(it.id)) { total += as.pct; pAgg[it.projectId] = (pAgg[it.projectId] ?? 0) + as.pct }
         }
       }
 
-      const col = allocColor(utilizationPct(total, r))
+      const col = allocColor(utilizationPct(colorLoad(total, full, r), r))
       const w = b.d * ppd
       const show = w > 30 && total > 0
+      const outside = full - total
 
       const projs = Object.keys(pAgg).map(pid => {
         const p = projects.find(pr => pr.id === pid)
@@ -94,7 +100,8 @@ export default function ResourcesView() {
         <div
           key={`${r.id}-${bi}`}
           onClick={() => openCell(r.id, bi, b)}
-          style={{ position: 'absolute', left: b.s * ppd + 1, top: y + 5, width: w - 2, height: RH - 10, background: col.bg, border: `1px solid ${col.bd}`, borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, cursor: 'pointer', boxSizing: 'border-box', overflow: 'hidden' }}
+          title={outside > 0 ? t('Total load {full}% ({n}% outside the filters)', { full, n: outside }) : undefined}
+          style={{ position: 'absolute', left: b.s * ppd + 1, top: y + 5, width: w - 2, height: RH - 10, background: col.bg, border: `1px ${outside > 0 ? 'dashed' : 'solid'} ${col.bd}`, borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, cursor: 'pointer', boxSizing: 'border-box', overflow: 'hidden' }}
         >
           {show && <span style={{ fontSize: 11, fontWeight: 600, color: col.fg, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{total}%</span>}
           {projs.length > 0 && w > 16 && (

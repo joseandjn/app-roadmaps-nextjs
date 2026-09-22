@@ -5,6 +5,7 @@ import { dateStr, offFromStr } from '@/lib/roadmapUtils'
 import { TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { activeFilterCount } from '@/lib/filters'
+import ProjectsFilter from '@/components/filters/ProjectsFilter'
 
 export default function FilterBar() {
   const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
@@ -47,6 +48,10 @@ export default function FilterBar() {
           onChange={e => handleEnd(e.target.value)}
           className="text-[12px] text-[#27272a] border border-[#ececec] rounded-lg px-2.5 py-1.5 bg-white font-inherit cursor-pointer"
         />
+      </div>
+
+      <div className="flex items-center gap-1.5 ml-2">
+        <ProjectsFilter />
       </div>
 
       {isActive && (

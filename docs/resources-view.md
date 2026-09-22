@@ -189,6 +189,28 @@ wired to the sidebar's "+ Add" button; `editResource` (which also sets
 `canDelete: true`, unlocking `ResourceModal`'s "Remove" button) is wired
 to the summary panel's Edit button.
 
+### Filters (hidden projects and, later, other filters)
+
+The grid cells, the sidebar peak, and both drill-down panels count only the
+items that `itemsForMetrics()` (`src/lib/filters.ts`) keeps — so hiding a
+project (LeftRail checkbox or the FilterBar **Projects** chip) removes its
+load and its colored segment everywhere in this view.
+
+A filter must never hide a real overload, so each place also computes the
+**full** load (every item) next to the filtered one:
+
+- The number shown is the filtered load.
+- The color comes from `colorLoad(filtered, full, r)`: the filtered load,
+  unless the full load is over the person's capacity, in which case it's
+  colored (amber) by the full load.
+- Grid cells with load outside the filters get a **dashed** border and a
+  tooltip "Total load X% (Y% outside the filters)"; the cell panel shows
+  the same line, and the person panel shows "Total peak X% …".
+
+The cell panel maps the bucket back to absolute days with the same
+`baseDay` (`filterStartDay`) offset the grid uses, so its items match the
+clicked cell when a date range is set.
+
 ### Coloring
 
 `allocColor(pct)` (in `roadmapUtils.ts`) is the single source of truth for

@@ -1,4 +1,5 @@
 import type { Filters, Item, Project, Resource, Role } from '@/types'
+import { isOverloaded } from '@/lib/roadmapUtils'
 
 // Single source of truth for what the view filters mean. Views never
 // re-implement these rules — they ask `itemMatch` per item, or use
@@ -34,6 +35,13 @@ export function itemMatch(item: Item, ctx: FilterContext): ItemMatch {
 // items still count — dimming is purely visual).
 export function itemsForMetrics(items: Item[], ctx: FilterContext): Item[] {
   return items.filter(it => itemMatch(it, ctx) !== 'hide')
+}
+
+// Load/cost views show the filtered load (what this slice of the plan asks of
+// a person), but color by the full load when that one is over capacity — a
+// filter must never hide a real overload.
+export function colorLoad(filtered: number, full: number, r: Pick<Resource, 'availability'>): number {
+  return isOverloaded(full, r) ? full : filtered
 }
 
 // How many filters are on, for the "filtered" badge. The date range counts

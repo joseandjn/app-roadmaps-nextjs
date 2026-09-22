@@ -1,13 +1,14 @@
 'use client'
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { resPeak, initials, allocColor, utilizationPct, isOverloaded } from '@/lib/roadmapUtils'
+import { resPeak, initials, isOverloaded } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, STATUS_ORDER } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { itemsForMetrics } from '@/lib/filters'
 
 export default function LeftRail() {
   const {
-    view, projects, items, resources, visible, railOpen,
+    view, projects, items, resources, visible, filters, railOpen,
     toggleRail, toggleProject, editProject, newItem, openRes,
     onNewResource, panel, resSel,
   } = useRoadmapStore()
@@ -16,6 +17,7 @@ export default function LeftRail() {
   const isResources = view === 'resources'
   const isCross = view === 'cross'
   const visCount = projects.filter(p => visible.has(p.id)).length
+  const counted = isResources ? itemsForMetrics(items, { filters, visible }) : items
 
   if (!railOpen) {
     return (
@@ -56,9 +58,9 @@ export default function LeftRail() {
         <>
           <div className="flex-1 overflow-y-auto px-2 pb-3">
             {resources.map(r => {
-              const peak = resPeak(r.id, items)
-              const col = allocColor(utilizationPct(peak, r))
-              const over = isOverloaded(peak, r)
+              const peak = resPeak(r.id, counted)
+              const fullPeak = resPeak(r.id, items)
+              const over = isOverloaded(fullPeak, r)
               const sel = resSel === r.id && panel === 'res'
               return (
                 <div
@@ -74,7 +76,11 @@ export default function LeftRail() {
                     <div className="text-[13px] font-medium text-[#27272a] truncate">{r.name}</div>
                     <div className="text-[11px] text-[#a1a1aa]">{t(r.role)}</div>
                   </div>
-                  <span className="text-xs font-semibold tabular-nums" style={{ color: over ? '#9a5b00' : '#a1a1aa' }}>
+                  <span
+                    className="text-xs font-semibold tabular-nums"
+                    style={{ color: over ? '#9a5b00' : '#a1a1aa' }}
+                    title={fullPeak !== peak ? t('Total peak {n}% including items outside the filters', { n: fullPeak }) : undefined}
+                  >
                     {peak}%
                   </span>
                 </div>
