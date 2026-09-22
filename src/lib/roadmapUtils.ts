@@ -224,12 +224,12 @@ export function buildHeader(
     months()
     let d = new Date(d0.getFullYear(), d0.getMonth() + 1, 1)
     while ((d.getTime() - d0.getTime()) / DAY_MS < td) { gl(((d.getTime() - d0.getTime()) / DAY_MS) * ppd, '#f4f4f5'); d = new Date(d.getFullYear(), d.getMonth() + 1, 1) }
-    for (let i = 0; i < td; i++) { const dt = addDays(i); pushTick(i * ppd, `${WEEKDAYS[dt.getDay()]} ${dt.getDate()}`, dt.getDay() === 1) }
+    for (let i = 0; i < td; i++) { const dt = addDays(startDay + i); pushTick(i * ppd, `${WEEKDAYS[dt.getDay()]} ${dt.getDate()}`, dt.getDay() === 1) }
   } else if (scaleIndex === 1) {
     months()
     let d = new Date(d0.getFullYear(), d0.getMonth() + 1, 1)
     while ((d.getTime() - d0.getTime()) / DAY_MS < td) { gl(((d.getTime() - d0.getTime()) / DAY_MS) * ppd, '#f4f4f5'); d = new Date(d.getFullYear(), d.getMonth() + 1, 1) }
-    for (let i = 0; i < td; i++) { const dt = addDays(i); if (dt.getDay() === 1) pushTick(i * ppd, `${MONTHS[dt.getMonth()]} ${dt.getDate()}`, false) }
+    for (let i = 0; i < td; i++) { const dt = addDays(startDay + i); if (dt.getDay() === 1) pushTick(i * ppd, `${MONTHS[dt.getMonth()]} ${dt.getDate()}`, false) }
   } else if (scaleIndex === 2) {
     quarters()
     let d = new Date(d0.getFullYear(), Math.floor(d0.getMonth() / 3) * 3 + 3, 1)
