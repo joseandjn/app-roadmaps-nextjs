@@ -1,17 +1,19 @@
 'use client'
 
-import React, { useRef, useCallback, useEffect } from 'react'
+import React, { useRef, useCallback, useEffect, useMemo } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { deriveScale, pack, buildHeader } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useTodayDay } from '@/lib/useTodayDay'
+import { itemMatch, hidesItems } from '@/lib/filters'
+import FilterEmptyState from '@/components/filters/FilterEmptyState'
 const ROW = 32, BAR_H = 22, RH = 58
 const LABEL_W = 264
 const HEADER_H = 54
 
 export default function CrossView() {
-  const { pxPerDay, projects, items, visible, expanded, _tr, filterStartDay, filterEndDay, setViewport, openItem, toggleExpand } = useRoadmapStore()
+  const { pxPerDay, projects, items, visible, filters, expanded, _tr, filterStartDay, filterEndDay, setViewport, openItem, toggleExpand } = useRoadmapStore()
   const { t } = useTranslation()
   const todayDay = useTodayDay()
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -44,6 +46,8 @@ export default function CrossView() {
   }, [filterStartDay, filterEndDay])
 
   const visProjects = projects.filter(p => visible.has(p.id))
+  // Envelopes, ticks and expanded bars all come from the items the filters keep.
+  const shown = useMemo(() => items.filter(i => itemMatch(i, { filters, visible }) !== 'hide'), [items, filters, visible])
 
   let y = 0, gi = 0
   const laneLabels: React.ReactElement[] = []
@@ -52,7 +56,7 @@ export default function CrossView() {
   const ranges: { p: typeof projects[0]; r: { a: number; b: number } }[] = []
 
   for (const p of visProjects) {
-    const pItems = items.filter(i => i.projectId === p.id)
+    const pItems = shown.filter(i => i.projectId === p.id)
     if (!pItems.length) continue
     let a = 1e9, b = -1e9
     for (const i of pItems) { a = Math.min(a, i.startDay); b = Math.max(b, i.startDay + i.dur) }
@@ -61,7 +65,7 @@ export default function CrossView() {
 
   for (const { p, r } of ranges) {
     const exp = expanded.has(p.id)
-    const pItems = items.filter(i => i.projectId === p.id)
+    const pItems = shown.filter(i => i.projectId === p.id)
     let packed: ReturnType<typeof pack> | null = null
     let laneH = RH
     if (exp) { packed = pack(pItems, ppd); laneH = RH + packed.rowCount * ROW + 10 }
@@ -153,6 +157,8 @@ export default function CrossView() {
   const { bands, ticks } = buildHeader(si, ppd, totalWidth, canvasHeight, baseDay, lastDay)
 
   return (
+    <>
+    {hidesItems(filters) && ranges.length === 0 && <FilterEmptyState />}
     <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto" onScroll={syncViewport}>
       <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px ${totalWidth}px`, gridTemplateRows: `${HEADER_H}px ${canvasHeight}px`, minWidth: LABEL_W + totalWidth }}>
         {/* Top-left corner */}
@@ -183,5 +189,6 @@ export default function CrossView() {
         </div>
       </div>
     </div>
+    </>
   )
 }

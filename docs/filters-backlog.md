@@ -197,7 +197,25 @@ muestra solo la carga de esos proyectos o la carga total de la persona?
 
 ---
 
-## F3 · Filtro por Estado del item `[ ]`
+## F3 · Filtro por Estado del item `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - `itemMatch` oculta los items cuyo estado no está en `filters.statuses`. `hidesItems(filters)` indica
+>   si algún filtro oculta items sueltos (por ahora solo el de estado; F6 y siguientes lo amplían).
+> - Timeline y Cross trabajan sobre los items que pasan el filtro (`shown`): `pack()` compacta las filas,
+>   los envelopes y ticks de Cross se recalculan y el conteo "N items" de cada lane es el filtrado.
+>   Si un filtro de items deja un lane vacío, el lane se omite. Los conflictos de dependencias se siguen
+>   calculando con todos los items, y las flechas con un extremo oculto no se dibujan (ya pasaba).
+>   El hover card de proyecto sigue resumiendo el proyecto completo.
+> - Resources y Costs lo respetan solos, porque usan `itemsForMetrics` desde F2.
+> - `StatusFilter.tsx`: chip con el punto de color de cada estado y el atajo "Ocultar completados".
+> - Se adelantó una parte de F14: `FilterEmptyState.tsx` muestra "Ninguna tarea coincide con los filtros"
+>   y el botón Restablecer cuando Timeline o Cross quedan vacíos por un filtro.
+> - Verificado: "Ocultar completados" deja 35 de 45 barras (hay 10 en Done) y los lanes con solo tareas
+>   Done desaparecen. "En riesgo" no deja ninguna barra, porque hoy no hay tareas en ese estado. Costs pasa
+>   de S/225,494 a S/125,595 y vuelve al restablecer.
+>
+> Plan original de referencia:
 
 **Pregunta que responde:** "¿Qué está en riesgo?", "Ocultar lo terminado".
 

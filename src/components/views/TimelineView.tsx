@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useEffect, useCallback, useState } from 'react'
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react'
 import { useRoadmapStore, didDrag } from '@/store/useRoadmapStore'
 import { deriveScale, pack, buildHeader, isWorkingDay, fmtDate, addDays, initials, workingDaysInRange, itemEnd } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, getTodayDay, TOTAL_DAYS } from '@/data/initialData'
@@ -8,6 +8,8 @@ import { roleIconDef } from '@/data/roleIcons'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useTodayDay } from '@/lib/useTodayDay'
 import ContextMenu from '@/components/ContextMenu'
+import { itemMatch, hidesItems } from '@/lib/filters'
+import FilterEmptyState from '@/components/filters/FilterEmptyState'
 
 const ROW = 32, BAR_H = 22, LP = 14
 const LABEL_W = 264
@@ -16,7 +18,7 @@ const HEADER_H = 54 + SPRINT_ROW_H
 
 export default function TimelineView() {
   const {
-    pxPerDay, projects, items, deps, sprints, visible, draft, settings,
+    pxPerDay, projects, items, deps, sprints, visible, filters, draft, settings,
     showDeps, _tr, filterStartDay, filterEndDay, setViewport, openItem, editProject, startDrag, addDependency,
     openContextMenu, editSprint, onNewSprint, startSprintDrag,
   } = useRoadmapStore()
@@ -59,6 +61,10 @@ export default function TimelineView() {
   const totalWidth = visibleDays * ppd
 
   const visProjects = projects.filter(p => visible.has(p.id))
+  // Items the filters keep. Dependency conflicts below still use all items,
+  // so a filter never hides a clash signal on the bars that remain.
+  const shown = useMemo(() => items.filter(i => itemMatch(i, { filters, visible }) !== 'hide'), [items, filters, visible])
+  const dropEmptyLanes = hidesItems(filters)
   const tr = _tr ? 'left .42s cubic-bezier(.4,0,.2,1),top .42s cubic-bezier(.4,0,.2,1),width .42s cubic-bezier(.4,0,.2,1)' : 'none'
 
   const syncViewport = useCallback(() => {
@@ -179,7 +185,8 @@ export default function TimelineView() {
   }
 
   for (const p of visProjects) {
-    const list = items.filter(i => i.projectId === p.id)
+    const list = shown.filter(i => i.projectId === p.id)
+    if (dropEmptyLanes && !list.length) continue
     const { placed, rowCount } = pack(list, ppd)
     const h = rowCount * ROW + LP * 2
     const owner = resources.find(r => r.id === p.owner)
@@ -435,6 +442,7 @@ export default function TimelineView() {
 
   return (
     <>
+    {dropEmptyLanes && laneLabels.length === 0 && <FilterEmptyState />}
     {/* Single scroll container — one ref handles both X and Y scroll */}
     <div
       ref={scrollRef}

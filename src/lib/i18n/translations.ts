@@ -33,6 +33,8 @@ const es: Record<string, string> = {
   'By category': 'Por categoría',
   'By owner': 'Por responsable',
   'No owner': 'Sin responsable',
+  'Hide Done': 'Ocultar completados',
+  'No items match the filters': 'Ninguna tarea coincide con los filtros',
   'Whole team, not filtered': 'Todo el equipo, sin filtrar',
   'Total load {full}% ({n}% outside the filters)': 'Carga total {full}% ({n}% fuera de los filtros)',
   'Total peak {n}% including items outside the filters': 'Pico total {n}% contando lo que está fuera de los filtros',

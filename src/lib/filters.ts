@@ -27,8 +27,17 @@ export interface FilterContext {
 export type ItemMatch = 'show' | 'dim' | 'hide'
 
 export function itemMatch(item: Item, ctx: FilterContext): ItemMatch {
+  const f = ctx.filters
   if (!ctx.visible.has(item.projectId)) return 'hide'
+  if (f.statuses.length && !f.statuses.includes(item.status)) return 'hide'
   return 'show'
+}
+
+// Whether any filter hides individual items (beyond hiding whole projects).
+// Timeline/Cross drop lanes left empty by these, instead of showing a
+// visible-but-blank project.
+export function hidesItems(f: Filters): boolean {
+  return f.statuses.length > 0
 }
 
 // Items that count toward load and cost: everything not hidden (dimmed
