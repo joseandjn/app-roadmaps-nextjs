@@ -399,7 +399,21 @@ Este filtro usa a propósito solo las señales baratas y en vivo. Documentar la 
 
 ---
 
-## F8 · "Sin asignar" / "Rol sin cubrir" `[ ]`
+## F8 · "Sin asignar" / "Rol sin cubrir" `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - `Filters.uncovered` es nuevo (se suma a `unassigned`). `filters.ts` exporta `isUnassigned(item)` e
+>   `isRoleUncovered(item, resources)`. Los dos filtros ocultan items, se combinan con OR entre sí y con AND
+>   con el resto. `hidesItems` los incluye, y en el badge cuentan como un solo filtro.
+> - `GapsFilter.tsx`: chip "Huecos" que reutiliza `FilterChip` con dos opciones. Cada opción muestra cuántos
+>   items dejaría a la vista, respetando los demás filtros.
+> - **No se hizo** el resumen de demanda sin cubrir por rol en Resources ("Backend: 3 items / 18 días").
+>   Conviene hacerlo como tarea aparte, junto con un análisis de capacidad por rol.
+> - Verificado contra los datos: 8 sin asignar, 5 con rol sin cubrir y 13 con cualquiera de los dos.
+>   Lo de crear un item desde el menú contextual no se probó en el navegador, para no modificar el escenario
+>   real. La regla lo cubre, porque un item nuevo tiene `assignments: []`.
+>
+> Plan original de referencia:
 
 **Pregunta que responde:** "¿Qué huecos tiene el plan?"
 

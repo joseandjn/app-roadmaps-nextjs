@@ -130,7 +130,8 @@ export interface Filters {
   statuses: StatusKey[]
   types: ItemType[]
   onlyIssues: boolean
-  unassigned: boolean
+  unassigned: boolean // work items with nobody assigned
+  uncovered: boolean // items whose required roles nobody assigned has
   focusItemId: string | null // dependency chain of this item
   text: string
 }

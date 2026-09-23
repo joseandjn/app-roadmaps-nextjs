@@ -13,6 +13,7 @@ export const EMPTY_FILTERS: Filters = {
   types: [],
   onlyIssues: false,
   unassigned: false,
+  uncovered: false,
   focusItemId: null,
   text: '',
 }
@@ -55,6 +56,8 @@ export function itemMatch(item: Item, ctx: FilterContext): ItemMatch {
   if (f.statuses.length && !f.statuses.includes(item.status)) return 'hide'
   if (f.types.length && !f.types.includes(item.type)) return 'hide'
   if (f.onlyIssues && !ctx.issues.has(item.id)) return 'hide'
+  // The two gap filters are alternatives: an item passes if it has either gap picked.
+  if ((f.unassigned || f.uncovered) && !((f.unassigned && isUnassigned(item)) || (f.uncovered && isRoleUncovered(item, ctx.resources)))) return 'hide'
   if (f.resourceIds.length && !item.assignments.some(a => f.resourceIds.includes(a.r))) return 'dim'
   if (f.roles.length && !itemHasRole(item, f.roles, ctx.resources)) return 'dim'
   return 'show'
@@ -70,6 +73,21 @@ function itemHasRole(item: Item, roles: string[], resources: Resource[]): boolea
   })
 }
 
+// A span of work (not a milestone/release) with nobody on it.
+export function isUnassigned(item: Item): boolean {
+  return (item.type === 'epic' || item.type === 'task') && item.dur > 0 && item.assignments.length === 0
+}
+
+// The item needs specific roles and nobody assigned has any of them
+// (including when nobody is assigned at all).
+export function isRoleUncovered(item: Item, resources: Resource[]): boolean {
+  if (!item.requiredRoles?.length) return false
+  return !item.assignments.some(a => {
+    const role = resources.find(r => r.id === a.r)?.role
+    return !!role && item.requiredRoles!.includes(role)
+  })
+}
+
 // Whether a person passes the people and role filters — Resources shows only
 // these rows, and Costs only counts their assignments.
 export function resourceMatches(r: Resource, f: Filters): boolean {
@@ -82,7 +100,7 @@ export function resourceMatches(r: Resource, f: Filters): boolean {
 // Timeline/Cross drop lanes left empty by these, instead of showing a
 // visible-but-blank project.
 export function hidesItems(f: Filters): boolean {
-  return f.statuses.length > 0 || f.types.length > 0 || f.onlyIssues
+  return f.statuses.length > 0 || f.types.length > 0 || f.onlyIssues || f.unassigned || f.uncovered
 }
 
 // Items that count toward load and cost: everything not hidden (dimmed
@@ -116,7 +134,7 @@ export function activeFilterCount(s: {
   if (f.statuses.length) n++
   if (f.types.length) n++
   if (f.onlyIssues) n++
-  if (f.unassigned) n++
+  if (f.unassigned || f.uncovered) n++
   if (f.focusItemId) n++
   if (f.text.trim()) n++
   return n
