@@ -18,7 +18,7 @@ export default function LeftRail() {
   const isResources = view === 'resources'
   const isCross = view === 'cross'
   const visCount = projects.filter(p => visible.has(p.id)).length
-  const counted = isResources ? itemsForMetrics(items, { filters, visible }) : items
+  const counted = isResources ? itemsForMetrics(items, { filters, visible, resources }) : items
 
   if (!railOpen) {
     return (

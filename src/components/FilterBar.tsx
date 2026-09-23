@@ -8,6 +8,7 @@ import { activeFilterCount } from '@/lib/filters'
 import ProjectsFilter from '@/components/filters/ProjectsFilter'
 import StatusFilter from '@/components/filters/StatusFilter'
 import PeopleFilter from '@/components/filters/PeopleFilter'
+import RolesFilter from '@/components/filters/RolesFilter'
 
 export default function FilterBar() {
   const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
@@ -56,6 +57,7 @@ export default function FilterBar() {
         <ProjectsFilter />
         <StatusFilter />
         <PeopleFilter />
+        <RolesFilter />
       </div>
 
       {isActive && (

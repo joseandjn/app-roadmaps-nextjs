@@ -13,7 +13,7 @@ const LABEL_W = 264
 const HEADER_H = 54
 
 export default function CrossView() {
-  const { pxPerDay, projects, items, visible, filters, expanded, _tr, filterStartDay, filterEndDay, setViewport, openItem, toggleExpand } = useRoadmapStore()
+  const { pxPerDay, projects, items, resources, visible, filters, expanded, _tr, filterStartDay, filterEndDay, setViewport, openItem, toggleExpand } = useRoadmapStore()
   const { t } = useTranslation()
   const todayDay = useTodayDay()
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -47,8 +47,8 @@ export default function CrossView() {
 
   const visProjects = projects.filter(p => visible.has(p.id))
   // Envelopes, ticks and expanded bars all come from the items the filters keep.
-  const shown = useMemo(() => items.filter(i => itemMatch(i, { filters, visible }) !== 'hide'), [items, filters, visible])
-  const dimmed = useMemo(() => new Set(shown.filter(i => itemMatch(i, { filters, visible }) === 'dim').map(i => i.id)), [shown, filters, visible])
+  const shown = useMemo(() => items.filter(i => itemMatch(i, { filters, visible, resources }) !== 'hide'), [items, filters, visible, resources])
+  const dimmed = useMemo(() => new Set(shown.filter(i => itemMatch(i, { filters, visible, resources }) === 'dim').map(i => i.id)), [shown, filters, visible, resources])
 
   let y = 0, gi = 0
   const laneLabels: React.ReactElement[] = []

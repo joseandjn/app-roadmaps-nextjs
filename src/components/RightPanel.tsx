@@ -186,7 +186,7 @@ export default function RightPanel() {
       {/* Resource detail panel */}
       {panel === 'res' && resSel && (() => {
         const r = resources.find(res => res.id === resSel)!
-        const counted = itemsForMetrics(items, { filters, visible })
+        const counted = itemsForMetrics(items, { filters, visible, resources })
         const peak = resPeak(resSel, counted)
         const fullPeak = resPeak(resSel, items)
         const util = utilizationPct(colorLoad(peak, fullPeak, r), r)
@@ -265,7 +265,7 @@ export default function RightPanel() {
         // Buckets are relative to the start of the date range, same as ResourcesView.
         const absS = Math.max(0, filterStartDay ?? 0) + b.s
         const absE = absS + b.d
-        const counted = new Set(itemsForMetrics(items, { filters, visible }).map(i => i.id))
+        const counted = new Set(itemsForMetrics(items, { filters, visible, resources }).map(i => i.id))
         let total = 0
         let full = 0
         const cellItems: { title: string; project: string; pct: number; color: string }[] = []

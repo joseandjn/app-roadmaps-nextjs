@@ -276,7 +276,23 @@ muestra solo la carga de esos proyectos o la carga total de la persona?
 
 ---
 
-## F5 · Filtro por Roles `[ ]`
+## F5 · Filtro por Roles `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - `itemMatch` atenúa (`'dim'`) los items que no tienen el rol: un item lo tiene si lo incluye en
+>   `requiredRoles` o si alguien asignado tiene ese rol. `FilterContext` ahora incluye `resources`
+>   para poder resolver el rol de cada asignación, y todos los llamadores se actualizaron.
+> - `resourceMatches` también exige que el rol de la persona esté en el filtro. Con eso, Resources
+>   muestra solo esas filas y Costs suma solo sus asignaciones, sin cambios en esas vistas.
+> - `RolesFilter.tsx`: chip con el ícono de cada rol del catálogo y una nota que explica la regla.
+> - **No se hizo** el toggle "Coincidir por: rol requerido / rol de la persona / ambos". Siempre se usa
+>   *Ambos*. Si hace falta, se agrega un campo `roleMatch` en `Filters`.
+> - De paso, `TimelineView` lee `resources` y `roles` del hook del store en vez de `getState()`, que no
+>   se actualizaba en pantalla si cambiaban.
+> - Verificado con el rol QA: 9 de 45 items resaltados (lo mismo que da el cálculo directo sobre los datos),
+>   Resources muestra a Cristian y Macarena, y Costs da S/56,976 = 37,632 + 19,344.
+>
+> Plan original de referencia:
 
 **Pregunta que responde:** "¿Cuánta demanda de Backend hay y quién la cubre?"
 

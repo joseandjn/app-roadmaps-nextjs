@@ -18,7 +18,7 @@ const HEADER_H = 54 + SPRINT_ROW_H
 
 export default function TimelineView() {
   const {
-    pxPerDay, projects, items, deps, sprints, visible, filters, draft, settings,
+    pxPerDay, projects, items, deps, sprints, visible, filters, draft, settings, resources, roles,
     showDeps, _tr, filterStartDay, filterEndDay, setViewport, openItem, editProject, startDrag, addDependency,
     openContextMenu, editSprint, onNewSprint, startSprintDrag,
   } = useRoadmapStore()
@@ -63,10 +63,10 @@ export default function TimelineView() {
   const visProjects = projects.filter(p => visible.has(p.id))
   // Items the filters keep. Dependency conflicts below still use all items,
   // so a filter never hides a clash signal on the bars that remain.
-  const shown = useMemo(() => items.filter(i => itemMatch(i, { filters, visible }) !== 'hide'), [items, filters, visible])
+  const shown = useMemo(() => items.filter(i => itemMatch(i, { filters, visible, resources }) !== 'hide'), [items, filters, visible, resources])
   const dropEmptyLanes = hidesItems(filters)
   // Dimmed items (people filter) stay drawn and clickable, just faded.
-  const dimmed = useMemo(() => new Set(shown.filter(i => itemMatch(i, { filters, visible }) === 'dim').map(i => i.id)), [shown, filters, visible])
+  const dimmed = useMemo(() => new Set(shown.filter(i => itemMatch(i, { filters, visible, resources }) === 'dim').map(i => i.id)), [shown, filters, visible, resources])
   const tr = _tr ? 'left .42s cubic-bezier(.4,0,.2,1),top .42s cubic-bezier(.4,0,.2,1),width .42s cubic-bezier(.4,0,.2,1)' : 'none'
 
   const syncViewport = useCallback(() => {
@@ -137,8 +137,6 @@ export default function TimelineView() {
   // Per-project vertical extent within the canvas — used to resolve which
   // project's lane a right-click landed in.
   const laneRanges: { id: string; top: number; height: number }[] = []
-  const resources = useRoadmapStore.getState().resources
-  const roles = useRoadmapStore.getState().roles
 
   // Dependency clash/cycle detection — computed unconditionally (not gated
   // by `showDeps`) so bars can flag a scheduling conflict even when the

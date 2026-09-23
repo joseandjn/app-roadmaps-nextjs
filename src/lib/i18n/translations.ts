@@ -37,6 +37,7 @@ const es: Record<string, string> = {
   'No items match the filters': 'Ninguna tarea coincide con los filtros',
   'Filter by this person': 'Filtrar por esta persona',
   'Stop filtering by this person': 'Dejar de filtrar por esta persona',
+  'Matches tasks that require the role or have someone with it assigned.': 'Incluye las tareas que requieren el rol o tienen asignada a alguien con ese rol.',
   'Whole team, not filtered': 'Todo el equipo, sin filtrar',
   'Total load {full}% ({n}% outside the filters)': 'Carga total {full}% ({n}% fuera de los filtros)',
   'Total peak {n}% including items outside the filters': 'Pico total {n}% contando lo que está fuera de los filtros',

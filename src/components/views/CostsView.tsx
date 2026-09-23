@@ -26,7 +26,7 @@ export default function CostsView() {
   const rangeEnd = filterEndDay ?? TOTAL_DAYS
   const rangeDays = Math.max(1, rangeEnd - rangeStart)
 
-  const counted = useMemo(() => itemsForMetrics(items, { filters, visible }), [items, filters, visible])
+  const counted = useMemo(() => itemsForMetrics(items, { filters, visible, resources }), [items, filters, visible, resources])
   // Only the matching people's assignments count toward cost.
   const people = useMemo(() => resources.filter(r => resourceMatches(r, filters)), [resources, filters])
   const narrowed = counted.length !== items.length || people.length !== resources.length

@@ -24,7 +24,7 @@ export default function ResourcesView() {
   const visibleDays = Math.max(1, lastDay - baseDay)
   const totalWidth = visibleDays * ppd
   const rows = useMemo(() => resources.filter(r => resourceMatches(r, filters)), [resources, filters])
-  const counted = useMemo(() => new Set(itemsForMetrics(items, { filters, visible }).map(i => i.id)), [items, filters, visible])
+  const counted = useMemo(() => new Set(itemsForMetrics(items, { filters, visible, resources }).map(i => i.id)), [items, filters, visible, resources])
 
   const syncViewport = useCallback(() => {
     const el = scrollRef.current

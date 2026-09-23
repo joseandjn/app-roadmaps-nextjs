@@ -20,6 +20,7 @@ export const EMPTY_FILTERS: Filters = {
 export interface FilterContext {
   filters: Filters
   visible: Set<string>
+  resources: Resource[] // to match roles through who's assigned
 }
 
 // 'dim' keeps the item on screen (and in load/cost) but de-emphasized, so
@@ -32,13 +33,26 @@ export function itemMatch(item: Item, ctx: FilterContext): ItemMatch {
   if (!ctx.visible.has(item.projectId)) return 'hide'
   if (f.statuses.length && !f.statuses.includes(item.status)) return 'hide'
   if (f.resourceIds.length && !item.assignments.some(a => f.resourceIds.includes(a.r))) return 'dim'
+  if (f.roles.length && !itemHasRole(item, f.roles, ctx.resources)) return 'dim'
   return 'show'
 }
 
-// Whether a person passes the people filter — Resources shows only these
-// rows, and Costs only counts their assignments.
+// An item "is" a role either because it requires it or because someone with
+// that role works on it. Items open to any role only match the second way.
+function itemHasRole(item: Item, roles: string[], resources: Resource[]): boolean {
+  if (item.requiredRoles?.some(r => roles.includes(r))) return true
+  return item.assignments.some(a => {
+    const role = resources.find(r => r.id === a.r)?.role
+    return !!role && roles.includes(role)
+  })
+}
+
+// Whether a person passes the people and role filters — Resources shows only
+// these rows, and Costs only counts their assignments.
 export function resourceMatches(r: Resource, f: Filters): boolean {
-  return !f.resourceIds.length || f.resourceIds.includes(r.id)
+  if (f.resourceIds.length && !f.resourceIds.includes(r.id)) return false
+  if (f.roles.length && !f.roles.includes(r.role)) return false
+  return true
 }
 
 // Whether any filter hides individual items (beyond hiding whole projects).
