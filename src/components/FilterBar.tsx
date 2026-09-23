@@ -13,6 +13,7 @@ import TypeFilter from '@/components/filters/TypeFilter'
 import IssuesToggle from '@/components/filters/IssuesToggle'
 import GapsFilter from '@/components/filters/GapsFilter'
 import PathChip from '@/components/filters/PathChip'
+import ViewsMenu from '@/components/filters/ViewsMenu'
 
 export default function FilterBar() {
   const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
@@ -39,6 +40,7 @@ export default function FilterBar() {
 
   return (
     <div className="flex items-center gap-2 px-4 py-2 border-b border-[#ececec] bg-[#fafafa]">
+      <ViewsMenu />
       <span className="text-[11px] font-semibold text-[#71717a] uppercase tracking-[0.05em] whitespace-nowrap">{t('Date range')}</span>
 
       <div className="flex items-center gap-1.5">

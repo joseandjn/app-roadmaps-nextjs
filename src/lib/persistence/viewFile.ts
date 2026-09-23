@@ -2,7 +2,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { listScenarios } from './scenarioFile'
 import { STATUS_ORDER, ITEM_TYPES } from '@/data/initialData'
-import type { PersistedFilters } from '@/types'
+import type { PersistedFilters, SavedView } from '@/types'
 
 const STORAGE_DIR = path.join(process.cwd(), 'storage')
 const VIEW_FILE = path.join(STORAGE_DIR, 'view.json')
@@ -14,6 +14,7 @@ export interface ViewState {
   filters: PersistedFilters
   // Hidden rather than visible, so projects created later show up by default.
   hiddenProjectIds: string[]
+  savedViews: SavedView[]
 }
 
 // Accepts anything and returns well-formed filters: unknown fields dropped,
@@ -37,6 +38,27 @@ export function sanitizeIds(raw: unknown): string[] {
   return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string') : []
 }
 
+const dayOrNull = (v: unknown) => typeof v === 'number' && Number.isFinite(v) ? v : null
+
+// Keeps views with an id and a name; everything else in them is sanitized
+// the same way as the current view.
+export function sanitizeSavedViews(raw: unknown): SavedView[] {
+  if (!Array.isArray(raw)) return []
+  return raw.flatMap(v => {
+    if (!v || typeof v !== 'object') return []
+    const r = v as Record<string, unknown>
+    if (typeof r.id !== 'string' || typeof r.name !== 'string' || !r.name.trim()) return []
+    return [{
+      id: r.id,
+      name: r.name.trim(),
+      filterStartDay: dayOrNull(r.filterStartDay),
+      filterEndDay: dayOrNull(r.filterEndDay),
+      filters: sanitizeFilters(r.filters),
+      hiddenProjectIds: sanitizeIds(r.hiddenProjectIds),
+    }]
+  })
+}
+
 export async function readViewState(): Promise<ViewState> {
   const { officialId } = await listScenarios()
   try {
@@ -47,10 +69,11 @@ export async function readViewState(): Promise<ViewState> {
       activeScenarioId: raw.activeScenarioId ?? officialId,
       filters: sanitizeFilters(raw.filters),
       hiddenProjectIds: sanitizeIds(raw.hiddenProjectIds),
+      savedViews: sanitizeSavedViews(raw.savedViews),
     }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      return { filterStartDay: null, filterEndDay: null, activeScenarioId: officialId, filters: sanitizeFilters(null), hiddenProjectIds: [] }
+      return { filterStartDay: null, filterEndDay: null, activeScenarioId: officialId, filters: sanitizeFilters(null), hiddenProjectIds: [], savedViews: [] }
     }
     throw err
   }

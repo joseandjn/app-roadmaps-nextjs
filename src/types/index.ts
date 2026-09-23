@@ -142,6 +142,20 @@ export type FilterListKey = 'resourceIds' | 'roles' | 'statuses' | 'types'
 // text search are momentary, so they're left out.
 export type PersistedFilters = Omit<Filters, 'focusItemId' | 'text'>
 
+// Everything a saved view restores: the date range, filters and hidden projects.
+export interface ViewSnapshot {
+  filterStartDay: number | null
+  filterEndDay: number | null
+  filters: PersistedFilters
+  hiddenProjectIds: string[]
+}
+
+// A named combination of filters ("Backend Q4", "Risks"), kept in view.json.
+export interface SavedView extends ViewSnapshot {
+  id: string
+  name: string
+}
+
 export interface ImpactResult {
   deps: { item: Item; clash: boolean }[]
   resources: { rid: string; before: number; after: number; capacity: number; over: boolean }[]
@@ -212,6 +226,9 @@ export interface RoadmapState {
   filterStartDay: number | null
   filterEndDay: number | null
   filters: Filters
+  savedViews: SavedView[]
+  // The saved or built-in view last applied, to label the Views menu; cleared by Reset.
+  activeViewId: string | null
   toast: { show: boolean; text: string } | null
   viewport: { left: number; width: number }
   tick: number

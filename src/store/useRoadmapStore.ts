@@ -1,19 +1,19 @@
 'use client'
 
 import { create } from 'zustand'
-import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta, Filters, FilterListKey, PersistedFilters } from '@/types'
+import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta, Filters, FilterListKey, PersistedFilters, SavedView, ViewSnapshot } from '@/types'
 import {
   INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS,
   getTodayDay, SCALE_PRESETS, PROJECT_COLORS, DEFAULT_PROJECT_TASKS,
 } from '@/data/initialData'
 import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
-import { EMPTY_FILTERS, pruneFilters } from '@/lib/filters'
+import { EMPTY_FILTERS, pruneFilters, currentViewSnapshot, persistedFilters, BUILTIN_VIEWS } from '@/lib/filters'
 
 type Store = RoadmapState & {
   // persistence
   hydrateScenario: (data: ScenarioData) => void
-  hydrateView: (v: { filterStartDay: number | null; filterEndDay: number | null; filters?: PersistedFilters; hiddenProjectIds?: string[] }) => void
+  hydrateView: (v: { filterStartDay: number | null; filterEndDay: number | null; filters?: PersistedFilters; hiddenProjectIds?: string[]; savedViews?: SavedView[] }) => void
   setScenarioList: (scenarios: ScenarioMeta[], officialId: string) => void
   setActiveScenarioId: (id: string) => void
   onNewScenario: () => void
@@ -105,6 +105,11 @@ type Store = RoadmapState & {
   toggleFilterValue: (key: FilterListKey, value: string) => void
   // Resets every filter: date range, `filters`, and hidden projects.
   clearFilter: () => void
+  // saved views (Views menu): apply a saved or built-in one, or manage your own
+  applyView: (id: string) => void
+  saveCurrentView: (name: string) => void
+  renameSavedView: (id: string, name: string) => void
+  deleteSavedView: (id: string) => void
   // voice agent — direct mutations from structured LLM output, bypassing pform/rform staging
   agentCreateResource: (data: { name: string; role: string; cost: number; costUnit?: 'month' | 'hour' }) => void
   agentUpdateResource: (id: string, patch: Partial<{ name: string; role: string; cost: number; costUnit: 'month' | 'hour' }>) => void
@@ -112,6 +117,18 @@ type Store = RoadmapState & {
   agentUpdateProject: (id: string, patch: Partial<{ name: string; desc: string; owner: string; category: string; status: Project['status'] }>) => void
   agentCreateItem: (data: { projectId: string; title: string; type: Item['type']; startDay: number; dur: number; status?: Item['status']; requiredRoles?: string[] }) => void
   agentUpdateItem: (id: string, patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number; requiredRoles: string[] | undefined }>) => void
+}
+
+// Store fields a view snapshot sets: dates, filters (minus momentary ones,
+// and without ids this scenario doesn't have) and project visibility.
+function snapshotState(s: RoadmapState, v: ViewSnapshot) {
+  const hidden = new Set(v.hiddenProjectIds)
+  return {
+    filterStartDay: v.filterStartDay,
+    filterEndDay: v.filterEndDay,
+    filters: pruneFilters({ ...EMPTY_FILTERS, ...v.filters }, s),
+    visible: new Set(s.projects.filter(p => !hidden.has(p.id)).map(p => p.id)),
+  }
 }
 
 function projRange(items: Item[], pid: string) {
@@ -249,6 +266,8 @@ export const useRoadmapStore = create<Store>((set, get) => {
     filterStartDay: null,
     filterEndDay: null,
     filters: EMPTY_FILTERS,
+    savedViews: [],
+    activeViewId: null,
     toast: null,
     viewport: { left: 0, width: 1000 },
     tick: 0,
@@ -278,15 +297,10 @@ export const useRoadmapStore = create<Store>((set, get) => {
     },
     // Applied after the scenario loads, so hidden projects and filtered
     // people/roles can be checked against its data.
-    hydrateView: v => set(s => {
-      const hidden = new Set(v.hiddenProjectIds ?? [])
-      return {
-        filterStartDay: v.filterStartDay,
-        filterEndDay: v.filterEndDay,
-        filters: pruneFilters({ ...EMPTY_FILTERS, ...v.filters }, s),
-        visible: new Set(s.projects.filter(p => !hidden.has(p.id)).map(p => p.id)),
-      }
-    }),
+    hydrateView: v => set(s => ({
+      ...snapshotState(s, { filterStartDay: v.filterStartDay, filterEndDay: v.filterEndDay, filters: { ...persistedFilters(EMPTY_FILTERS), ...v.filters }, hiddenProjectIds: v.hiddenProjectIds ?? [] }),
+      savedViews: v.savedViews ?? [],
+    })),
     setScenarioList: (scenarios, officialId) => set({ scenarios, officialScenarioId: officialId }),
     setActiveScenarioId: id => set({ activeScenarioId: id }),
     onNewScenario: () => set({ scenarioForm: { show: true, name: '', note: '' } }),
@@ -337,6 +351,28 @@ export const useRoadmapStore = create<Store>((set, get) => {
     clearFilter: () => set(s => ({
       filterStartDay: null, filterEndDay: null, filters: EMPTY_FILTERS,
       visible: new Set(s.projects.map(p => p.id)),
+      activeViewId: null,
+    })),
+    applyView: id => {
+      const v = [...BUILTIN_VIEWS, ...get().savedViews].find(x => x.id === id)
+      if (!v) return
+      set(s => ({ ...snapshotState(s, v), activeViewId: id }))
+    },
+    saveCurrentView: name => {
+      const trimmed = name.trim()
+      if (!trimmed) return
+      const view: SavedView = { id: 'v' + Date.now(), name: trimmed, ...currentViewSnapshot(get()) }
+      set(s => ({ savedViews: [...s.savedViews, view], activeViewId: view.id }))
+      showToast(t('View "{name}" saved', { name: trimmed }))
+    },
+    renameSavedView: (id, name) => {
+      const trimmed = name.trim()
+      if (!trimmed) return
+      set(s => ({ savedViews: s.savedViews.map(v => v.id === id ? { ...v, name: trimmed } : v) }))
+    },
+    deleteSavedView: id => set(s => ({
+      savedViews: s.savedViews.filter(v => v.id !== id),
+      activeViewId: s.activeViewId === id ? null : s.activeViewId,
     })),
 
     openItem: id => set(s => {

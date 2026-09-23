@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import type { ScenarioData, ScenarioMeta, PersistedFilters } from '@/types'
+import type { ScenarioData, ScenarioMeta, PersistedFilters, SavedView } from '@/types'
 import { viewPayload } from './viewPayload'
 
 const SAVE_DEBOUNCE_MS = 600
@@ -27,7 +27,7 @@ export function useRoadmapPersistence() {
       try {
         const viewRes = await fetch('/api/view')
         if (cancelled || !viewRes.ok) return
-        const view = await viewRes.json() as { filterStartDay: number | null; filterEndDay: number | null; activeScenarioId: string; filters?: PersistedFilters; hiddenProjectIds?: string[] }
+        const view = await viewRes.json() as { filterStartDay: number | null; filterEndDay: number | null; activeScenarioId: string; filters?: PersistedFilters; hiddenProjectIds?: string[]; savedViews?: SavedView[] }
         setActiveScenarioId(view.activeScenarioId)
 
         const listRes = await fetch('/api/scenarios')
@@ -87,7 +87,8 @@ export function useRoadmapPersistence() {
 
       if (
         state.filterStartDay !== prevState.filterStartDay || state.filterEndDay !== prevState.filterEndDay ||
-        state.filters !== prevState.filters || state.visible !== prevState.visible
+        state.filters !== prevState.filters || state.visible !== prevState.visible ||
+        state.savedViews !== prevState.savedViews
       ) {
         if (viewSaveTimer.current) clearTimeout(viewSaveTimer.current)
         viewSaveTimer.current = setTimeout(saveView, SAVE_DEBOUNCE_MS)

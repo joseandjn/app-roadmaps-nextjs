@@ -514,7 +514,29 @@ así que evaluar si conviene hacerlo en esta tarea o en una aparte.
 
 ---
 
-## F11 · Vistas guardadas (presets) `[ ]`
+## F11 · Vistas guardadas (presets) `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - Tipos nuevos: `ViewSnapshot` (fechas, `PersistedFilters`, `hiddenProjectIds`) y `SavedView` (snapshot + `id` y
+>   `name`). El store tiene `savedViews`, `activeViewId` y las acciones `applyView`, `saveCurrentView`,
+>   `renameSavedView` y `deleteSavedView`. `clearFilter` borra `activeViewId`.
+> - `filters.ts` agrega `persistedFilters`, `currentViewSnapshot`, `sameViewSnapshot` (compara sin importar el
+>   orden, para marcar "(modificada)") y `BUILTIN_VIEWS`. Las vistas predefinidas son "Riesgos y problemas"
+>   (solo problemas), "Ejecutiva" (epic, milestone, release) y "Huecos" (sin asignar + rol sin cubrir), y
+>   parten del plan completo, sin fechas ni proyectos ocultos. Cambio respecto al plan: "Riesgos" no
+>   combina At Risk con Solo problemas, porque At Risk ya es un tipo de problema.
+> - Aplicar una vista reemplaza fechas, filtros y proyectos ocultos (`snapshotState`, compartido con
+>   `hydrateView`) y descarta ids que no existen en el escenario.
+> - `view.json` guarda `savedViews`, sanitizadas con `sanitizeSavedViews`. `viewPayload` usa
+>   `currentViewSnapshot`, así que ya no duplica la lista de campos.
+> - `ViewsMenu.tsx`: primer botón del `FilterBar`, con secciones Predefinidas / Mis vistas (aplicar, renombrar
+>   en línea, borrar) y un campo para guardar la vista actual.
+> - `activeViewId` no se persiste: al recargar, el menú vuelve a decir "Vistas" aunque los filtros sigan aplicados.
+> - Verificado: la vista predefinida aplica Tipo · 3 (6 barras) y cambiar un filtro la marca como
+>   "(modificada)". Una vista propia se guardó, sobrevivió a una recarga y restauró Roles · 1 después de
+>   Restablecer. Renombrar y borrar también funcionan.
+>
+> Plan original de referencia:
 
 **Depende de:** F10.
 

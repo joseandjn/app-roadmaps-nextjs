@@ -1,4 +1,4 @@
-import type { Dependency, Filters, Item, Project, Resource, Role } from '@/types'
+import type { Dependency, Filters, Item, PersistedFilters, Project, Resource, Role, SavedView, ViewSnapshot } from '@/types'
 import { isOverloaded, dependencyIssues, overloadedItemIds, roleMismatch } from '@/lib/roadmapUtils'
 
 // Single source of truth for what the view filters mean. Views never
@@ -159,6 +159,50 @@ export function activeFilterCount(s: {
   if (f.text.trim()) n++
   return n
 }
+
+// The part of `filters` that's saved (view.json, saved views).
+export function persistedFilters(f: Filters): PersistedFilters {
+  return {
+    resourceIds: f.resourceIds, roles: f.roles, statuses: f.statuses, types: f.types,
+    onlyIssues: f.onlyIssues, unassigned: f.unassigned, uncovered: f.uncovered,
+  }
+}
+
+export function currentViewSnapshot(s: {
+  filterStartDay: number | null
+  filterEndDay: number | null
+  filters: Filters
+  projects: Project[]
+  visible: Set<string>
+}): ViewSnapshot {
+  return {
+    filterStartDay: s.filterStartDay,
+    filterEndDay: s.filterEndDay,
+    filters: persistedFilters(s.filters),
+    hiddenProjectIds: s.projects.filter(p => !s.visible.has(p.id)).map(p => p.id),
+  }
+}
+
+// Order-insensitive comparison, for the "(modified)" mark on the Views menu.
+export function sameViewSnapshot(a: ViewSnapshot, b: ViewSnapshot): boolean {
+  const sameSet = (x: string[], y: string[]) => x.length === y.length && x.every(v => y.includes(v))
+  const fa = a.filters, fb = b.filters
+  return a.filterStartDay === b.filterStartDay && a.filterEndDay === b.filterEndDay &&
+    sameSet(a.hiddenProjectIds, b.hiddenProjectIds) &&
+    sameSet(fa.resourceIds, fb.resourceIds) && sameSet(fa.roles, fb.roles) &&
+    sameSet(fa.statuses, fb.statuses) && sameSet(fa.types, fb.types) &&
+    fa.onlyIssues === fb.onlyIssues && fa.unassigned === fb.unassigned && fa.uncovered === fb.uncovered
+}
+
+// Ready-made views, always available and not editable. Names are
+// translation keys. They start from the whole plan: no dates, no hidden projects.
+const ALL_PLAN = { filterStartDay: null, filterEndDay: null, hiddenProjectIds: [] }
+const NO_FILTERS = persistedFilters(EMPTY_FILTERS)
+export const BUILTIN_VIEWS: SavedView[] = [
+  { id: 'builtin-issues', name: 'Risks and issues', ...ALL_PLAN, filters: { ...NO_FILTERS, onlyIssues: true } },
+  { id: 'builtin-executive', name: 'Executive', ...ALL_PLAN, filters: { ...NO_FILTERS, types: ['epic', 'milestone', 'release'] } },
+  { id: 'builtin-gaps', name: 'Gaps', ...ALL_PLAN, filters: { ...NO_FILTERS, unassigned: true, uncovered: true } },
+]
 
 // Drops references to people, roles or items that no longer exist (deleted,
 // undone, or a different scenario loaded). Returns the same object when
