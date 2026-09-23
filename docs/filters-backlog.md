@@ -318,7 +318,18 @@ muestra los items de Ana que además son de Backend.
 
 ---
 
-## F6 · Filtro por Tipo de item `[ ]`
+## F6 · Filtro por Tipo de item `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - `itemMatch` oculta los items cuyo tipo no está en `filters.types`, y `hidesItems` lo incluye, así que
+>   Timeline y Cross compactan filas, omiten lanes vacíos y muestran el estado vacío igual que con Estado.
+> - `TypeFilter.tsx`: chip con los 4 tipos y el atajo "Vista ejecutiva" (epic, milestone, release).
+> - Refactor: el botón de atajo que estaba repetido en Proyectos, Estado y Tipo pasó a ser `FilterShortcut`,
+>   exportado desde `FilterChip.tsx`.
+> - Verificado: "Vista ejecutiva" deja las 6 barras de milestones y releases (los datos actuales no tienen
+>   epics: 39 tasks, 3 milestones y 3 releases). Los atajos de Estado (35 barras) y Proyectos siguen funcionando.
+>
+> Plan original de referencia:
 
 **Pregunta que responde:** "Vista ejecutiva: solo hitos y releases" o "solo epics".
 

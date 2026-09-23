@@ -34,6 +34,7 @@ const es: Record<string, string> = {
   'By owner': 'Por responsable',
   'No owner': 'Sin responsable',
   'Hide Done': 'Ocultar completados',
+  'Executive view': 'Vista ejecutiva',
   'No items match the filters': 'Ninguna tarea coincide con los filtros',
   'Filter by this person': 'Filtrar por esta persona',
   'Stop filtering by this person': 'Dejar de filtrar por esta persona',

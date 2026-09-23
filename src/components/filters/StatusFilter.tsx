@@ -4,7 +4,7 @@ import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { STATUS_CONFIG, STATUS_ORDER } from '@/data/initialData'
 import type { StatusKey } from '@/types'
-import FilterChip from './FilterChip'
+import FilterChip, { FilterShortcut } from './FilterChip'
 
 const NOT_DONE: StatusKey[] = STATUS_ORDER.filter(s => s !== 'Done')
 
@@ -25,15 +25,9 @@ export default function StatusFilter() {
       onSetAll={v => setFilters({ statuses: v as StatusKey[] })}
       header={
         <div className="px-1.5 py-1">
-          <button
-            onClick={() => setFilters({ statuses: hidingDone ? [] : NOT_DONE })}
-            className="text-[11px] font-medium rounded-md px-2 py-0.5 border cursor-pointer font-inherit"
-            style={hidingDone
-              ? { color: '#3b6ef5', background: '#eaf1ff', borderColor: '#c2d4ff' }
-              : { color: '#52525b', background: '#fff', borderColor: '#ececec' }}
-          >
+          <FilterShortcut active={hidingDone} onClick={() => setFilters({ statuses: hidingDone ? [] : NOT_DONE })}>
             {t('Hide Done')}
-          </button>
+          </FilterShortcut>
         </div>
       }
     />

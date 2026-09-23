@@ -9,6 +9,7 @@ import ProjectsFilter from '@/components/filters/ProjectsFilter'
 import StatusFilter from '@/components/filters/StatusFilter'
 import PeopleFilter from '@/components/filters/PeopleFilter'
 import RolesFilter from '@/components/filters/RolesFilter'
+import TypeFilter from '@/components/filters/TypeFilter'
 
 export default function FilterBar() {
   const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
@@ -56,6 +57,7 @@ export default function FilterBar() {
       <div className="flex items-center gap-1.5 ml-2">
         <ProjectsFilter />
         <StatusFilter />
+        <TypeFilter />
         <PeopleFilter />
         <RolesFilter />
       </div>

@@ -32,6 +32,7 @@ export function itemMatch(item: Item, ctx: FilterContext): ItemMatch {
   const f = ctx.filters
   if (!ctx.visible.has(item.projectId)) return 'hide'
   if (f.statuses.length && !f.statuses.includes(item.status)) return 'hide'
+  if (f.types.length && !f.types.includes(item.type)) return 'hide'
   if (f.resourceIds.length && !item.assignments.some(a => f.resourceIds.includes(a.r))) return 'dim'
   if (f.roles.length && !itemHasRole(item, f.roles, ctx.resources)) return 'dim'
   return 'show'
@@ -59,7 +60,7 @@ export function resourceMatches(r: Resource, f: Filters): boolean {
 // Timeline/Cross drop lanes left empty by these, instead of showing a
 // visible-but-blank project.
 export function hidesItems(f: Filters): boolean {
-  return f.statuses.length > 0
+  return f.statuses.length > 0 || f.types.length > 0
 }
 
 // Items that count toward load and cost: everything not hidden (dimmed

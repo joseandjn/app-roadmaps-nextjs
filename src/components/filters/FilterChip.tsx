@@ -24,6 +24,21 @@ interface Props {
 
 const SEARCH_THRESHOLD = 8
 
+// A one-click preset inside a chip's header ("Hide Done", "By category"…).
+export function FilterShortcut({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className="text-[11px] font-medium rounded-md px-2 py-0.5 border cursor-pointer font-inherit"
+      style={active
+        ? { color: '#3b6ef5', background: '#eaf1ff', borderColor: '#c2d4ff' }
+        : { color: '#52525b', background: '#fff', borderColor: '#ececec' }}
+    >
+      {children}
+    </button>
+  )
+}
+
 // A multi-select filter in the FilterBar: a chip showing the label and how
 // many values are picked, opening a checklist popover. Nothing selected
 // means "no restriction" — the chip just reads as its label.

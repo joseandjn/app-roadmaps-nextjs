@@ -2,7 +2,7 @@
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { useTranslation } from '@/lib/i18n/useTranslation'
-import FilterChip from './FilterChip'
+import FilterChip, { FilterShortcut } from './FilterChip'
 
 // Projects chip: a view over `visible`, the same set the LeftRail checkboxes
 // toggle. The chip treats "nothing selected" as "no restriction", so all
@@ -37,16 +37,9 @@ export default function ProjectsFilter() {
         {entries.map(([k, ids]) => {
           const on = isExactly(ids)
           return (
-            <button
-              key={k}
-              onClick={() => setVisibleProjects(on ? [] : ids)}
-              className="text-[11px] font-medium rounded-md px-2 py-0.5 border cursor-pointer font-inherit"
-              style={on
-                ? { color: '#3b6ef5', background: '#eaf1ff', borderColor: '#c2d4ff' }
-                : { color: '#52525b', background: '#fff', borderColor: '#ececec' }}
-            >
+            <FilterShortcut key={k} active={on} onClick={() => setVisibleProjects(on ? [] : ids)}>
               {label(k)} <span className="opacity-60 tabular-nums">{ids.length}</span>
-            </button>
+            </FilterShortcut>
           )
         })}
       </div>
