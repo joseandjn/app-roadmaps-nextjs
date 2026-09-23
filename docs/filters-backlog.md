@@ -237,7 +237,21 @@ muestra solo la carga de esos proyectos o la carga total de la persona?
 
 ---
 
-## F4 · Filtro por Personas `[ ]`
+## F4 · Filtro por Personas `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - `itemMatch` devuelve `'dim'` si ninguna asignación del item es de las personas elegidas.
+>   `resourceMatches(r, filters)` indica si una persona pasa el filtro (F5 le suma la regla de roles).
+> - Timeline y Cross atenúan con `DIM_OPACITY = 0.25` (barras, milestones, ticks y barras expandidas).
+>   El item seleccionado nunca se atenúa. Los items atenuados siguen siendo clickeables y arrastrables.
+> - Resources muestra solo las filas de esas personas. El `LeftRail` sigue listando a todos, porque
+>   es donde se eligen, y cada fila tiene un botón de embudo para agregar o quitar a esa persona del filtro.
+> - Costs calcula todo con `assignmentCostsInRange` sobre las personas que pasan el filtro. Así el
+>   costo por proyecto y el total suman solo sus asignaciones, y "Costo por persona" lista solo a ellas.
+>   Sin filtros el total no cambia (S/225,494). Con Cristian y Jhonly da S/69,092 = 37,632 + 31,460.
+> - `PeopleFilter.tsx`: chip con iniciales, nombre y rol, y búsqueda (hay 18 personas).
+>
+> Plan original de referencia:
 
 **Pregunta que responde:** "¿En qué está metida Ana?", "¿Qué hacen Ana y Luis esta semana?"
 

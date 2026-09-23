@@ -25,12 +25,20 @@ export interface FilterContext {
 // 'dim' keeps the item on screen (and in load/cost) but de-emphasized, so
 // person/role filters don't lose dependency context; 'hide' removes it.
 export type ItemMatch = 'show' | 'dim' | 'hide'
+export const DIM_OPACITY = 0.25
 
 export function itemMatch(item: Item, ctx: FilterContext): ItemMatch {
   const f = ctx.filters
   if (!ctx.visible.has(item.projectId)) return 'hide'
   if (f.statuses.length && !f.statuses.includes(item.status)) return 'hide'
+  if (f.resourceIds.length && !item.assignments.some(a => f.resourceIds.includes(a.r))) return 'dim'
   return 'show'
+}
+
+// Whether a person passes the people filter — Resources shows only these
+// rows, and Costs only counts their assignments.
+export function resourceMatches(r: Resource, f: Filters): boolean {
+  return !f.resourceIds.length || f.resourceIds.includes(r.id)
 }
 
 // Whether any filter hides individual items (beyond hiding whole projects).

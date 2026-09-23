@@ -7,6 +7,7 @@ import { useTranslation } from '@/lib/i18n/useTranslation'
 import { activeFilterCount } from '@/lib/filters'
 import ProjectsFilter from '@/components/filters/ProjectsFilter'
 import StatusFilter from '@/components/filters/StatusFilter'
+import PeopleFilter from '@/components/filters/PeopleFilter'
 
 export default function FilterBar() {
   const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
@@ -54,6 +55,7 @@ export default function FilterBar() {
       <div className="flex items-center gap-1.5 ml-2">
         <ProjectsFilter />
         <StatusFilter />
+        <PeopleFilter />
       </div>
 
       {isActive && (

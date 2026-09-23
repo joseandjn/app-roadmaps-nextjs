@@ -8,7 +8,7 @@ import { roleIconDef } from '@/data/roleIcons'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useTodayDay } from '@/lib/useTodayDay'
 import ContextMenu from '@/components/ContextMenu'
-import { itemMatch, hidesItems } from '@/lib/filters'
+import { itemMatch, hidesItems, DIM_OPACITY } from '@/lib/filters'
 import FilterEmptyState from '@/components/filters/FilterEmptyState'
 
 const ROW = 32, BAR_H = 22, LP = 14
@@ -65,6 +65,8 @@ export default function TimelineView() {
   // so a filter never hides a clash signal on the bars that remain.
   const shown = useMemo(() => items.filter(i => itemMatch(i, { filters, visible }) !== 'hide'), [items, filters, visible])
   const dropEmptyLanes = hidesItems(filters)
+  // Dimmed items (people filter) stay drawn and clickable, just faded.
+  const dimmed = useMemo(() => new Set(shown.filter(i => itemMatch(i, { filters, visible }) === 'dim').map(i => i.id)), [shown, filters, visible])
   const tr = _tr ? 'left .42s cubic-bezier(.4,0,.2,1),top .42s cubic-bezier(.4,0,.2,1),width .42s cubic-bezier(.4,0,.2,1)' : 'none'
 
   const syncViewport = useCallback(() => {
@@ -222,6 +224,7 @@ export default function TimelineView() {
       const isM = it.type === 'milestone' || it.type === 'release'
       const sel = draft?.id === it.id
       const inConflict = conflictedIds.has(it.id)
+      const fade = dimmed.has(it.id) && !sel ? DIM_OPACITY : 1
 
       pos[it.id] = { x: Math.max(0, left), w: isM ? 0 : Math.max(7, it.dur * ppd), y: topPx + BAR_H / 2, right: Math.max(0, left) + (isM ? 0 : Math.max(7, it.dur * ppd)) }
 
@@ -230,7 +233,7 @@ export default function TimelineView() {
           <div
             key={it.id}
             data-item-id={it.id}
-            style={{ position: 'absolute', left: left - 7, top: topPx, height: BAR_H, display: 'flex', alignItems: 'center', gap: 6, cursor: 'grab', zIndex: sel ? 5 : 2, whiteSpace: 'nowrap', transition: tr, touchAction: 'none' }}
+            style={{ position: 'absolute', left: left - 7, top: topPx, height: BAR_H, display: 'flex', alignItems: 'center', gap: 6, cursor: 'grab', zIndex: sel ? 5 : 2, whiteSpace: 'nowrap', transition: tr, touchAction: 'none', opacity: fade }}
             onClick={() => { if (!didDrag()) openItem(it.id) }}
             onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'move', e.clientX) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}
@@ -262,7 +265,7 @@ export default function TimelineView() {
           <div
             key={it.id}
             data-item-id={it.id}
-            style={{ position: 'absolute', left, top: topPx, width: w, height: BAR_H, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRadius: 6, background: c.bg, border: `1px solid ${inConflict ? '#d08a8a' : c.bd}`, color: c.fg, fontSize: isEpic ? 12 : 11, fontWeight: isEpic ? 600 : 500, cursor: 'grab', overflow: 'visible', whiteSpace: 'nowrap', boxShadow: sel ? '0 0 0 2px #18181b' : inConflict ? '0 0 0 1.5px #d08a8a' : 'none', zIndex: sel ? 5 : inConflict ? 2 : 1, transition: tr, touchAction: 'none' }}
+            style={{ position: 'absolute', left, top: topPx, width: w, height: BAR_H, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRadius: 6, background: c.bg, border: `1px solid ${inConflict ? '#d08a8a' : c.bd}`, color: c.fg, fontSize: isEpic ? 12 : 11, fontWeight: isEpic ? 600 : 500, cursor: 'grab', overflow: 'visible', whiteSpace: 'nowrap', boxShadow: sel ? '0 0 0 2px #18181b' : inConflict ? '0 0 0 1.5px #d08a8a' : 'none', zIndex: sel ? 5 : inConflict ? 2 : 1, transition: tr, touchAction: 'none', opacity: fade }}
             onClick={() => { if (!didDrag()) openItem(it.id) }}
             onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'move', e.clientX) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}

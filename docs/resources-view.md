@@ -207,6 +207,10 @@ A filter must never hide a real overload, so each place also computes the
   tooltip "Total load X% (Y% outside the filters)"; the cell panel shows
   the same line, and the person panel shows "Total peak X% …".
 
+With a **People** filter, the grid shows only those people's rows (the
+LeftRail still lists everyone, with a funnel button per person to add or
+remove them from the filter).
+
 The cell panel maps the bucket back to absolute days with the same
 `baseDay` (`filterStartDay`) offset the grid uses, so its items match the
 clicked cell when a date range is set.

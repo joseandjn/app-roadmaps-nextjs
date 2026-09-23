@@ -6,7 +6,7 @@ import { deriveScale, buckets, buildHeader, initials, allocColor, utilizationPct
 import { getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useTodayDay } from '@/lib/useTodayDay'
-import { itemsForMetrics, colorLoad } from '@/lib/filters'
+import { itemsForMetrics, colorLoad, resourceMatches } from '@/lib/filters'
 
 const RH = 46
 const LABEL_W = 264
@@ -23,6 +23,7 @@ export default function ResourcesView() {
   const lastDay   = Math.min(TOTAL_DAYS, filterEndDay ?? TOTAL_DAYS)
   const visibleDays = Math.max(1, lastDay - baseDay)
   const totalWidth = visibleDays * ppd
+  const rows = useMemo(() => resources.filter(r => resourceMatches(r, filters)), [resources, filters])
   const counted = useMemo(() => new Set(itemsForMetrics(items, { filters, visible }).map(i => i.id)), [items, filters, visible])
 
   const syncViewport = useCallback(() => {
@@ -46,15 +47,15 @@ export default function ResourcesView() {
   }, [filterStartDay, filterEndDay])
 
   const bkts = buckets(si, baseDay, lastDay)
-  const { bands, gridLines } = buildHeader(si, ppd, totalWidth, resources.length * RH, baseDay, lastDay)
+  const { bands, gridLines } = buildHeader(si, ppd, totalWidth, rows.length * RH, baseDay, lastDay)
   const todayX = todayDay === null ? null : (todayDay - baseDay) * ppd
 
   const rowLabels: React.ReactElement[] = []
   const cells: React.ReactElement[] = []
 
   let y = 0
-  for (let ri = 0; ri < resources.length; ri++) {
-    const r = resources[ri]
+  for (let ri = 0; ri < rows.length; ri++) {
+    const r = rows[ri]
 
     rowLabels.push(
       <div key={r.id} style={{ position: 'absolute', top: y, left: 0, width: 264, height: RH, display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px', borderBottom: '1px solid #f4f4f5', boxSizing: 'border-box' }}>
@@ -142,7 +143,7 @@ export default function ResourcesView() {
         </div>
         {/* Bottom-right: allocation canvas */}
         <div style={{ position: 'relative', width: totalWidth, height: canvasHeight, overflow: 'hidden' }}>
-          {resources.map((r, i) => (
+          {rows.map((r, i) => (
             <div key={r.id} style={{ position: 'absolute', left: 0, top: i * RH, width: totalWidth, height: RH, background: i % 2 ? '#fcfcfd' : '#fff', borderBottom: '1px solid #f4f4f5' }} />
           ))}
           {gridLines.map((g, i) => <div key={i} style={g.style} />)}

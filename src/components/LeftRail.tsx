@@ -1,5 +1,6 @@
 'use client'
 
+import { Filter } from 'lucide-react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { resPeak, initials, isOverloaded } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, STATUS_ORDER } from '@/data/initialData'
@@ -10,7 +11,7 @@ export default function LeftRail() {
   const {
     view, projects, items, resources, visible, filters, railOpen,
     toggleRail, toggleProject, editProject, newItem, openRes,
-    onNewResource, panel, resSel,
+    onNewResource, panel, resSel, toggleFilterValue,
   } = useRoadmapStore()
   const { t } = useTranslation()
 
@@ -62,6 +63,7 @@ export default function LeftRail() {
               const fullPeak = resPeak(r.id, items)
               const over = isOverloaded(fullPeak, r)
               const sel = resSel === r.id && panel === 'res'
+              const filtering = filters.resourceIds.includes(r.id)
               return (
                 <div
                   key={r.id}
@@ -83,6 +85,14 @@ export default function LeftRail() {
                   >
                     {peak}%
                   </span>
+                  <button
+                    onClick={e => { e.stopPropagation(); toggleFilterValue('resourceIds', r.id) }}
+                    title={filtering ? t('Stop filtering by this person') : t('Filter by this person')}
+                    className="flex-none w-[22px] h-[22px] rounded-[5px] border-none cursor-pointer flex items-center justify-center p-0"
+                    style={filtering ? { background: '#eaf1ff', color: '#3b6ef5' } : { background: 'transparent', color: '#c4c4c8' }}
+                  >
+                    <Filter size={12} />
+                  </button>
                 </div>
               )
             })}
