@@ -1,10 +1,11 @@
 'use client'
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { initials, allocColor, resPeak, fmtDate, addDays, dateStr, workingDaysInRange, itemEnd, resourceCapacity, utilizationPct, isOverloaded } from '@/lib/roadmapUtils'
+import { initials, allocColor, resPeak, roleMismatch, fmtDate, addDays, dateStr, workingDaysInRange, itemEnd, resourceCapacity, utilizationPct, isOverloaded } from '@/lib/roadmapUtils'
 import { STATUS_ORDER, ITEM_TYPES } from '@/data/initialData'
 import { roleIconDef } from '@/data/roleIcons'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useFilterContext } from '@/lib/useFilterContext'
 import { itemsForMetrics, colorLoad } from '@/lib/filters'
 
 const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'
@@ -13,12 +14,13 @@ const inputCls = 'w-full text-[13px] text-[#27272a] bg-white border border-[#ece
 export default function RightPanel() {
   const {
     panel, draft, draftOrig, resSel, cell,
-    resources, items, projects, deps, settings, roles, filters, visible, filterStartDay,
+    resources, items, projects, deps, settings, roles, filterStartDay,
     clearPanel, onDraftTitle, onDraftStatus, onDraftType, onAddDraftRequiredRole, onRemoveDraftRequiredRole, onDraftStart, onDraftEnd,
     onAddAssignee, setAssignPct, removeAssign, onAddDep, removeDep,
     onSaveItem, onDeleteItem, editResource,
   } = useRoadmapStore()
   const { t } = useTranslation()
+  const fctx = useFilterContext()
   const workDays = draft ? workingDaysInRange(draft.startDay, draft.dur, settings) : 0
 
   const open = panel === 'item' || panel === 'cell' || panel === 'res'
@@ -109,14 +111,14 @@ export default function RightPanel() {
                   const r = resources.find(r => r.id === a.r)!
                   const hours = Math.round(workDays * settings.workHoursPerDay * a.pct / 100)
                   const cap = resourceCapacity(r)
-                  const roleMismatch = !!draft.requiredRoles?.length && !draft.requiredRoles.includes(r.role)
+                  const mismatch = roleMismatch(draft, r)
                   return (
                     <div key={a.r} className="flex items-center gap-2">
                       <div className="w-[26px] h-[26px] rounded-[8px] bg-[#ececef] text-[#52525b] text-[10px] font-semibold flex items-center justify-center flex-none">{initials(r.name)}</div>
                       <span className="text-[13px] text-[#27272a] flex-1 truncate">
                         {r.name}
                         {cap < 100 && <span className="text-[10px] text-[#a1a1aa] ml-1.5">{t('avail. {n}%', { n: cap })}</span>}
-                        {roleMismatch && (
+                        {mismatch && (
                           <span className="text-[10px] text-[#9a5b00] ml-1.5" title={t('{role} does not match the required role', { role: t(r.role) })}>
                             {t('wrong role')}
                           </span>
@@ -135,7 +137,7 @@ export default function RightPanel() {
               <select className={inputCls} onChange={e => { onAddAssignee(e.target.value); e.target.value = '' }} defaultValue="">
                 <option value="" disabled>{t('Add assignee…')}</option>
                 {resources.filter(r => !draft.assignments.some(a => a.r === r.id)).map(r => (
-                  <option key={r.id} value={r.id}>{r.name}{draft.requiredRoles?.length && !draft.requiredRoles.includes(r.role) ? ` — ${t(r.role)} ⚠` : ''}</option>
+                  <option key={r.id} value={r.id}>{r.name}{roleMismatch(draft, r) ? ` — ${t(r.role)} ⚠` : ''}</option>
                 ))}
               </select>
             </div>
@@ -186,7 +188,7 @@ export default function RightPanel() {
       {/* Resource detail panel */}
       {panel === 'res' && resSel && (() => {
         const r = resources.find(res => res.id === resSel)!
-        const counted = itemsForMetrics(items, { filters, visible, resources })
+        const counted = itemsForMetrics(items, fctx)
         const peak = resPeak(resSel, counted)
         const fullPeak = resPeak(resSel, items)
         const util = utilizationPct(colorLoad(peak, fullPeak, r), r)
@@ -265,7 +267,7 @@ export default function RightPanel() {
         // Buckets are relative to the start of the date range, same as ResourcesView.
         const absS = Math.max(0, filterStartDay ?? 0) + b.s
         const absE = absS + b.d
-        const counted = new Set(itemsForMetrics(items, { filters, visible, resources }).map(i => i.id))
+        const counted = new Set(itemsForMetrics(items, fctx).map(i => i.id))
         let total = 0
         let full = 0
         const cellItems: { title: string; project: string; pct: number; color: string }[] = []

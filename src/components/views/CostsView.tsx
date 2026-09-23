@@ -5,6 +5,7 @@ import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { assignmentCostsInRange, fmtMoney, initials, resourceDailyRate, AVG_DAYS_PER_MONTH } from '@/lib/roadmapUtils'
 import { TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useFilterContext } from '@/lib/useFilterContext'
 import { itemsForMetrics, resourceMatches } from '@/lib/filters'
 
 function Card({ label, value, note }: { label: string; value: string; note?: string }) {
@@ -20,13 +21,14 @@ function Card({ label, value, note }: { label: string; value: string; note?: str
 export default function CostsView() {
   const { projects, items, resources, filterStartDay, filterEndDay, settings, filters, visible } = useRoadmapStore()
   const { t } = useTranslation()
+  const fctx = useFilterContext()
   const fm = (n: number) => fmtMoney(n, settings.currencySymbol)
 
   const rangeStart = filterStartDay ?? 0
   const rangeEnd = filterEndDay ?? TOTAL_DAYS
   const rangeDays = Math.max(1, rangeEnd - rangeStart)
 
-  const counted = useMemo(() => itemsForMetrics(items, { filters, visible, resources }), [items, filters, visible, resources])
+  const counted = useMemo(() => itemsForMetrics(items, fctx), [items, fctx])
   // Only the matching people's assignments count toward cost.
   const people = useMemo(() => resources.filter(r => resourceMatches(r, filters)), [resources, filters])
   const narrowed = counted.length !== items.length || people.length !== resources.length

@@ -5,6 +5,7 @@ import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { resPeak, initials, isOverloaded } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, STATUS_ORDER } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useFilterContext } from '@/lib/useFilterContext'
 import { itemsForMetrics } from '@/lib/filters'
 
 export default function LeftRail() {
@@ -14,11 +15,12 @@ export default function LeftRail() {
     onNewResource, panel, resSel, toggleFilterValue,
   } = useRoadmapStore()
   const { t } = useTranslation()
+  const fctx = useFilterContext()
 
   const isResources = view === 'resources'
   const isCross = view === 'cross'
   const visCount = projects.filter(p => visible.has(p.id)).length
-  const counted = isResources ? itemsForMetrics(items, { filters, visible, resources }) : items
+  const counted = isResources ? itemsForMetrics(items, fctx) : items
 
   if (!railOpen) {
     return (

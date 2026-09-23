@@ -1,0 +1,17 @@
+'use client'
+
+import { useMemo } from 'react'
+import { useRoadmapStore } from '@/store/useRoadmapStore'
+import { itemIssues, type FilterContext } from '@/lib/filters'
+
+// Everything itemMatch/itemsForMetrics need, memoized so issues are only
+// recomputed when the planning data changes, not on every filter tweak.
+export function useFilterContext(): FilterContext {
+  const filters = useRoadmapStore(s => s.filters)
+  const visible = useRoadmapStore(s => s.visible)
+  const resources = useRoadmapStore(s => s.resources)
+  const items = useRoadmapStore(s => s.items)
+  const deps = useRoadmapStore(s => s.deps)
+  const issues = useMemo(() => itemIssues(items, deps, resources), [items, deps, resources])
+  return useMemo(() => ({ filters, visible, resources, issues }), [filters, visible, resources, issues])
+}

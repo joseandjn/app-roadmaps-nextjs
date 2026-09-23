@@ -5,6 +5,7 @@ import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { deriveScale, buckets, buildHeader, initials, allocColor, utilizationPct } from '@/lib/roadmapUtils'
 import { getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useFilterContext } from '@/lib/useFilterContext'
 import { useTodayDay } from '@/lib/useTodayDay'
 import { itemsForMetrics, colorLoad, resourceMatches } from '@/lib/filters'
 
@@ -13,8 +14,9 @@ const LABEL_W = 264
 const HEADER_H = 54
 
 export default function ResourcesView() {
-  const { pxPerDay, resources, items, projects, filterStartDay, filterEndDay, filters, visible, openCell, setViewport } = useRoadmapStore()
+  const { pxPerDay, resources, items, projects, filterStartDay, filterEndDay, filters, openCell, setViewport } = useRoadmapStore()
   const { t } = useTranslation()
+  const fctx = useFilterContext()
   const todayDay = useTodayDay()
   const scrollRef = useRef<HTMLDivElement>(null)
   const si = deriveScale(pxPerDay)
@@ -24,7 +26,7 @@ export default function ResourcesView() {
   const visibleDays = Math.max(1, lastDay - baseDay)
   const totalWidth = visibleDays * ppd
   const rows = useMemo(() => resources.filter(r => resourceMatches(r, filters)), [resources, filters])
-  const counted = useMemo(() => new Set(itemsForMetrics(items, { filters, visible, resources }).map(i => i.id)), [items, filters, visible, resources])
+  const counted = useMemo(() => new Set(itemsForMetrics(items, fctx).map(i => i.id)), [items, fctx])
 
   const syncViewport = useCallback(() => {
     const el = scrollRef.current

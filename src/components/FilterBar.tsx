@@ -10,6 +10,7 @@ import StatusFilter from '@/components/filters/StatusFilter'
 import PeopleFilter from '@/components/filters/PeopleFilter'
 import RolesFilter from '@/components/filters/RolesFilter'
 import TypeFilter from '@/components/filters/TypeFilter'
+import IssuesToggle from '@/components/filters/IssuesToggle'
 
 export default function FilterBar() {
   const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
@@ -60,6 +61,7 @@ export default function FilterBar() {
         <TypeFilter />
         <PeopleFilter />
         <RolesFilter />
+        <IssuesToggle />
       </div>
 
       {isActive && (

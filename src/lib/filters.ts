@@ -1,5 +1,5 @@
-import type { Filters, Item, Project, Resource, Role } from '@/types'
-import { isOverloaded } from '@/lib/roadmapUtils'
+import type { Dependency, Filters, Item, Project, Resource, Role } from '@/types'
+import { isOverloaded, dependencyIssues, overloadedItemIds, roleMismatch } from '@/lib/roadmapUtils'
 
 // Single source of truth for what the view filters mean. Views never
 // re-implement these rules — they ask `itemMatch` per item, or use
@@ -21,6 +21,27 @@ export interface FilterContext {
   filters: Filters
   visible: Set<string>
   resources: Resource[] // to match roles through who's assigned
+  issues: Map<string, IssueKind[]> // from itemIssues, for "only issues"
+}
+
+// Why an item needs attention. Cheap, live signals only — the Analysis
+// engine (engine/analyzers) has richer rules (critical path, idle capacity,
+// sprint spillover) and stays the place for those.
+export type IssueKind = 'dependency' | 'overload' | 'role' | 'risk'
+
+export function itemIssues(items: Item[], deps: Dependency[], resources: Resource[]): Map<string, IssueKind[]> {
+  const { conflicted } = dependencyIssues(items, deps)
+  const overloaded = overloadedItemIds(items, resources)
+  const out = new Map<string, IssueKind[]>()
+  for (const it of items) {
+    const kinds: IssueKind[] = []
+    if (conflicted.has(it.id)) kinds.push('dependency')
+    if (overloaded.has(it.id)) kinds.push('overload')
+    if (it.assignments.some(a => { const r = resources.find(rr => rr.id === a.r); return !!r && roleMismatch(it, r) })) kinds.push('role')
+    if (it.status === 'At Risk') kinds.push('risk')
+    if (kinds.length) out.set(it.id, kinds)
+  }
+  return out
 }
 
 // 'dim' keeps the item on screen (and in load/cost) but de-emphasized, so
@@ -33,6 +54,7 @@ export function itemMatch(item: Item, ctx: FilterContext): ItemMatch {
   if (!ctx.visible.has(item.projectId)) return 'hide'
   if (f.statuses.length && !f.statuses.includes(item.status)) return 'hide'
   if (f.types.length && !f.types.includes(item.type)) return 'hide'
+  if (f.onlyIssues && !ctx.issues.has(item.id)) return 'hide'
   if (f.resourceIds.length && !item.assignments.some(a => f.resourceIds.includes(a.r))) return 'dim'
   if (f.roles.length && !itemHasRole(item, f.roles, ctx.resources)) return 'dim'
   return 'show'
@@ -60,7 +82,7 @@ export function resourceMatches(r: Resource, f: Filters): boolean {
 // Timeline/Cross drop lanes left empty by these, instead of showing a
 // visible-but-blank project.
 export function hidesItems(f: Filters): boolean {
-  return f.statuses.length > 0 || f.types.length > 0
+  return f.statuses.length > 0 || f.types.length > 0 || f.onlyIssues
 }
 
 // Items that count toward load and cost: everything not hidden (dimmed

@@ -343,7 +343,27 @@ muestra los items de Ana que además son de Backend.
 
 ---
 
-## F7 · "Solo con problemas" `[ ]`
+## F7 · "Solo con problemas" `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - `roadmapUtils.ts` tiene tres helpers nuevos:
+>   - `dependencyIssues(items, deps)`: se extrajo de `TimelineView`, que ahora lo usa.
+>   - `overloadedItemIds(items, resources)`: carga diaria por persona contra su disponibilidad, en los días que dura el item.
+>   - `roleMismatch(item, resource)`: `RightPanel` ahora lo usa en lugar de repetir la regla.
+> - `filters.ts` tiene `itemIssues()`, que devuelve un `Map<itemId, IssueKind[]>` con los tipos
+>   `'dependency' | 'overload' | 'role' | 'risk'`. `itemMatch` oculta los items sin problemas cuando
+>   `onlyIssues` está activo, y `hidesItems` lo incluye.
+> - Hook nuevo, `src/lib/useFilterContext.ts`: arma el `FilterContext` (filters, visible, resources, issues)
+>   con memo, así los problemas se recalculan solo cuando cambian los datos. Las 6 vistas y paneles lo usan
+>   en vez de armar el contexto a mano.
+> - `IssuesToggle.tsx`: botón "Solo problemas N". N es cuántos items se verían al activarlo, respetando los
+>   demás filtros.
+> - Hover card del Timeline: además de "Conflicto", muestra "Sobrecarga" y "Rol distinto".
+> - **No se hizo** el link desde el `AnalysisModal` ("Ver en el Timeline"). Queda como mejora opcional.
+> - Verificado: el contador muestra 8, igual que el cálculo independiente sobre los datos (4 por sobrecarga,
+>   5 por rol distinto, 0 por dependencias, 0 en riesgo; algunos items tienen más de un problema).
+>
+> Plan original de referencia:
 
 **Pregunta que responde:** "Muéstrame solo lo que necesita atención".
 

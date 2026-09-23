@@ -1,5 +1,5 @@
 import { START_DATE, TOTAL_DAYS, MONTHS, WEEKDAYS } from '@/data/initialData'
-import type { Item, Resource, ScaleIndex, Settings, ScenarioMetrics } from '@/types'
+import type { Item, Resource, Dependency, ScaleIndex, Settings, ScenarioMetrics } from '@/types'
 
 export const DAY_MS = 86400000
 
@@ -170,6 +170,65 @@ export function resPeak(rid: string, items: Item[]): number {
     }
   }
   return peak
+}
+
+// Dependency problems: edges on a cycle (as "from>to" keys, used to color
+// arrows) and every item on either end of a clash — a predecessor that ends
+// after its successor starts — or of a cycle.
+export function dependencyIssues(items: Item[], deps: Dependency[]): { cycles: Set<string>; conflicted: Set<string> } {
+  const adj: Record<string, string[]> = {}
+  for (const e of deps) (adj[e.from] = adj[e.from] ?? []).push(e.to)
+  const cycles = new Set<string>()
+  const color: Record<string, number> = {}
+  const dfs = (n: string) => {
+    color[n] = 1
+    for (const m of adj[n] ?? []) {
+      if (color[m] === 1) cycles.add(`${n}>${m}`)
+      else if (!color[m]) dfs(m)
+    }
+    color[n] = 2
+  }
+  for (const n in adj) if (!color[n]) dfs(n)
+
+  const conflicted = new Set<string>()
+  for (const e of deps) {
+    const to = items.find(i => i.id === e.to)
+    const from = items.find(i => i.id === e.from)
+    if (!to || !from) continue
+    if (itemEnd(to) > from.startDay || cycles.has(`${e.from}>${e.to}`)) { conflicted.add(e.to); conflicted.add(e.from) }
+  }
+  return { cycles, conflicted }
+}
+
+// Items where at least one assignee is over their capacity on some day the
+// item spans (counting all their work that day, not just this item).
+export function overloadedItemIds(items: Item[], resources: Resource[]): Set<string> {
+  const daily: Record<string, Record<number, number>> = {}
+  for (const it of items) {
+    if (isInstantItem(it) || it.dur <= 0) continue
+    for (const a of it.assignments) {
+      const d = (daily[a.r] = daily[a.r] ?? {})
+      for (let day = it.startDay; day < it.startDay + it.dur; day++) d[day] = (d[day] ?? 0) + a.pct
+    }
+  }
+  const out = new Set<string>()
+  for (const it of items) {
+    if (isInstantItem(it) || it.dur <= 0) continue
+    const over = it.assignments.some(a => {
+      const r = resources.find(rr => rr.id === a.r)
+      if (!r) return false
+      for (let day = it.startDay; day < it.startDay + it.dur; day++) if (isOverloaded(daily[a.r][day], r)) return true
+      return false
+    })
+    if (over) out.add(it.id)
+  }
+  return out
+}
+
+// The person's role isn't one the item accepts (items with no required
+// roles accept anyone).
+export function roleMismatch(item: Pick<Item, 'requiredRoles'>, r: Pick<Resource, 'role'>): boolean {
+  return !!item.requiredRoles?.length && !item.requiredRoles.includes(r.role)
 }
 
 // Summary numbers for a scenario (or a checkpoint snapshot) — cost and

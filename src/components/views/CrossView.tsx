@@ -5,6 +5,7 @@ import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { deriveScale, pack, buildHeader } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useFilterContext } from '@/lib/useFilterContext'
 import { useTodayDay } from '@/lib/useTodayDay'
 import { itemMatch, hidesItems, DIM_OPACITY } from '@/lib/filters'
 import FilterEmptyState from '@/components/filters/FilterEmptyState'
@@ -13,8 +14,9 @@ const LABEL_W = 264
 const HEADER_H = 54
 
 export default function CrossView() {
-  const { pxPerDay, projects, items, resources, visible, filters, expanded, _tr, filterStartDay, filterEndDay, setViewport, openItem, toggleExpand } = useRoadmapStore()
+  const { pxPerDay, projects, items, visible, filters, expanded, _tr, filterStartDay, filterEndDay, setViewport, openItem, toggleExpand } = useRoadmapStore()
   const { t } = useTranslation()
+  const fctx = useFilterContext()
   const todayDay = useTodayDay()
   const scrollRef = useRef<HTMLDivElement>(null)
   const si = deriveScale(pxPerDay)
@@ -47,8 +49,8 @@ export default function CrossView() {
 
   const visProjects = projects.filter(p => visible.has(p.id))
   // Envelopes, ticks and expanded bars all come from the items the filters keep.
-  const shown = useMemo(() => items.filter(i => itemMatch(i, { filters, visible, resources }) !== 'hide'), [items, filters, visible, resources])
-  const dimmed = useMemo(() => new Set(shown.filter(i => itemMatch(i, { filters, visible, resources }) === 'dim').map(i => i.id)), [shown, filters, visible, resources])
+  const shown = useMemo(() => items.filter(i => itemMatch(i, fctx) !== 'hide'), [items, fctx])
+  const dimmed = useMemo(() => new Set(shown.filter(i => itemMatch(i, fctx) === 'dim').map(i => i.id)), [shown, fctx])
 
   let y = 0, gi = 0
   const laneLabels: React.ReactElement[] = []

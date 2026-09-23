@@ -2,16 +2,18 @@
 
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react'
 import { useRoadmapStore, didDrag } from '@/store/useRoadmapStore'
-import { deriveScale, pack, buildHeader, isWorkingDay, fmtDate, addDays, initials, workingDaysInRange, itemEnd } from '@/lib/roadmapUtils'
+import { deriveScale, pack, buildHeader, isWorkingDay, fmtDate, addDays, initials, workingDaysInRange, itemEnd, dependencyIssues } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { roleIconDef } from '@/data/roleIcons'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useFilterContext } from '@/lib/useFilterContext'
 import { useTodayDay } from '@/lib/useTodayDay'
 import ContextMenu from '@/components/ContextMenu'
 import { itemMatch, hidesItems, DIM_OPACITY } from '@/lib/filters'
 import FilterEmptyState from '@/components/filters/FilterEmptyState'
 
 const ROW = 32, BAR_H = 22, LP = 14
+const issueBadge: React.CSSProperties = { fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 5, background: '#fdf1e3', color: '#9a5b00', border: '1px solid #f1d3a8' }
 const LABEL_W = 264
 const SPRINT_ROW_H = 22
 const HEADER_H = 54 + SPRINT_ROW_H
@@ -23,6 +25,7 @@ export default function TimelineView() {
     openContextMenu, editSprint, onNewSprint, startSprintDrag,
   } = useRoadmapStore()
   const { t } = useTranslation()
+  const fctx = useFilterContext()
   const todayDay = useTodayDay()
 
   // Single scroll container — both axes live here
@@ -63,10 +66,10 @@ export default function TimelineView() {
   const visProjects = projects.filter(p => visible.has(p.id))
   // Items the filters keep. Dependency conflicts below still use all items,
   // so a filter never hides a clash signal on the bars that remain.
-  const shown = useMemo(() => items.filter(i => itemMatch(i, { filters, visible, resources }) !== 'hide'), [items, filters, visible, resources])
+  const shown = useMemo(() => items.filter(i => itemMatch(i, fctx) !== 'hide'), [items, fctx])
   const dropEmptyLanes = hidesItems(filters)
   // Dimmed items (people filter) stay drawn and clickable, just faded.
-  const dimmed = useMemo(() => new Set(shown.filter(i => itemMatch(i, { filters, visible, resources }) === 'dim').map(i => i.id)), [shown, filters, visible, resources])
+  const dimmed = useMemo(() => new Set(shown.filter(i => itemMatch(i, fctx) === 'dim').map(i => i.id)), [shown, fctx])
   const tr = _tr ? 'left .42s cubic-bezier(.4,0,.2,1),top .42s cubic-bezier(.4,0,.2,1),width .42s cubic-bezier(.4,0,.2,1)' : 'none'
 
   const syncViewport = useCallback(() => {
@@ -141,28 +144,7 @@ export default function TimelineView() {
   // Dependency clash/cycle detection — computed unconditionally (not gated
   // by `showDeps`) so bars can flag a scheduling conflict even when the
   // dependency arrows themselves aren't currently shown.
-  const depAdj: Record<string, string[]> = {}
-  for (const e of deps) { (depAdj[e.from] = depAdj[e.from] ?? []).push(e.to) }
-  const depCycles = new Set<string>()
-  const depColor: Record<string, number> = {}
-  const depDfs = (n: string) => {
-    depColor[n] = 1
-    for (const m of depAdj[n] ?? []) {
-      if (depColor[m] === 1) depCycles.add(`${n}>${m}`)
-      else if (!depColor[m]) depDfs(m)
-    }
-    depColor[n] = 2
-  }
-  for (const n in depAdj) { if (!depColor[n]) depDfs(n) }
-
-  const conflictedIds = new Set<string>()
-  for (const e of deps) {
-    const itTo = items.find(i => i.id === e.to)
-    const itFrom = items.find(i => i.id === e.from)
-    if (!itTo || !itFrom) continue
-    const bad = itemEnd(itTo) > itFrom.startDay || depCycles.has(`${e.from}>${e.to}`)
-    if (bad) { conflictedIds.add(e.to); conflictedIds.add(e.from) }
-  }
+  const { cycles: depCycles, conflicted: conflictedIds } = dependencyIssues(items, deps)
 
   // Right-click on empty canvas: resolve the day/project under the cursor and
   // open the "create here" menu. Right-click on a bar stops propagation and
@@ -352,8 +334,10 @@ export default function TimelineView() {
             <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 5, background: c.bg, color: c.fg, border: `1px solid ${c.bd}` }}>{t(it.status)}</span>
             <span style={{ fontSize: 11, color: '#a1a1aa' }}>{t(it.type.charAt(0).toUpperCase() + it.type.slice(1))}</span>
             {conflictedIds.has(it.id) && (
-              <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 5, background: '#fdf1e3', color: '#9a5b00', border: '1px solid #f1d3a8' }}>{t('Clash')}</span>
+              <span style={issueBadge}>{t('Clash')}</span>
             )}
+            {fctx.issues.get(it.id)?.includes('overload') && <span style={issueBadge}>{t('Overloaded')}</span>}
+            {fctx.issues.get(it.id)?.includes('role') && <span style={issueBadge}>{t('Wrong role')}</span>}
           </div>
           {it.requiredRoles && it.requiredRoles.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
