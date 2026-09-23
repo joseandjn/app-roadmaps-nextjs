@@ -16,7 +16,7 @@ const CREATE_OPTIONS: { type: ItemType; label: string }[] = [
 const MENU_W = 210
 
 export default function ContextMenu() {
-  const { contextMenu, closeContextMenu, openItem, newItemAt, duplicateItem, deleteItemById } = useRoadmapStore()
+  const { contextMenu, closeContextMenu, openItem, newItemAt, duplicateItem, deleteItemById, setFilters } = useRoadmapStore()
   const ref = useRef<HTMLDivElement>(null)
   const { t } = useTranslation()
 
@@ -56,6 +56,7 @@ export default function ContextMenu() {
         <>
           <button className={itemBtn} onClick={() => { openItem(itemId); closeContextMenu() }}>{t('Edit')}</button>
           <button className={itemBtn} onClick={() => { duplicateItem(itemId); closeContextMenu() }}>{t('Duplicate')}</button>
+          <button className={itemBtn} onClick={() => { setFilters({ focusItemId: itemId }); closeContextMenu() }}>{t('Show dependency path')}</button>
           <div className="h-px bg-[#f1f1f1] my-1.5 mx-2" />
           <button className={dangerBtn} onClick={() => { deleteItemById(itemId); closeContextMenu() }}>{t('Delete')}</button>
         </>

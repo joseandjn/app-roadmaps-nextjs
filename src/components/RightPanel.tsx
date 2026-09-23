@@ -17,7 +17,7 @@ export default function RightPanel() {
     resources, items, projects, deps, settings, roles, filterStartDay,
     clearPanel, onDraftTitle, onDraftStatus, onDraftType, onAddDraftRequiredRole, onRemoveDraftRequiredRole, onDraftStart, onDraftEnd,
     onAddAssignee, setAssignPct, removeAssign, onAddDep, removeDep,
-    onSaveItem, onDeleteItem, editResource,
+    onSaveItem, onDeleteItem, editResource, setFilters,
   } = useRoadmapStore()
   const { t } = useTranslation()
   const fctx = useFilterContext()
@@ -167,6 +167,14 @@ export default function RightPanel() {
                   return <option key={it.id} value={it.id}>{it.title} — {pr?.name.split(' — ')[0]}</option>
                 })}
               </select>
+              {draftOrig && (
+                <button
+                  onClick={() => setFilters({ focusItemId: draft.id })}
+                  className="mt-2 text-[11px] font-semibold text-[#3b6ef5] bg-transparent border-none cursor-pointer font-inherit p-0 hover:underline"
+                >
+                  {t('Show dependency path')}
+                </button>
+              )}
             </div>
           </div>
           <div className="px-4 py-3.5 border-t border-[#ececec] flex gap-2">

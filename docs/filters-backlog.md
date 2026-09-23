@@ -435,7 +435,23 @@ así que evaluar si conviene hacerlo en esta tarea o en una aparte.
 
 ---
 
-## F9 · Ruta de dependencias de un item `[ ]`
+## F9 · Ruta de dependencias de un item `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - `dependencyChain(itemId, deps)` en `filters.ts` recorre los predecesores y sucesores transitivos, y es
+>   seguro ante ciclos. `useFilterContext` lo memoiza como `ctx.chain`, e `itemMatch` atenúa lo que queda
+>   fuera de la cadena.
+> - Timeline: mientras hay una ruta activa se dibujan **solo** las flechas de la cadena, aunque el toggle
+>   de dependencias esté apagado. La preferencia `showDeps` no cambia.
+> - Se activa desde el menú contextual ("Ver ruta de dependencias") o desde el panel del item (un link bajo
+>   "Depende de", solo en items ya guardados).
+> - `PathChip.tsx` muestra "Ruta: <título> ✕". Se sale con ✕, con Esc (se ignora si hay un menú, un diálogo
+>   o un campo de texto con foco) o con Restablecer. Si se borra el item, `pruneFilters` limpia la ruta.
+> - Verificado con "Merge 23.7": 10 items resaltados, igual que el cálculo sobre los datos, y 11 flechas.
+>   Esc restaura la vista.
+> - Pendiente para F14: con todos los chips, la barra de filtros ya ocupa casi todo el ancho.
+>
+> Plan original de referencia:
 
 **Pregunta que responde:** "Si esta tarea se atrasa, ¿qué arrastra?" y "¿de qué depende?"
 

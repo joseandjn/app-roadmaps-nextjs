@@ -23,6 +23,25 @@ export interface FilterContext {
   visible: Set<string>
   resources: Resource[] // to match roles through who's assigned
   issues: Map<string, IssueKind[]> // from itemIssues, for "only issues"
+  chain: Set<string> | null // dependencyChain of filters.focusItemId, when set
+}
+
+// The focused item plus everything it transitively depends on (upstream)
+// and everything that transitively depends on it (downstream). A dependency
+// `{ from, to }` means `from` depends on `to`. Cycles are safe: each item is
+// visited once per direction.
+export function dependencyChain(itemId: string, deps: Dependency[]): Set<string> {
+  const walk = (next: (id: string) => string[]) => {
+    const seen = new Set<string>([itemId])
+    const stack = [itemId]
+    while (stack.length) {
+      for (const n of next(stack.pop()!)) if (!seen.has(n)) { seen.add(n); stack.push(n) }
+    }
+    return seen
+  }
+  const up = walk(id => deps.filter(e => e.from === id).map(e => e.to))
+  const down = walk(id => deps.filter(e => e.to === id).map(e => e.from))
+  return new Set([...up, ...down])
 }
 
 // Why an item needs attention. Cheap, live signals only — the Analysis
@@ -60,6 +79,7 @@ export function itemMatch(item: Item, ctx: FilterContext): ItemMatch {
   if ((f.unassigned || f.uncovered) && !((f.unassigned && isUnassigned(item)) || (f.uncovered && isRoleUncovered(item, ctx.resources)))) return 'hide'
   if (f.resourceIds.length && !item.assignments.some(a => f.resourceIds.includes(a.r))) return 'dim'
   if (f.roles.length && !itemHasRole(item, f.roles, ctx.resources)) return 'dim'
+  if (ctx.chain && !ctx.chain.has(item.id)) return 'dim'
   return 'show'
 }
 

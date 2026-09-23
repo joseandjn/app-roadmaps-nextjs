@@ -12,6 +12,7 @@ import RolesFilter from '@/components/filters/RolesFilter'
 import TypeFilter from '@/components/filters/TypeFilter'
 import IssuesToggle from '@/components/filters/IssuesToggle'
 import GapsFilter from '@/components/filters/GapsFilter'
+import PathChip from '@/components/filters/PathChip'
 
 export default function FilterBar() {
   const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
@@ -64,6 +65,7 @@ export default function FilterBar() {
         <RolesFilter />
         <GapsFilter />
         <IssuesToggle />
+        <PathChip />
       </div>
 
       {isActive && (

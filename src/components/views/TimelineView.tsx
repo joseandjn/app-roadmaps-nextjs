@@ -407,10 +407,14 @@ export default function TimelineView() {
     }
   }
 
-  // Dependency lines
+  // Dependency lines. While a dependency path is focused, its arrows are
+  // drawn even with the toggle off, and only those.
+  const chain = fctx.chain
+  const drawDeps = showDeps || !!chain
   const depLines: React.ReactElement[] = []
-  if (showDeps) {
+  if (drawDeps) {
     for (const e of deps) {
+      if (chain && !(chain.has(e.from) && chain.has(e.to))) continue
       const a = pos[e.to], b = pos[e.from]
       if (!a || !b) continue
       const itTo = items.find(i => i.id === e.to)!
@@ -535,7 +539,7 @@ export default function TimelineView() {
           {/* Today line */}
           {todayX !== null && <div style={{ position: 'absolute', left: todayX, top: 0, width: 1, height: canvasHeight, background: '#ef4444', opacity: 0.5, zIndex: 2 }} />}
           {bars}
-          {showDeps && (
+          {drawDeps && (
             <svg style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 1, overflow: 'visible' }} width={totalWidth} height={canvasHeight}>
               <defs>
                 <marker id="ah" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
