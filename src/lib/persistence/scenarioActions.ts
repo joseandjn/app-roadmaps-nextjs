@@ -2,13 +2,13 @@
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import type { ScenarioData, ScenarioMeta, CheckpointMeta, Checkpoint } from '@/types'
+import { viewPayload } from './viewPayload'
 
 function saveView(activeScenarioId: string) {
-  const { filterStartDay, filterEndDay } = useRoadmapStore.getState()
   fetch('/api/view', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filterStartDay, filterEndDay, activeScenarioId }),
+    body: JSON.stringify(viewPayload(activeScenarioId)),
   }).catch(() => {})
 }
 

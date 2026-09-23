@@ -138,6 +138,10 @@ export interface Filters {
 
 export type FilterListKey = 'resourceIds' | 'roles' | 'statuses' | 'types'
 
+// The filters kept across reloads (view.json). The dependency path and the
+// text search are momentary, so they're left out.
+export type PersistedFilters = Omit<Filters, 'focusItemId' | 'text'>
+
 export interface ImpactResult {
   deps: { item: Item; clash: boolean }[]
   resources: { rid: string; before: number; after: number; capacity: number; over: boolean }[]

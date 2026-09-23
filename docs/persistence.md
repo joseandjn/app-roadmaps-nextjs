@@ -10,10 +10,38 @@ the dev server) by being saved to a JSON file on disk.
 ### What's persisted
 
 Only the four **domain data** arrays: `projects`, `items`, `resources`,
-`deps`. Nothing else — not the active tab, zoom level, date-range filter,
+`deps`. Nothing else — not the active tab, zoom level,
 open panels, or any in-progress form. Reload the page and you'll land
 back on the Timeline tab at default zoom, but every project, item,
 person, and dependency you created or edited will still be there.
+
+> **Note:** parts of this document predate scenarios (planning data now
+> lives in `storage/scenarios/*.json`, not `roadmap.json`). The view state
+> section below is current.
+
+### View state (`storage/view.json`)
+
+Separate from the planning data, `view.json` keeps how you're looking at
+it, global across scenarios:
+
+- `activeScenarioId`, and the date range (`filterStartDay`/`filterEndDay`).
+- `filters`: people, roles, statuses, types, "only issues", and the two
+  gap toggles (`PersistedFilters`). The dependency-path focus and text
+  search are momentary and aren't saved.
+- `hiddenProjectIds`: projects hidden in the LeftRail / Projects chip.
+  Stored as *hidden* so projects created later show up by default.
+
+`src/lib/persistence/viewFile.ts` sanitizes both on read and write
+(`sanitizeFilters`, `sanitizeIds`): unknown fields are dropped, bad values
+fall back to "no filter", and an older `view.json` without these fields
+loads as all defaults. The client builds the PUT body in one place
+(`viewPayload.ts`) and saves it, debounced, whenever the date range,
+`filters` or `visible` change.
+
+On boot the view is applied **after** the scenario data loads, so ids that
+no longer exist (a deleted person, a removed project) are dropped
+(`pruneFilters`). Switching scenarios keeps hidden projects that the new
+scenario also has.
 
 ### What it feels like
 

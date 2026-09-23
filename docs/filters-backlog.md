@@ -470,7 +470,25 @@ así que evaluar si conviene hacerlo en esta tarea o en una aparte.
 
 ---
 
-## F10 · Persistir los filtros en la vista `[ ]`
+## F10 · Persistir los filtros en la vista `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - `PersistedFilters` (en `types`) es `Filters` sin `focusItemId` ni `text`. `ViewState` ahora incluye
+>   `filters` y `hiddenProjectIds`.
+> - `viewFile.ts` agrega `sanitizeFilters` y `sanitizeIds`, que se usan al leer y al escribir. La ruta PUT
+>   ya no rechaza payloads sin esos campos: los sanitiza. Así un `view.json` viejo carga con los defaults.
+> - `viewPayload.ts` arma el body en un solo lugar, y lo usan el hook de persistencia y `scenarioActions`.
+>   El `subscribe` guarda cuando cambian las fechas, `filters` o `visible`.
+> - Boot: ahora el orden es escenario activo → lista → datos → `hydrateView`. La vista se aplica después de
+>   los datos para poder descartar ids inexistentes (`pruneFilters`) y ocultar solo proyectos que existen.
+> - Decisión: los filtros son **globales**. Al cambiar de escenario, `hydrateScenario` mantiene ocultos los
+>   proyectos que el nuevo escenario también tiene (los escenarios duplicados comparten ids).
+> - `docs/persistence.md` tiene una sección nueva sobre `view.json`. El resto de ese doc está desactualizado
+>   desde que existen escenarios; se marcó con una nota y queda para F14.
+> - Verificado: Estado + Persona + un proyecto oculto sobreviven al recargar. Un PUT con valores inválidos
+>   se guarda sanitizado.
+>
+> Plan original de referencia:
 
 **Objetivo:** que al recargar se mantengan los filtros, como ya pasa con el rango de fechas.
 

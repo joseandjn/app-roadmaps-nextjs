@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta, Filters, FilterListKey } from '@/types'
+import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta, Filters, FilterListKey, PersistedFilters } from '@/types'
 import {
   INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS,
   getTodayDay, SCALE_PRESETS, PROJECT_COLORS, DEFAULT_PROJECT_TASKS,
@@ -13,7 +13,7 @@ import { EMPTY_FILTERS, pruneFilters } from '@/lib/filters'
 type Store = RoadmapState & {
   // persistence
   hydrateScenario: (data: ScenarioData) => void
-  hydrateView: (v: { filterStartDay: number | null; filterEndDay: number | null }) => void
+  hydrateView: (v: { filterStartDay: number | null; filterEndDay: number | null; filters?: PersistedFilters; hiddenProjectIds?: string[] }) => void
   setScenarioList: (scenarios: ScenarioMeta[], officialId: string) => void
   setActiveScenarioId: (id: string) => void
   onNewScenario: () => void
@@ -259,6 +259,10 @@ export const useRoadmapStore = create<Store>((set, get) => {
     // editing panel, since its ids belong to whichever scenario was active
     // before.
     hydrateScenario: data => {
+      // Projects hidden before stay hidden if this scenario has them too
+      // (duplicated scenarios share project ids).
+      const s0 = get()
+      const hidden = new Set(s0.projects.filter(p => !s0.visible.has(p.id)).map(p => p.id))
       set({
         projects: data.projects,
         items: data.items,
@@ -267,12 +271,22 @@ export const useRoadmapStore = create<Store>((set, get) => {
         sprints: data.sprints,
         settings: data.settings,
         roles: data.roles,
-        visible: new Set(data.projects.map(p => p.id)),
+        visible: new Set(data.projects.filter(p => !hidden.has(p.id)).map(p => p.id)),
         panel: null, draft: null, draftOrig: null, cell: null, contextMenu: null, impact: null, resSel: null,
       })
       resetHistory()
     },
-    hydrateView: v => set({ filterStartDay: v.filterStartDay, filterEndDay: v.filterEndDay }),
+    // Applied after the scenario loads, so hidden projects and filtered
+    // people/roles can be checked against its data.
+    hydrateView: v => set(s => {
+      const hidden = new Set(v.hiddenProjectIds ?? [])
+      return {
+        filterStartDay: v.filterStartDay,
+        filterEndDay: v.filterEndDay,
+        filters: pruneFilters({ ...EMPTY_FILTERS, ...v.filters }, s),
+        visible: new Set(s.projects.filter(p => !hidden.has(p.id)).map(p => p.id)),
+      }
+    }),
     setScenarioList: (scenarios, officialId) => set({ scenarios, officialScenarioId: officialId }),
     setActiveScenarioId: id => set({ activeScenarioId: id }),
     onNewScenario: () => set({ scenarioForm: { show: true, name: '', note: '' } }),

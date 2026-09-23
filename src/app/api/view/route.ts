@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
-import { readViewState, writeViewState, type ViewState } from '@/lib/persistence/viewFile'
+import { readViewState, writeViewState, sanitizeFilters, sanitizeIds } from '@/lib/persistence/viewFile'
 
-function isValidViewState(body: unknown): body is ViewState {
+// Filters and hidden projects are optional and sanitized rather than
+// rejected, so an older client (or a partial payload) can still save.
+function isValidViewState(body: unknown): body is { filterStartDay: number | null; filterEndDay: number | null; activeScenarioId: string; filters?: unknown; hiddenProjectIds?: unknown } {
   if (!body || typeof body !== 'object') return false
   const b = body as Record<string, unknown>
   return (typeof b.filterStartDay === 'number' || b.filterStartDay === null)
@@ -19,6 +21,12 @@ export async function PUT(request: Request) {
   if (!isValidViewState(body)) {
     return NextResponse.json({ error: 'Invalid view payload' }, { status: 400 })
   }
-  await writeViewState(body)
+  await writeViewState({
+    filterStartDay: body.filterStartDay,
+    filterEndDay: body.filterEndDay,
+    activeScenarioId: body.activeScenarioId,
+    filters: sanitizeFilters(body.filters),
+    hiddenProjectIds: sanitizeIds(body.hiddenProjectIds),
+  })
   return NextResponse.json({ ok: true })
 }
