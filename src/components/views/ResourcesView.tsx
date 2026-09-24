@@ -9,6 +9,7 @@ import { useFilterContext } from '@/lib/useFilterContext'
 import { useTodayDay } from '@/lib/useTodayDay'
 import { itemsForMetrics, colorLoad, resourceMatches } from '@/lib/filters'
 import FilterEmptyState from '@/components/filters/FilterEmptyState'
+import UncoveredDemand from '@/components/UncoveredDemand'
 
 const RH = 46
 const LABEL_W = 264
@@ -27,7 +28,8 @@ export default function ResourcesView() {
   const visibleDays = Math.max(1, lastDay - baseDay)
   const totalWidth = visibleDays * ppd
   const rows = useMemo(() => resources.filter(r => resourceMatches(r, filters)), [resources, filters])
-  const counted = useMemo(() => new Set(itemsForMetrics(items, fctx).map(i => i.id)), [items, fctx])
+  const countedItems = useMemo(() => itemsForMetrics(items, fctx), [items, fctx])
+  const counted = useMemo(() => new Set(countedItems.map(i => i.id)), [countedItems])
   // Nobody left, or every item filtered out (the rows would all read 0%).
   const filteredEmpty = (resources.length > 0 && rows.length === 0) || (items.length > 0 && counted.size === 0)
 
@@ -127,6 +129,7 @@ export default function ResourcesView() {
   return (
     <>
     {filteredEmpty && <FilterEmptyState />}
+    {filters.uncovered && <UncoveredDemand items={countedItems} fromDay={baseDay} toDay={lastDay} />}
     <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto" onScroll={syncViewport}>
       <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px ${totalWidth}px`, gridTemplateRows: `${HEADER_H}px ${canvasHeight}px`, minWidth: LABEL_W + totalWidth }}>
         {/* Top-left corner */}

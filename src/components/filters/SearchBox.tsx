@@ -6,6 +6,7 @@ import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useFilterContext } from '@/lib/useFilterContext'
 import { itemMatch, matchesText } from '@/lib/filters'
+import { scrollToItem } from '@/lib/scrollToItem'
 
 const DEBOUNCE_MS = 150
 const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
@@ -73,19 +74,7 @@ export default function SearchBox() {
     if (!drawn.length) return
     const at = drawn.findIndex(m => m.id === matches[cursor]?.id)
     const next = at < 0 ? (back ? drawn.length - 1 : 0) : (at + (back ? -1 : 1) + drawn.length) % drawn.length
-    const el = document.querySelector<HTMLElement>(`[data-item-id="${drawn[next].id}"]`)!
-    // Scroll just the view's own container: scrollIntoView would also shift
-    // overflow-hidden ancestors and cut off the sticky label column.
-    const box = el.closest<HTMLElement>('.overflow-auto')
-    if (box) {
-      const er = el.getBoundingClientRect(), br = box.getBoundingClientRect()
-      box.scrollBy({
-        left: er.left + er.width / 2 - (br.left + br.width / 2),
-        top: er.top + er.height / 2 - (br.top + br.height / 2),
-        behavior: 'smooth',
-      })
-    }
-    el.animate([{ outline: '2px solid #3b6ef5', outlineOffset: '2px' }, { outline: '2px solid transparent', outlineOffset: '2px' }], { duration: 1400, easing: 'ease-out' })
+    scrollToItem(drawn[next].id)
     setCursor(matches.indexOf(drawn[next]))
   }
 

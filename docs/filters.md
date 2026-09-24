@@ -21,6 +21,7 @@ touch scenario data and never enter undo/redo history.
 | **Roles** | Roles chip | it requires one of the roles, or someone with one of them is assigned | Dim |
 | **Dependency path** | Item context menu / item panel → "Show dependency path"; chip "Path: …" | it's the item or one of its transitive predecessors/successors | Dim |
 | **Text search** | Search box (`/` or Cmd/Ctrl+F) | its title or its project's name contains the text (case- and accent-insensitive) | Dim |
+| **Analysis finding** | Analysis modal → "Show in Timeline" on a finding; chip "Finding: …" | it's one of the finding's items | Dim |
 
 Values within one filter are OR'ed; different filters are AND'ed
 (`Status ∈ {At Risk, In Progress}` **and** `People ∈ {Ana, Luis}`).
@@ -59,14 +60,23 @@ the filters" with a **Reset** button.
   (Shift+Enter to the previous), the box shows "2/5". Esc clears it.
 - **Voice**: "only Ana's work", "what's at risk in project X", "remove the
   filters" — see `docs/voice-agent.md` → Filters.
+- **Show in Timeline** (Analysis modal): clears the other filters — the
+  analysis measures the whole plan, so they could hide its items — then
+  highlights the finding's items and scrolls to the first one.
+- **Uncovered demand**: with *Required role not covered* on, Resources shows
+  a strip "Uncovered demand by role" — each combination of accepted roles
+  with its items and working days in the visible range. An item accepting
+  several roles counts once. Clicking a group sets the Roles filter to it,
+  so the grid shows who could take that work.
 - On windows narrower than 1600px the chips collapse into a single
-  **Filters · N** button; dates, search, Views and the path chip stay out.
+  **Filters · N** button; dates, search, Views and the path/finding chips
+  stay out. Each path or finding chip showing raises that width by 270px.
 
 ### What's saved
 
 `storage/view.json` keeps the date range, filters and hidden projects across
 reloads, plus saved views. The dependency path and the text search are
-momentary and not saved. Filters are **global**, not per scenario: switching
+momentary and not saved, and neither is a highlighted finding. Filters are **global**, not per scenario: switching
 scenarios keeps them, and ids that don't exist there are dropped.
 
 ## Technical description
@@ -79,7 +89,10 @@ scenarios keeps them, and ids that don't exist there are dropped.
 | `src/lib/filters.ts` | All the rules: `itemMatch`, `resourceMatches`, `itemsForMetrics`, `colorLoad`, `hidesItems`, `activeFilterCount`, `itemIssues`, `dependencyChain`, `matchesText`, `pruneFilters`, `BUILTIN_VIEWS` |
 | `src/lib/useFilterContext.ts` | Builds the memoized `FilterContext` (filters, visible, resources, issues, chain, projects) views pass to `itemMatch` |
 | `src/store/useRoadmapStore.ts` | `filters`, `visible`, `setFilters`, `toggleFilterValue`, `setVisibleProjects`, `clearFilter`, saved-view actions |
-| `src/components/FilterBar.tsx` | Layout; collapses chips into `FiltersGroup` below 1600px |
+| `src/components/FilterBar.tsx` | Layout; collapses chips into `FiltersGroup` below 1600px (+270px per path/finding chip) |
+| `src/lib/analysis/findingItems.ts` | `findingItemIds(finding)`: which items each kind of Analysis finding is about |
+| `src/lib/scrollToItem.ts` | Centers a bar in its view's scroll container and flashes it (search, Show in Timeline) |
+| `src/components/UncoveredDemand.tsx` | The Resources strip; numbers from `uncoveredDemand()` in `filters.ts` |
 | `src/components/filters/*` | One component per chip, plus `FilterChip` (generic multi-select popover), `SearchBox`, `PathChip`, `ViewsMenu`, `FiltersGroup`, `FilterEmptyState` |
 | `src/lib/persistence/viewFile.ts`, `viewPayload.ts` | Sanitizing and saving `view.json` |
 
@@ -100,7 +113,8 @@ create/restore/load flows already maintained); the Projects chip and the
 ### Keeping ids valid
 
 A single `subscribe` at the end of the store runs `pruneFilters` whenever
-`items`, `resources` or `roles` change — covering deletes, undo/redo,
+`items`, `resources` or `roles` change (a finding keeps only its items that
+still exist, and clears when none do) — covering deletes, undo/redo,
 checkpoint restore and scenario switches — so a filter never points at
 something that no longer exists. `renameRole` renames the role inside the
 filter too.
@@ -109,6 +123,7 @@ filter too.
 
 `useRoadmapPersistence` saves the view (debounced) when the date range,
 `visible`, saved views or a **persisted** part of `filters` changes — typing
-a search or focusing a path doesn't rewrite `view.json`. On boot the view is
+a search, focusing a path or highlighting a finding doesn't rewrite
+`view.json` (`MOMENTARY_FILTER_KEYS`). On boot the view is
 applied after the scenario data so unknown ids can be dropped. See
 `docs/persistence.md` → `view.json`.

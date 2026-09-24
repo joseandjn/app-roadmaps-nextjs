@@ -1,5 +1,5 @@
-import type { Dependency, Filters, Item, PersistedFilters, Project, Resource, Role, SavedView, ViewSnapshot } from '@/types'
-import { isOverloaded, dependencyIssues, overloadedItemIds, roleMismatch } from '@/lib/roadmapUtils'
+import type { Dependency, Filters, Item, MomentaryFilterKey, PersistedFilters, Project, Resource, Role, SavedView, Settings, ViewSnapshot } from '@/types'
+import { isOverloaded, dependencyIssues, overloadedItemIds, roleMismatch, workingDaysInRange } from '@/lib/roadmapUtils'
 
 // Single source of truth for what the view filters mean. Views never
 // re-implement these rules — they ask `itemMatch` per item, or use
@@ -16,7 +16,11 @@ export const EMPTY_FILTERS: Filters = {
   uncovered: false,
   focusItemId: null,
   text: '',
+  finding: null,
 }
+
+// Filters that aren't saved to view.json or saved views.
+export const MOMENTARY_FILTER_KEYS: readonly MomentaryFilterKey[] = ['focusItemId', 'text', 'finding']
 
 export interface FilterContext {
   filters: Filters
@@ -95,6 +99,7 @@ export function itemMatch(item: Item, ctx: FilterContext): ItemMatch {
   if (f.roles.length && !itemHasRole(item, f.roles, ctx.resources)) return 'dim'
   if (ctx.chain && !ctx.chain.has(item.id)) return 'dim'
   if (f.text.trim() && !matchesText(item, f.text, ctx.projects)) return 'dim'
+  if (f.finding && !f.finding.itemIds.includes(item.id)) return 'dim'
   return 'show'
 }
 
@@ -121,6 +126,28 @@ export function isRoleUncovered(item: Item, resources: Resource[]): boolean {
     const role = resources.find(r => r.id === a.r)?.role
     return !!role && item.requiredRoles!.includes(role)
   })
+}
+
+// Work whose required roles nobody assigned has, grouped by the roles it
+// accepts (an item needing "Backend or QA" is one group, not two, so nothing
+// is counted twice). Days are working days inside [fromDay, toDay), the
+// window the Resources grid shows. Largest demand first.
+export interface UncoveredDemand { roles: string[]; items: number; workDays: number }
+
+export function uncoveredDemand(items: Item[], resources: Resource[], settings: Settings, fromDay: number, toDay: number): UncoveredDemand[] {
+  const groups = new Map<string, UncoveredDemand>()
+  for (const it of items) {
+    if (!isRoleUncovered(it, resources)) continue
+    const a = Math.max(it.startDay, fromDay), b = Math.min(it.startDay + it.dur, toDay)
+    if (it.dur > 0 ? b <= a : it.startDay < fromDay || it.startDay >= toDay) continue
+    const roles = [...it.requiredRoles!].sort()
+    const key = roles.join('|')
+    const g = groups.get(key) ?? { roles, items: 0, workDays: 0 }
+    g.items++
+    g.workDays += it.dur > 0 ? workingDaysInRange(a, b - a, settings) : 0
+    groups.set(key, g)
+  }
+  return [...groups.values()].sort((x, y) => y.workDays - x.workDays || y.items - x.items)
 }
 
 // Whether a person passes the people and role filters — Resources shows only
@@ -172,6 +199,7 @@ export function activeFilterCount(s: {
   if (f.unassigned || f.uncovered) n++
   if (f.focusItemId) n++
   if (f.text.trim()) n++
+  if (f.finding) n++
   return n
 }
 
@@ -226,6 +254,12 @@ export function pruneFilters(f: Filters, data: { items: Item[]; resources: Resou
   const resourceIds = f.resourceIds.filter(id => data.resources.some(r => r.id === id))
   const roles = f.roles.filter(name => data.roles.some(r => r.name === name))
   const focusItemId = f.focusItemId && data.items.some(i => i.id === f.focusItemId) ? f.focusItemId : null
-  if (resourceIds.length === f.resourceIds.length && roles.length === f.roles.length && focusItemId === f.focusItemId) return f
-  return { ...f, resourceIds, roles, focusItemId }
+  // A finding keeps the items that still exist; with none left it's cleared.
+  let finding = f.finding
+  if (finding) {
+    const ids = finding.itemIds.filter(id => data.items.some(i => i.id === id))
+    if (ids.length !== finding.itemIds.length) finding = ids.length ? { ...finding, itemIds: ids } : null
+  }
+  if (resourceIds.length === f.resourceIds.length && roles.length === f.roles.length && focusItemId === f.focusItemId && finding === f.finding) return f
+  return { ...f, resourceIds, roles, focusItemId, finding }
 }

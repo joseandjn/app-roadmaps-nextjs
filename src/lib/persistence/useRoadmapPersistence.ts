@@ -4,14 +4,16 @@ import { useEffect, useRef } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import type { ScenarioData, ScenarioMeta, Filters, PersistedFilters, SavedView } from '@/types'
 import { viewPayload } from './viewPayload'
+import { MOMENTARY_FILTER_KEYS } from '@/lib/filters'
 
 const SAVE_DEBOUNCE_MS = 600
 
-// Whether a saved part of the filters changed. The text search and the
-// dependency path aren't saved, so typing a search doesn't rewrite view.json.
+// Whether a saved part of the filters changed. The text search, dependency
+// path and finding highlight aren't saved, so typing a search doesn't
+// rewrite view.json.
 function persistedFiltersChanged(a: Filters, b: Filters): boolean {
   if (a === b) return false
-  return (Object.keys(a) as (keyof Filters)[]).some(k => k !== 'text' && k !== 'focusItemId' && a[k] !== b[k])
+  return (Object.keys(a) as (keyof Filters)[]).some(k => !(MOMENTARY_FILTER_KEYS as readonly string[]).includes(k) && a[k] !== b[k])
 }
 
 export function useRoadmapPersistence() {

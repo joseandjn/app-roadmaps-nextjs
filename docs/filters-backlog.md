@@ -359,7 +359,11 @@ muestra los items de Ana que además son de Backend.
 > - `IssuesToggle.tsx`: botón "Solo problemas N". N es cuántos items se verían al activarlo, respetando los
 >   demás filtros.
 > - Hover card del Timeline: además de "Conflicto", muestra "Sobrecarga" y "Rol distinto".
-> - **No se hizo** el link desde el `AnalysisModal` ("Ver en el Timeline"). Queda como mejora opcional.
+> - El link desde el `AnalysisModal` se hizo después (junto con F14). Cada hallazgo con items tiene
+>   "Ver en el Cronograma": quita los filtros actuales (el análisis mide el plan completo), guarda
+>   `filters.finding = { title, itemIds }` (temporal, no se persiste), atenúa el resto y centra la vista en el
+>   primer item. El chip "Hallazgo: …" lo quita. `findingItemIds()` (`src/lib/analysis/findingItems.ts`)
+>   sabe qué items trae cada tipo de hallazgo; "personas sin trabajo" no tiene, así que no muestra el botón.
 > - Verificado: el contador muestra 8, igual que el cálculo independiente sobre los datos (4 por sobrecarga,
 >   5 por rol distinto, 0 por dependencias, 0 en riesgo; algunos items tienen más de un problema).
 >
@@ -407,8 +411,11 @@ Este filtro usa a propósito solo las señales baratas y en vivo. Documentar la 
 >   con el resto. `hidesItems` los incluye, y en el badge cuentan como un solo filtro.
 > - `GapsFilter.tsx`: chip "Huecos" que reutiliza `FilterChip` con dos opciones. Cada opción muestra cuántos
 >   items dejaría a la vista, respetando los demás filtros.
-> - **No se hizo** el resumen de demanda sin cubrir por rol en Resources ("Backend: 3 items / 18 días").
->   Conviene hacerlo como tarea aparte, junto con un análisis de capacidad por rol.
+> - El resumen de demanda sin cubrir por rol se hizo después (junto con F14). Con "Rol sin cubrir" activo,
+>   Resources muestra arriba "Demanda sin cubrir por rol": cada combinación de roles aceptados ("QA",
+>   "Backend / QA") con sus tareas y días hábiles dentro del rango visible (`uncoveredDemand()` en
+>   `filters.ts`). Un item que acepta varios roles cuenta una sola vez. Clic en un grupo pone ese filtro de
+>   Roles, para ver quién podría tomar el trabajo.
 > - Verificado contra los datos: 8 sin asignar, 5 con rol sin cubrir y 13 con cualquiera de los dos.
 >   Lo de crear un item desde el menú contextual no se probó en el navegador, para no modificar el escenario
 >   real. La regla lo cubre, porque un item nuevo tiene `assignments: []`.

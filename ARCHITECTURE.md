@@ -161,7 +161,9 @@ can become its own API service. The web app reaches it through one thin route,
 `POST /api/analyze`, and the ✦ toolbar button opens `AnalysisModal`, which
 shows the deterministic findings immediately and then an LLM summary
 (Ollama by default, Claude with `LLM_PROVIDER=anthropic`). It is read-only:
-it never changes the roadmap.
+it never changes the roadmap. Each finding about specific items has a "Show
+in Timeline" button that highlights them there (a momentary filter, see
+[`docs/filters.md`](docs/filters.md)).
 
 ## Persistence
 

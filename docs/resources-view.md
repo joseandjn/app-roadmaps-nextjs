@@ -217,6 +217,12 @@ filters (dependency path, text search) don't change the numbers. When no
 row or no item is left, `FilterEmptyState` shows "No items match the
 filters" with Reset. Full rules: `docs/filters.md`.
 
+With the **Required role not covered** gap filter on, a strip above the grid
+("Uncovered demand by role", `UncoveredDemand.tsx`) sums that work per
+combination of accepted roles — items and working days inside the visible
+date range, from `uncoveredDemand()` in `filters.ts`. Clicking a group sets
+the Roles filter to those roles, so the grid lists who could take it.
+
 The cell panel maps the bucket back to absolute days with the same
 `baseDay` (`filterStartDay`) offset the grid uses, so its items match the
 clicked cell when a date range is set.

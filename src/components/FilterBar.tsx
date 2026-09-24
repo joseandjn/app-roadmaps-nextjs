@@ -14,17 +14,19 @@ import TypeFilter from '@/components/filters/TypeFilter'
 import IssuesToggle from '@/components/filters/IssuesToggle'
 import GapsFilter from '@/components/filters/GapsFilter'
 import PathChip from '@/components/filters/PathChip'
+import FindingChip from '@/components/filters/FindingChip'
 import ViewsMenu from '@/components/filters/ViewsMenu'
 import SearchBox from '@/components/filters/SearchBox'
 import FiltersGroup from '@/components/filters/FiltersGroup'
 
-// Below this width the chips don't fit next to the dates and search (plus
-// Reset, the badge and a path chip), so they collapse into FiltersGroup.
-const WIDE_QUERY = '(min-width: 1600px)'
-const subscribeWide = (cb: () => void) => {
-  const mq = window.matchMedia(WIDE_QUERY)
-  mq.addEventListener('change', cb)
-  return () => mq.removeEventListener('change', cb)
+// Below this width the chips don't fit next to the dates, search, Reset and
+// the badge, so they collapse into FiltersGroup. Each path/finding chip
+// (up to 260px) needs that much more room.
+const WIDE_PX = 1600
+const EXTRA_CHIP_PX = 270
+const subscribeResize = (cb: () => void) => {
+  window.addEventListener('resize', cb)
+  return () => window.removeEventListener('resize', cb)
 }
 
 export default function FilterBar() {
@@ -32,12 +34,15 @@ export default function FilterBar() {
   const { t } = useTranslation()
   const activeCount = activeFilterCount({ filters, visible, projects, filterStartDay, filterEndDay })
   const isActive = activeCount > 0
-  const wide = useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE_QUERY).matches, () => true)
-  // What the grouped chips cover: everything but dates, search and the path.
+  const extraChips = (filters.focusItemId ? 1 : 0) + (filters.finding ? 1 : 0)
+  const minWide = WIDE_PX + extraChips * EXTRA_CHIP_PX
+  const wide = useSyncExternalStore(subscribeResize, () => window.innerWidth >= minWide, () => true)
+  // What the grouped chips cover: everything but dates, search, the path and a finding.
   const chipCount = activeCount
     - (filterStartDay !== null || filterEndDay !== null ? 1 : 0)
     - (filters.text.trim() ? 1 : 0)
     - (filters.focusItemId ? 1 : 0)
+    - (filters.finding ? 1 : 0)
 
   const startVal = dateStr(filterStartDay ?? 0)
   const endVal   = dateStr(filterEndDay   ?? TOTAL_DAYS)
@@ -93,6 +98,7 @@ export default function FilterBar() {
         <SearchBox />
         {wide ? chips : <FiltersGroup count={chipCount}>{chips}</FiltersGroup>}
         <PathChip />
+        <FindingChip />
       </div>
 
       {isActive && (
@@ -105,7 +111,7 @@ export default function FilterBar() {
       )}
 
       {isActive && wide && (
-        <span className="ml-1 text-[11px] font-medium text-[#3b6ef5] bg-[#eaf1ff] border border-[#c2d4ff] rounded-full px-2 py-0.5">
+        <span className="ml-1 whitespace-nowrap text-[11px] font-medium text-[#3b6ef5] bg-[#eaf1ff] border border-[#c2d4ff] rounded-full px-2 py-0.5">
           {t('filtered')}{activeCount > 1 && ` · ${activeCount}`}
         </span>
       )}

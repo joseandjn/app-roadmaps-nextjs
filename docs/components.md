@@ -11,9 +11,10 @@ of the shell.
 `src/components/FilterBar.tsx` — the thin bar directly under the Toolbar.
 Left to right: the **Views** menu, the date range, the text search, the
 filter chips (Projects, Status, Type, People, Roles, Gaps, Only issues), the
-dependency-path chip when one is focused, **Reset** and the **filtered · N**
-pill. Below 1600px wide the chips collapse into one **Filters · N** button
-(`FiltersGroup`) and the "Date range" label hides below 1440px.
+dependency-path and Analysis-finding chips when active, **Reset** and the
+**filtered · N** pill. Below 1600px wide (270px more per path/finding chip)
+the chips collapse into one **Filters · N** button (`FiltersGroup`), and the
+"Date range" label hides below 1440px.
 
 Everything except the date range — what each filter matches, hide vs. dim,
 which metrics respect filters, saved views and persistence — is documented

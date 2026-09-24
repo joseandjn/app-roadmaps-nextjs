@@ -134,13 +134,15 @@ export interface Filters {
   uncovered: boolean // items whose required roles nobody assigned has
   focusItemId: string | null // dependency chain of this item
   text: string
+  finding: { title: string; itemIds: string[] } | null // items of an Analysis finding ("Show in Timeline")
 }
 
 export type FilterListKey = 'resourceIds' | 'roles' | 'statuses' | 'types'
 
 // The filters kept across reloads (view.json). The dependency path and the
-// text search are momentary, so they're left out.
-export type PersistedFilters = Omit<Filters, 'focusItemId' | 'text'>
+// text search are momentary, so they're left out (so is a finding's highlight).
+export type PersistedFilters = Omit<Filters, MomentaryFilterKey>
+export type MomentaryFilterKey = 'focusItemId' | 'text' | 'finding'
 
 // Everything a saved view restores: the date range, filters and hidden projects.
 export interface ViewSnapshot {
