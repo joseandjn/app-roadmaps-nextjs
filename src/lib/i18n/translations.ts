@@ -231,6 +231,14 @@ const es: Record<string, string> = {
 
   // Availability
   'Availability (%)': 'Disponibilidad (%)',
+  'Time off': 'Ausencias',
+  'From': 'Desde',
+  'To': 'Hasta',
+  'Remove time off': 'Quitar ausencia',
+  'Note (vacation, leave…)': 'Nota (vacaciones, licencia…)',
+  'Add time off': 'Agregar ausencia',
+  'Their capacity is 0 on those days: work assigned then is flagged, and dates are not moved.': 'Esos días su capacidad es 0: el trabajo asignado se marca como problema y las fechas no se mueven.',
+  'Time off: {from} → {to} days': 'Ausencias: {from} → {to} días',
   'Share of their time available for this roadmap. Assignments above it count as overload.': 'Porcentaje de su tiempo disponible para este roadmap. Las asignaciones por encima cuentan como sobrecarga.',
   'availability {n}%': 'disponibilidad {n}%',
   'avail. {n}%': 'disp. {n}%',

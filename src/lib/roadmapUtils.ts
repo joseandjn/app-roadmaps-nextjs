@@ -1,5 +1,5 @@
 import { START_DATE, TOTAL_DAYS, MONTHS, WEEKDAYS } from '@/data/initialData'
-import type { Item, Resource, Dependency, ScaleIndex, Settings, ScenarioMetrics } from '@/types'
+import type { Item, Resource, Dependency, ScaleIndex, Settings, ScenarioMetrics, TimeOff } from '@/types'
 
 export const DAY_MS = 86400000
 
@@ -148,6 +148,24 @@ export function utilizationPct(load: number, r: Pick<Resource, 'availability'>):
 
 export function isOverloaded(load: number, r: Pick<Resource, 'availability'>): boolean {
   return load > resourceCapacity(r)
+}
+
+// The time-off entry covering this day, if the person is away.
+export function timeOffOn(r: Pick<Resource, 'timeOff'>, day: number): TimeOff | undefined {
+  return r.timeOff?.find(o => day >= o.startDay && day < o.startDay + o.dur)
+}
+
+// Capacity on a given day: 0 while away, otherwise their availability.
+export function capacityOn(r: Pick<Resource, 'availability' | 'timeOff'>, day: number): number {
+  return timeOffOn(r, day) ? 0 : resourceCapacity(r)
+}
+
+// Whether two lists of time off are the same, regardless of order (ids
+// aside). Used to tell whether a person's absences changed between scenarios.
+export function sameTimeOff(a: TimeOff[] = [], b: TimeOff[] = []): boolean {
+  const key = (o: TimeOff) => `${o.startDay}|${o.dur}|${o.note ?? ''}`
+  const ka = a.map(key).sort(), kb = b.map(key).sort()
+  return ka.length === kb.length && ka.every((k, i) => k === kb[i])
 }
 
 // Peak concurrent allocation % for a resource, day by day. Bucketing by a

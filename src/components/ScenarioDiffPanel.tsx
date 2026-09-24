@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { diffScenarios, type ItemDiff, type ResourceDiff } from '@/lib/scenarioDiff'
-import { fmtMoney, fmtDate, addDays, fmtSigned, isInstantItem, resourceCapacity } from '@/lib/roadmapUtils'
+import { fmtMoney, fmtDate, addDays, fmtSigned, isInstantItem, resourceCapacity, sameTimeOff } from '@/lib/roadmapUtils'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import type { Item, ScenarioData } from '@/types'
 
@@ -73,6 +73,10 @@ export default function ScenarioDiffPanel({ base, target }: { base: ScenarioData
       }
       if (resourceCapacity(before) !== resourceCapacity(after)) {
         lines.push(t('Availability: {from} → {to}', { from: `${resourceCapacity(before)}%`, to: `${resourceCapacity(after)}%` }))
+      }
+      if (!sameTimeOff(before.timeOff, after.timeOff)) {
+        const days = (r: typeof before) => (r.timeOff ?? []).reduce((n, o) => n + o.dur, 0)
+        lines.push(t('Time off: {from} → {to} days', { from: days(before), to: days(after) }))
       }
     } else if (after) {
       lines.push(`${t(after.role)} · ${fm(after.cost)}${after.costUnit === 'hour' ? t('/hr') : t('/mo')}${resourceCapacity(after) < 100 ? ` · ${resourceCapacity(after)}%` : ''}`)
