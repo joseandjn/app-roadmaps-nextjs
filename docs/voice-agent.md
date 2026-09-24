@@ -158,8 +158,9 @@ resources (`id`, `name`, `role`, `cost`), projects (`id`, `name`, `owner`,
 exact ids and to respond in plain text (no tool call, no invented id) if
 the request doesn't clearly match one of the tools, or names a
 person/project/item that isn't in those lists. This comes from
-`readRoadmapData()` — the same persisted-file reader the `/api/roadmap`
-route uses (see `docs/persistence.md`) — so the agent is always grounded
+`readScenario()` on the active scenario in `view.json` — the same
+persisted files the `/api/scenarios` routes use (see
+`docs/persistence.md`) — so the agent is always grounded
 in what's actually on the board, not the seed data. Item dates
 (`startDay`/`dur`) are deliberately left out of this context — the model
 never needs to know an item's *current* dates to compute a *new* one from

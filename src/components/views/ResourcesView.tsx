@@ -8,6 +8,7 @@ import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useFilterContext } from '@/lib/useFilterContext'
 import { useTodayDay } from '@/lib/useTodayDay'
 import { itemsForMetrics, colorLoad, resourceMatches } from '@/lib/filters'
+import FilterEmptyState from '@/components/filters/FilterEmptyState'
 
 const RH = 46
 const LABEL_W = 264
@@ -27,6 +28,8 @@ export default function ResourcesView() {
   const totalWidth = visibleDays * ppd
   const rows = useMemo(() => resources.filter(r => resourceMatches(r, filters)), [resources, filters])
   const counted = useMemo(() => new Set(itemsForMetrics(items, fctx).map(i => i.id)), [items, fctx])
+  // Nobody left, or every item filtered out (the rows would all read 0%).
+  const filteredEmpty = (resources.length > 0 && rows.length === 0) || (items.length > 0 && counted.size === 0)
 
   const syncViewport = useCallback(() => {
     const el = scrollRef.current
@@ -122,6 +125,8 @@ export default function ResourcesView() {
   const canvasHeight = Math.max(y, 240)
 
   return (
+    <>
+    {filteredEmpty && <FilterEmptyState />}
     <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto" onScroll={syncViewport}>
       <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px ${totalWidth}px`, gridTemplateRows: `${HEADER_H}px ${canvasHeight}px`, minWidth: LABEL_W + totalWidth }}>
         {/* Top-left corner */}
@@ -154,5 +159,6 @@ export default function ResourcesView() {
         </div>
       </div>
     </div>
+    </>
   )
 }

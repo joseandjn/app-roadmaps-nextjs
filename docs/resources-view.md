@@ -189,7 +189,7 @@ wired to the sidebar's "+ Add" button; `editResource` (which also sets
 `canDelete: true`, unlocking `ResourceModal`'s "Remove" button) is wired
 to the summary panel's Edit button.
 
-### Filters (hidden projects and, later, other filters)
+### Filters
 
 The grid cells, the sidebar peak, and both drill-down panels count only the
 items that `itemsForMetrics()` (`src/lib/filters.ts`) keeps — so hiding a
@@ -210,6 +210,12 @@ A filter must never hide a real overload, so each place also computes the
 With a **People** filter, the grid shows only those people's rows (the
 LeftRail still lists everyone, with a funnel button per person to add or
 remove them from the filter).
+
+The same goes for a **Roles** filter (people whose role is picked). Other
+filters (status, type, issues, gaps) only change which items count; dimming
+filters (dependency path, text search) don't change the numbers. When no
+row or no item is left, `FilterEmptyState` shows "No items match the
+filters" with Reset. Full rules: `docs/filters.md`.
 
 The cell panel maps the bucket back to absolute days with the same
 `baseDay` (`filterStartDay`) offset the grid uses, so its items match the

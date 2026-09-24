@@ -621,7 +621,23 @@ Ver `docs/voice-agent.md`.
 
 ---
 
-## F14 · Pulido y documentación `[ ]`
+## F14 · Pulido y documentación `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - `docs/filters.md` (nuevo): qué hace cada filtro, la tabla de ocultar/atenuar, qué vistas y métricas
+>   respetan los filtros, vistas guardadas, qué se guarda y la parte técnica.
+> - Actualizados `timeline-view.md`, `cross-view.md`, `resources-view.md`, `components.md` (FilterBar) y
+>   `ARCHITECTURE.md`. `persistence.md` se reescribió para escenarios, checkpoints y `view.json`, y ya no
+>   menciona `roadmap.json` ni `/api/roadmap`. Tampoco quedan en `ARCHITECTURE.md` ni en `voice-agent.md`.
+> - Responsive: por debajo de 1600px los chips se agrupan en "Filtros · N" (`FiltersGroup.tsx`). Fechas,
+>   búsqueda, Vistas y la ruta quedan afuera. El badge "filtrado" se oculta en ese modo y el rótulo "Rango de
+>   fechas" se oculta por debajo de 1440px. Verificado: la barra entra en 1024px con búsqueda y ruta activas.
+> - Estado vacío en las 4 vistas: Resources y Costs ahora muestran `FilterEmptyState` cuando no queda nadie o
+>   ningún item cuenta.
+> - Traducciones `es` revisadas: no falta ninguna. "Wrong role" pasó de "Rol distinto" a "Rol incorrecto".
+> - De paso: cambiar solo la búsqueda o la ruta ya no guarda `view.json` (pendiente de F12).
+>
+> Plan original de referencia:
 
 - `docs/filters.md` (nuevo): reglas de cada filtro, la tabla de ocultar/atenuar y qué métricas
   respetan filtros y cuáles no.

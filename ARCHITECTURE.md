@@ -29,14 +29,16 @@ src/
 │   ├── page.tsx               Composes the whole UI from the store's `view`
 │   ├── globals.css           Tailwind entry + global styles
 │   └── api/
-│       ├── roadmap/
-│       │   └── route.ts       GET/PUT the persisted roadmap JSON (see "Persistence" below)
+│       ├── scenarios/         Scenarios and their checkpoints: list/create, GET/PUT/DELETE, promote, restore (see "Persistence" below)
+│       ├── view/
+│       │   └── route.ts       GET/PUT view state: active scenario, date range, filters, saved views
 │       └── voice-command/
 │           └── route.ts       POST a transcript, get back a structured action (see "Voice Agent" below)
 │
 ├── components/
 │   ├── Toolbar.tsx            Top bar: view switcher, zoom/scale, date range, "New project"
-│   ├── FilterBar.tsx          Secondary bar: active date-range filter (see "Shared Components" below)
+│   ├── FilterBar.tsx          Secondary bar: views, date range, search and filter chips (see docs/filters.md)
+│   ├── filters/               One component per filter chip, plus search, saved views and the empty state
 │   ├── LeftRail.tsx           Sidebar: project list or people list (see "Shared Components" below)
 │   ├── RightPanel.tsx         Slide-in drawer: item editor / resource detail / cell detail
 │   ├── Toast.tsx              Transient notification (e.g. "Item updated")
@@ -58,9 +60,15 @@ src/
 │   │                           generation, item packing into rows, resource
 │   │                           peak-allocation calc
 │   ├── utils.ts               `cn()` (clsx + tailwind-merge)
+│   ├── filters.ts             Filter rules: itemMatch, resourceMatches, itemsForMetrics… (see docs/filters.md)
+│   ├── useFilterContext.ts    Memoized FilterContext the views pass to itemMatch
 │   ├── persistence/            (see "Persistence" below)
-│   │   ├── roadmapFile.ts      Server-only: read/write storage/roadmap.json
-│   │   └── useRoadmapPersistence.ts  Client hook: hydrate on mount, debounced save on change
+│   │   ├── scenarioFile.ts     Server-only: scenario index + data files
+│   │   ├── checkpointFile.ts   Server-only: per-scenario checkpoint history
+│   │   ├── viewFile.ts         Server-only: storage/view.json, sanitized
+│   │   ├── scenarioActions.ts  Client helpers: switch/create/promote scenarios, checkpoints
+│   │   ├── viewPayload.ts      Builds the view.json PUT body from the store
+│   │   └── useRoadmapPersistence.ts  Client hook: boot, debounced saves on change
 │   ├── agent/                  (see "Voice Agent" below)
 │   │   ├── shared.ts            Tool definitions + system prompt (shared by both providers)
 │   │   ├── roadmapAgent.ts      Picks the active provider (Ollama by default, or Claude)
@@ -79,8 +87,12 @@ src/
     └── index.ts                Shared types: Project, Item, Resource, Dependency,
                                   Draft, RoadmapState, etc.
 
-storage/
-└── roadmap.json                Persisted domain data (gitignored, created on first run)
+storage/                        Gitignored, created on first run
+├── view.json                   Active scenario, date range, filters, hidden projects, saved views
+└── scenarios/
+    ├── index.json              Scenario list + officialId
+    ├── <id>.json               A scenario's planning data
+    └── <id>.checkpoints.json   Its checkpoints (snapshot + metrics)
 ```
 
 ## State management
@@ -155,14 +167,16 @@ it never changes the roadmap.
 
 > Full functional + technical writeup: [`docs/persistence.md`](docs/persistence.md)
 
-The four domain arrays (`projects`, `items`, `resources`, `deps`) are
-saved as one JSON file on disk (`storage/roadmap.json`) through a Next.js
-Route Handler (`src/app/api/roadmap/route.ts`). A client hook
-(`useRoadmapPersistence`, called once from `page.tsx`) fetches and
-hydrates the store on mount, then watches the store and debounce-saves
-whenever any of those four arrays actually changes reference — UI-only
-state (open panels, drafts, zoom) never triggers a write. No database,
-no ORM — just a JSON file read/written wholesale on every change.
+Planning data is saved per **scenario** as JSON under `storage/scenarios/`
+(one of them marked official), each with its own checkpoint history. How
+you're looking at it (active scenario, date range, filters, hidden
+projects, saved views) goes to `storage/view.json`. Next.js Route Handlers
+under `src/app/api/scenarios/` and `src/app/api/view/` read and write these
+files. A client hook (`useRoadmapPersistence`, called once from `page.tsx`)
+loads the active scenario and then the view on mount, and debounce-saves
+whenever the planning data or the persisted view state changes reference.
+UI-only state (open panels, drafts, zoom, search) never triggers a write.
+No database — just JSON files, written atomically.
 
 ## Voice Agent
 
@@ -188,7 +202,9 @@ route/hook/store layers don't know or care which one ran.
 `FilterBar`, `LeftRail`, and `ProjectModal` are mounted once, outside the
 `view` switch in `page.tsx`, and stay reachable from all three tabs —
 unlike the one-per-tab view components above. `FilterBar` edits the
-store's shared date-range filter that every view clips its rendering to;
+store's shared filters — date range, projects, people, roles, status, type,
+issues, gaps, dependency path and text search — which every view applies
+through `src/lib/filters.ts` (see [`docs/filters.md`](docs/filters.md));
 `LeftRail` is a single component with two render modes (project list vs.
 people list) switched on the current `view`. `ProjectModal` handles both
 create and edit for a project; on create, an "Add default tasks" checkbox

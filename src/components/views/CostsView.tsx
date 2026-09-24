@@ -7,6 +7,7 @@ import { TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useFilterContext } from '@/lib/useFilterContext'
 import { itemsForMetrics, resourceMatches } from '@/lib/filters'
+import FilterEmptyState from '@/components/filters/FilterEmptyState'
 
 function Card({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
@@ -62,7 +63,11 @@ export default function CostsView() {
   const maxProjectCost = Math.max(1, ...projectRows.map(r => r.cost))
   const maxResourceCost = Math.max(1, ...resourceRows.map(r => r.cost))
 
+  const filteredEmpty = (resources.length > 0 && people.length === 0) || (items.length > 0 && counted.length === 0)
+
   return (
+    <>
+    {filteredEmpty && <FilterEmptyState />}
     <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
       <div className="grid grid-cols-3 gap-3 mb-6 max-w-[900px]">
         <Card label={t('Allocated cost (range)')} value={fm(total)} />
@@ -115,5 +120,6 @@ export default function CostsView() {
         </section>
       </div>
     </div>
+    </>
   )
 }

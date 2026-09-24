@@ -132,5 +132,18 @@ Only projects in the store's `visible` Set get a lane at all (fully
 excluded, unlike the sidebar where hidden projects just dim). The visible
 date window is `[filterStartDay ?? 0, filterEndDay ?? TOTAL_DAYS)`; items
 entirely outside it are skipped from rendering (but still contribute to
-`pack()`'s row layout for the lane, since packing runs over the full
-project item list, not the filtered one).
+`pack()`'s row layout for the lane).
+
+The FilterBar filters go through `itemMatch()` (see `docs/filters.md`):
+
+- `'hide'` items (status, type, only issues, gaps) are left out before
+  `pack()`, so rows compact; with those filters a lane left empty is
+  dropped, and if none remain `FilterEmptyState` shows with a Reset button.
+  The lane's "N items" counts what's shown.
+- `'dim'` items (people, roles, dependency path, text search) render at
+  `DIM_OPACITY`, except the selected one.
+- Dependency clashes are computed from **all** items, so a filter never
+  hides a clash flag on a remaining bar. While a dependency path is focused,
+  only the chain's arrows are drawn, even with the Dependencies toggle off.
+- Every bar carries `data-item-id`, which the search box uses to scroll to
+  and flash the next match.

@@ -1,62 +1,50 @@
 # Persistence
 
-Roadmap Management started as a purely in-memory app — every edit lived
-only in the Zustand store and vanished on reload. This layer adds real
-persistence: the app's domain data now survives reloads (and restarts of
-the dev server) by being saved to a JSON file on disk.
+Everything you plan survives reloads and dev-server restarts: it's saved as
+JSON files under `storage/` (project root, git-ignored). Planning data lives
+in **scenarios**, each with its own **checkpoint** history; how you're looking
+at the plan (active scenario, date range, filters, saved views) lives in a
+separate `view.json`.
 
 ## Functional description
 
 ### What's persisted
 
-Only the four **domain data** arrays: `projects`, `items`, `resources`,
-`deps`. Nothing else — not the active tab, zoom level,
-open panels, or any in-progress form. Reload the page and you'll land
-back on the Timeline tab at default zoom, but every project, item,
-person, and dependency you created or edited will still be there.
+| What | Where | Scope |
+|---|---|---|
+| Planning data: projects, items, resources, dependencies, sprints, settings, roles | `storage/scenarios/<id>.json` | Per scenario |
+| Scenario list and which one is official | `storage/scenarios/index.json` | Global |
+| Checkpoints (named snapshots + metrics) | `storage/scenarios/<id>.checkpoints.json` | Per scenario |
+| Active scenario, date range, filters, hidden projects, saved views | `storage/view.json` | Global |
 
-> **Note:** parts of this document predate scenarios (planning data now
-> lives in `storage/scenarios/*.json`, not `roadmap.json`). The view state
-> section below is current.
+Not persisted: the active tab, zoom, open panels and forms, the dependency
+path focus and the text search.
 
-### View state (`storage/view.json`)
+### Scenarios
 
-Separate from the planning data, `view.json` keeps how you're looking at
-it, global across scenarios:
+- One scenario is **official**: it's what opens when `view.json` has no
+  active scenario yet. The voice agent reads the **active** scenario.
+- **New scenario** duplicates the active one (same ids, so hidden projects
+  and filters carry over) and switches to it.
+- **Promote** marks another scenario official without touching any data.
+- The official scenario and the last remaining one can't be deleted;
+  deleting a scenario also deletes its checkpoints.
 
-- `activeScenarioId`, and the date range (`filterStartDay`/`filterEndDay`).
-- `filters`: people, roles, statuses, types, "only issues", and the two
-  gap toggles (`PersistedFilters`). The dependency-path focus and text
-  search are momentary and aren't saved.
-- `hiddenProjectIds`: projects hidden in the LeftRail / Projects chip.
-  Stored as *hidden* so projects created later show up by default.
+### Checkpoints
 
-`src/lib/persistence/viewFile.ts` sanitizes both on read and write
-(`sanitizeFilters`, `sanitizeIds`): unknown fields are dropped, bad values
-fall back to "no filter", and an older `view.json` without these fields
-loads as all defaults. The client builds the PUT body in one place
-(`viewPayload.ts`) and saves it, debounced, whenever the date range,
-`filters` or `visible` change.
-
-On boot the view is applied **after** the scenario data loads, so ids that
-no longer exist (a deleted person, a removed project) are dropped
-(`pruneFilters`). Switching scenarios keeps hidden projects that the new
-scenario also has.
+- **Save checkpoint** stores a full copy of the scenario plus summary
+  metrics (`computeScenarioMetrics`: cost, end date…), so History can show
+  how the estimate evolved and diff any checkpoint against now.
+- **Restore** overwrites the scenario's current data with the snapshot
+  (an in-place rollback, not a fork) and reloads it.
 
 ### What it feels like
 
-- **On load**: the app briefly shows the built-in seed data (same as
-  before this feature), then swaps in whatever was last saved, usually
-  fast enough not to be noticeable on localhost.
-- **On edit**: nothing visible changes — no "Saving…" indicator, no extra
-  clicks. Renaming an item, dragging a bar, adding a resource, deleting a
-  project — all of it saves automatically in the background shortly
-  after you make the change.
-- **Multiple tabs**: not handled. Two browser tabs editing at once will
-  race — whichever tab saves last wins, silently overwriting the other's
-  changes. Fine for the single-user local use this app is built for;
-  would need real conflict resolution (or a proper database) to support
-  concurrent editors.
+- **On load**: the seed data shows briefly, then the saved scenario and
+  view replace it.
+- **On edit**: no "Saving…" indicator — every change is saved in the
+  background shortly after you make it.
+- **Multiple tabs**: not handled; whichever tab saves last wins.
 
 ## Technical description
 
@@ -64,132 +52,83 @@ scenario also has.
 
 | File | Role |
 |---|---|
-| `src/lib/persistence/roadmapFile.ts` | Server-only: reads/writes `storage/roadmap.json` |
-| `src/app/api/roadmap/route.ts` | Route Handler: `GET` returns the persisted data, `PUT` validates and saves it |
-| `src/lib/persistence/useRoadmapPersistence.ts` | Client hook: hydrates the store on mount, debounce-saves on change |
-| `src/store/useRoadmapStore.ts` | `hydrate()` action — replaces `projects`/`items`/`resources`/`deps`/`visible` in one `set()` |
-| `src/app/page.tsx` | Calls `useRoadmapPersistence()` once, at the top of `Home` |
-| `.gitignore` | Excludes `/storage` — persisted data is runtime state, not source |
+| `src/lib/persistence/scenarioFile.ts` | Server-only: scenario index and data files, migration from the old `roadmap.json` |
+| `src/lib/persistence/checkpointFile.ts` | Server-only: checkpoint files (list, read, create, delete, restore) |
+| `src/lib/persistence/viewFile.ts` | Server-only: `view.json`, with `sanitizeFilters` / `sanitizeIds` / `sanitizeSavedViews` |
+| `src/app/api/scenarios/…` | Route Handlers (below) |
+| `src/app/api/view/route.ts` | `GET`/`PUT` the view state |
+| `src/lib/persistence/useRoadmapPersistence.ts` | Client hook: boot sequence and debounced saves |
+| `src/lib/persistence/scenarioActions.ts` | Client helpers for switching, creating, promoting scenarios and checkpoint actions |
+| `src/lib/persistence/viewPayload.ts` | Builds the `view.json` PUT body from the store (one place for both callers) |
 
-### Storage format
+### Routes
 
-`storage/roadmap.json` (project root, sibling to `package.json`, **not**
-under `src/`) — a single JSON object:
+| Route | Methods |
+|---|---|
+| `/api/scenarios` | `GET` list + `officialId` · `POST { name, note, basedOn }` duplicates a scenario |
+| `/api/scenarios/[id]` | `GET` data · `PUT` data · `DELETE` |
+| `/api/scenarios/[id]/promote` | `POST` |
+| `/api/scenarios/[id]/checkpoints` | `GET` metadata list · `POST { name, note }` |
+| `/api/scenarios/[id]/checkpoints/[cid]` | `GET` full checkpoint · `DELETE` |
+| `/api/scenarios/[id]/checkpoints/[cid]/restore` | `POST` |
+| `/api/view` | `GET` · `PUT` |
 
-```json
-{ "projects": [...], "items": [...], "resources": [...], "deps": [...] }
-```
+Validation is shallow: a scenario `PUT` only checks that the top-level
+arrays and `settings` exist. `view.json` fields are sanitized rather than
+rejected, so an older or partial payload still saves and an old
+`view.json` loads with defaults. Route Handlers are dynamic by default and
+touching the filesystem keeps them uncached, so no extra config is needed
+(see `node_modules/next/dist/docs/`, per `AGENTS.md`).
 
-Same shapes as `INITIAL_PROJECTS`/`INITIAL_ITEMS`/`INITIAL_RESOURCES`/
-`INITIAL_DEPS` in `initialData.ts` — this is intentionally the same
-`RoadmapData` shape the seed data already used, so hydrating from disk is
-a drop-in replacement for the seed data rather than a different schema.
+### Server side
 
-### Server side (`roadmapFile.ts`)
-
-- `readRoadmapData()`: reads and `JSON.parse`s the file. If it doesn't
-  exist yet (`ENOENT`), builds a `RoadmapData` object from the seed
-  constants (`INITIAL_PROJECTS` etc.), writes it out via
-  `writeRoadmapData()`, and returns it — so the file is created
-  transparently on first run rather than requiring a setup step.
-- `writeRoadmapData(data)`: writes atomically — serializes to a
-  `roadmap.json.tmp` file first, then `fs.rename()`s it over the real
-  file. This avoids ever leaving a truncated/corrupt JSON file on disk if
-  the process is killed mid-write (a partial `fs.writeFile` directly to
-  the real path could otherwise do that).
-- Both use `node:fs/promises`; this module is server-only (imported by
-  the route handler alone) since `fs` isn't available in the browser.
-
-### Route Handler (`src/app/api/roadmap/route.ts`)
-
-```ts
-GET  → readRoadmapData() → NextResponse.json(data)
-PUT  → validate body shape → writeRoadmapData(body) → { ok: true }
-```
-
-Validation (`isValidRoadmapData`) only checks that `projects`, `items`,
-`resources`, and `deps` are all present and are arrays — it does not
-validate the shape of individual `Project`/`Item`/`Resource`/`Dependency`
-objects. A malformed inner object (e.g. an item missing `startDay`) would
-be written as-is and only surface as a bug when a view tries to render
-it. Deliberately lightweight given this is a single-user local tool with
-no external clients hitting this endpoint; would need real schema
-validation (e.g. `zod`) if this API were ever exposed beyond the app's
-own frontend.
-
-Route Handlers are dynamic by default and become non-cacheable
-automatically once they touch the filesystem, so no extra
-`export const dynamic = ...` config was needed here (see
-`node_modules/next/dist/docs/01-app/01-getting-started/15-route-handlers.md`
-— this project pins a Next.js version with its own docs bundled in, per
-`AGENTS.md`).
+- **Atomic writes.** Every file is written to `<file>.tmp` and then
+  `fs.rename`d over the real one, so a crash mid-write never leaves
+  truncated JSON.
+- **Migration.** The first time scenario storage is touched and
+  `index.json` doesn't exist, `ensureMigrated()` wraps the old
+  `storage/roadmap.json` (or the seed data on a fresh install) into a
+  scenario `s-original` named "Roadmap actual", marks it official, and
+  renames the old file to `roadmap.json.bak`.
+- **`ensureRoles`** backfills the roles catalog on every read and write, so
+  data from before roles existed (including old checkpoints) self-heals.
+- `readViewState()` falls back to the official scenario when `view.json`
+  is missing or has no `activeScenarioId`.
 
 ### Client side (`useRoadmapPersistence.ts`)
 
-Two effects, both running once from `page.tsx`:
+**Boot**, once from `page.tsx`: `GET /api/view` → set the active scenario →
+`GET /api/scenarios` (list) → `GET /api/scenarios/<active>` →
+`hydrateScenario(data)` → `hydrateView(view)`. The view goes last so ids in
+filters and hidden projects that don't exist in the data are dropped
+(`pruneFilters`). If anything fails, the seed data stays.
 
-**Hydration** (mount only):
+**Saves** come from one `useRoadmapStore.subscribe`:
 
-```ts
-fetch('/api/roadmap')
-  .then(res => res.ok ? res.json() : null)
-  .then(data => data && hydrate(data))
-  .finally(() => { hydrated.current = true })
-```
+- Planning data (`projects`, `items`, `resources`, `deps`, `sprints`,
+  `settings`, `roles`) → `PUT /api/scenarios/<active>`.
+- Date range, `visible`, saved views, or a persisted part of `filters` →
+  `PUT /api/view`. The text search and dependency path are ignored, so
+  typing a search doesn't rewrite the file.
 
-`hydrated` is a ref, not state — it exists purely to gate the save effect
-below (see next section) and deliberately doesn't trigger a re-render.
+Both are debounced (600 ms, restarting on each change) — a drag calls
+`set()` on every mousemove but only one PUT fires once it settles. Change
+detection is reference equality (`state.items !== prevState.items`): store
+actions update immutably, and UI-only `set()` calls leave these references
+untouched. A `hydrated` ref gates the subscriber until boot finishes, so
+loading from disk never triggers a save of the same data.
 
-**Debounced save** (subscribes for the lifetime of the component):
-
-```ts
-useRoadmapStore.subscribe((state, prevState) => {
-  if (!hydrated.current) return
-  if (state.projects === prevState.projects &&
-      state.items === prevState.items &&
-      state.resources === prevState.resources &&
-      state.deps === prevState.deps) return
-  // debounce 600ms, then PUT { projects, items, resources, deps }
-})
-```
-
-Two things make this cheap and correct rather than chatty:
-
-1. **Reference equality, not deep equality.** Every store action that
-   mutates domain data does so immutably (`s.items.map(...)`,
-   `[...s.projects, np]`, etc. — see `useRoadmapStore.ts`), so a plain
-   `===` check on the four top-level arrays is enough to detect "did
-   domain data change" without walking the objects. A `set()` call that
-   only touches UI state (`panel`, `draft`, `pxPerDay`, ...) leaves all
-   four references untouched, so it's a no-op for persistence — this is
-   what keeps keystroke-by-keystroke draft editing and drag's
-   per-mousemove `set()` calls from spamming the API.
-2. **The `hydrated` gate prevents a self-triggered save.** `hydrate()`
-   itself calls `set()`, which the subscriber sees — but at that exact
-   moment `hydrated.current` is still `false` (it's flipped in `.finally`,
-   *after* the `hydrate()` call in the same promise chain), so the
-   initial load-from-disk never immediately re-triggers a save of the
-   same data it just loaded.
-
-Debouncing (600ms, restarting the timer on every qualifying change) is
-what makes drag-to-reschedule practical: `startDrag`'s `mousemove`
-handler calls `set()` on every pixel of movement, but only one `PUT`
-fires shortly after the drag settles, not one per mousemove tick.
+Switching scenarios (`scenarioActions.switchScenario`) loads the data with
+`hydrateScenario` — which keeps hidden projects the new scenario also has —
+and saves the view immediately. `saveCheckpoint` first flushes the current
+data with a PUT so the checkpoint never misses a pending edit.
 
 ### Known limitations
 
-- **Filesystem-dependent.** Needs a writable, persistent local
-  filesystem. Works for `npm run dev`/`npm run start` locally or on a
-  traditional server; would silently stop persisting (or fail) on a
-  serverless platform with an ephemeral/read-only filesystem (e.g.
-  Vercel's default runtime) — `storage/` would need to move to an actual
-  database or object storage there.
-- **No unload flush.** The debounce means a change made right before a
-  tab close/refresh can be lost if it lands inside the 600ms window with
-  no time to fire. Not handled (no `beforeunload` + `sendBeacon`) to keep
-  this layer simple — worth adding if that turns out to matter in
-  practice.
-- **Whole-file writes, no diffing.** Every save rewrites the entire JSON
-  file regardless of how small the change was. Fine at this app's data
-  scale (a handful of KB); would need incremental writes or a real
-  database if the dataset grew large.
+- **Filesystem-dependent.** Needs a writable, persistent disk; on a
+  serverless platform with an ephemeral filesystem `storage/` would need to
+  move to a database or object storage.
+- **No unload flush.** A change made in the last 600 ms before closing the
+  tab can be lost (no `beforeunload` + `sendBeacon`).
+- **Whole-file writes.** Each save rewrites the whole scenario file, and
+  every checkpoint stores a full copy. Fine at this data size.

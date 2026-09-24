@@ -2,10 +2,17 @@
 
 import { useEffect, useRef } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import type { ScenarioData, ScenarioMeta, PersistedFilters, SavedView } from '@/types'
+import type { ScenarioData, ScenarioMeta, Filters, PersistedFilters, SavedView } from '@/types'
 import { viewPayload } from './viewPayload'
 
 const SAVE_DEBOUNCE_MS = 600
+
+// Whether a saved part of the filters changed. The text search and the
+// dependency path aren't saved, so typing a search doesn't rewrite view.json.
+function persistedFiltersChanged(a: Filters, b: Filters): boolean {
+  if (a === b) return false
+  return (Object.keys(a) as (keyof Filters)[]).some(k => k !== 'text' && k !== 'focusItemId' && a[k] !== b[k])
+}
 
 export function useRoadmapPersistence() {
   const hydrateScenario = useRoadmapStore(s => s.hydrateScenario)
@@ -87,7 +94,7 @@ export function useRoadmapPersistence() {
 
       if (
         state.filterStartDay !== prevState.filterStartDay || state.filterEndDay !== prevState.filterEndDay ||
-        state.filters !== prevState.filters || state.visible !== prevState.visible ||
+        persistedFiltersChanged(state.filters, prevState.filters) || state.visible !== prevState.visible ||
         state.savedViews !== prevState.savedViews
       ) {
         if (viewSaveTimer.current) clearTimeout(viewSaveTimer.current)

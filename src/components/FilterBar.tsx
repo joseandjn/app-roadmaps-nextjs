@@ -1,5 +1,6 @@
 'use client'
 
+import { useSyncExternalStore } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { dateStr, offFromStr } from '@/lib/roadmapUtils'
 import { TOTAL_DAYS } from '@/data/initialData'
@@ -15,12 +16,28 @@ import GapsFilter from '@/components/filters/GapsFilter'
 import PathChip from '@/components/filters/PathChip'
 import ViewsMenu from '@/components/filters/ViewsMenu'
 import SearchBox from '@/components/filters/SearchBox'
+import FiltersGroup from '@/components/filters/FiltersGroup'
+
+// Below this width the chips don't fit next to the dates and search (plus
+// Reset, the badge and a path chip), so they collapse into FiltersGroup.
+const WIDE_QUERY = '(min-width: 1600px)'
+const subscribeWide = (cb: () => void) => {
+  const mq = window.matchMedia(WIDE_QUERY)
+  mq.addEventListener('change', cb)
+  return () => mq.removeEventListener('change', cb)
+}
 
 export default function FilterBar() {
   const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
   const { t } = useTranslation()
   const activeCount = activeFilterCount({ filters, visible, projects, filterStartDay, filterEndDay })
   const isActive = activeCount > 0
+  const wide = useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE_QUERY).matches, () => true)
+  // What the grouped chips cover: everything but dates, search and the path.
+  const chipCount = activeCount
+    - (filterStartDay !== null || filterEndDay !== null ? 1 : 0)
+    - (filters.text.trim() ? 1 : 0)
+    - (filters.focusItemId ? 1 : 0)
 
   const startVal = dateStr(filterStartDay ?? 0)
   const endVal   = dateStr(filterEndDay   ?? TOTAL_DAYS)
@@ -39,10 +56,22 @@ export default function FilterBar() {
     setFilter(start, Math.max(day, start + 1))
   }
 
+  const chips = (
+    <>
+      <ProjectsFilter />
+      <StatusFilter />
+      <TypeFilter />
+      <PeopleFilter />
+      <RolesFilter />
+      <GapsFilter />
+      <IssuesToggle />
+    </>
+  )
+
   return (
     <div className="flex items-center gap-2 px-4 py-2 border-b border-[#ececec] bg-[#fafafa]">
       <ViewsMenu />
-      <span className="text-[11px] font-semibold text-[#71717a] uppercase tracking-[0.05em] whitespace-nowrap">{t('Date range')}</span>
+      <span className="hidden min-[1440px]:inline text-[11px] font-semibold text-[#71717a] uppercase tracking-[0.05em] whitespace-nowrap">{t('Date range')}</span>
 
       <div className="flex items-center gap-1.5">
         <input
@@ -62,13 +91,7 @@ export default function FilterBar() {
 
       <div className="flex items-center gap-1.5 ml-2">
         <SearchBox />
-        <ProjectsFilter />
-        <StatusFilter />
-        <TypeFilter />
-        <PeopleFilter />
-        <RolesFilter />
-        <GapsFilter />
-        <IssuesToggle />
+        {wide ? chips : <FiltersGroup count={chipCount}>{chips}</FiltersGroup>}
         <PathChip />
       </div>
 
@@ -81,7 +104,7 @@ export default function FilterBar() {
         </button>
       )}
 
-      {isActive && (
+      {isActive && wide && (
         <span className="ml-1 text-[11px] font-medium text-[#3b6ef5] bg-[#eaf1ff] border border-[#c2d4ff] rounded-full px-2 py-0.5">
           {t('filtered')}{activeCount > 1 && ` · ${activeCount}`}
         </span>
