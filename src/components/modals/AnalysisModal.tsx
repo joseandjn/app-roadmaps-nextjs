@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Crosshair } from 'lucide-react'
 import type { AnalyzeResponse, Severity } from '@engine/index'
 import { requestAnalysis } from '@/lib/analysis/requestAnalysis'
+import { findingItemIds } from '@/lib/analysis/findingItems'
+import { scrollToItem } from '@/lib/scrollToItem'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 
@@ -26,6 +28,10 @@ function Spinner({ label }: { label: string }) {
 
 function AnalysisPanel() {
   const toggleAnalysis = useRoadmapStore(s => s.toggleAnalysis)
+  const setFilters = useRoadmapStore(s => s.setFilters)
+  const clearFilter = useRoadmapStore(s => s.clearFilter)
+  const setView = useRoadmapStore(s => s.setView)
+  const items = useRoadmapStore(s => s.items)
   const { t } = useTranslation()
   const [run, setRun] = useState(0)
   const [report, setReport] = useState<AnalyzeResponse | null>(null)
@@ -62,6 +68,19 @@ function AnalysisPanel() {
     setError(null)
     setNarration({ state: 'idle' })
     setRun(n => n + 1)
+  }
+
+  // Highlights the finding's items on the Timeline (the rest are dimmed) and
+  // scrolls to the earliest one once the view has drawn it. The analysis
+  // covers the whole plan, so other filters are cleared first — otherwise
+  // they could hide the very items the finding is about.
+  const showInTimeline = (title: string, ids: string[]) => {
+    clearFilter()
+    setFilters({ finding: { title, itemIds: ids } })
+    setView('timeline')
+    toggleAnalysis()
+    const first = items.filter(i => ids.includes(i.id)).sort((a, b) => a.startDay - b.startDay)[0]
+    if (first) requestAnimationFrame(() => requestAnimationFrame(() => scrollToItem(first.id)))
   }
 
   const titleOf = (id: string) => report?.findings.find(f => f.id === id)?.title ?? id
@@ -133,7 +152,10 @@ function AnalysisPanel() {
 
               <section className="flex flex-col gap-2">
                 <h3 className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wide">{t('All findings')}</h3>
-                {report.findings.map(f => (
+                {report.findings.map(f => {
+                  // Only items that still exist: the report can predate an edit.
+                  const ids = findingItemIds(f).filter(id => items.some(i => i.id === id))
+                  return (
                   <div key={f.id} className="rounded-xl border border-[#ececec] px-3.5 py-3">
                     <div className="flex items-start gap-2">
                       <span
@@ -145,8 +167,20 @@ function AnalysisPanel() {
                       <div className="text-[13px] font-semibold text-[#18181b] leading-snug">{f.title}</div>
                     </div>
                     <p className="text-[12px] text-[#52525b] leading-relaxed mt-1.5">{f.detail}</p>
+                    {ids.length > 0 && (
+                      <button
+                        onClick={() => showInTimeline(f.title, ids)}
+                        title={t('Clears the current filters and highlights these items')}
+                        className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-[#3b6ef5] bg-transparent border-none cursor-pointer font-inherit p-0 hover:underline"
+                      >
+                        <Crosshair size={12} />
+                        {t('Show in Timeline')}
+                        <span className="text-[#a1a1aa] font-medium">· {t('{n} items', { n: ids.length })}</span>
+                      </button>
+                    )}
                   </div>
-                ))}
+                  )
+                })}
               </section>
             </>
           )}

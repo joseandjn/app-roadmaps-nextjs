@@ -6,7 +6,9 @@ import { offFromStr } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
 import { getSpeechRecognitionCtor, type SpeechRecognition } from './speechRecognition'
 import type { VoiceCommandResult } from '@/lib/agent/roadmapAgent'
-import type { Item } from '@/types'
+import { STATUS_ORDER, ITEM_TYPES } from '@/data/initialData'
+import { EMPTY_FILTERS } from '@/lib/filters'
+import type { Filters, Item } from '@/types'
 
 const DEFAULT_ITEM_SPAN_DAYS = 21 // matches the store's own newItem() default
 
@@ -48,6 +50,10 @@ export function useVoiceCommand() {
   const editResource = useRoadmapStore(s => s.editResource)
   const editProject = useRoadmapStore(s => s.editProject)
   const setFilter = useRoadmapStore(s => s.setFilter)
+  const setFilters = useRoadmapStore(s => s.setFilters)
+  const setVisibleProjects = useRoadmapStore(s => s.setVisibleProjects)
+  const clearFilter = useRoadmapStore(s => s.clearFilter)
+  const roles = useRoadmapStore(s => s.roles)
 
   const runCommand = useCallback(async (transcript: string) => {
     setStatus('thinking')
@@ -174,6 +180,51 @@ export function useVoiceCommand() {
           showToast(t('Confirm deleting {name} — click Delete in the panel, or Cancel', { name: it.title }))
           break
         }
+        case 'set_filters': {
+          if (input.clear) { clearFilter(); showToast(t('Filters cleared')); break }
+          // Keep only values that exist — the model can still return a stale
+          // or invented id despite the enums.
+          // A list whose values all turned out invalid is dropped, not applied
+          // as "no restriction".
+          const pick = <T extends string>(v: unknown, ok: readonly T[]) => {
+            if (!Array.isArray(v)) return undefined
+            const valid = [...new Set(v.filter((x): x is T => ok.includes(x as T)))]
+            return valid.length || !v.length ? valid : undefined
+          }
+          const projectIds = pick(input.projectIds, projects.map(p => p.id))
+          const resourceIds = pick(input.resourceIds, resources.map(r => r.id))
+          const roleNames = pick(input.roles, roles.map(r => r.name))
+          const statuses = pick(input.statuses, STATUS_ORDER)
+          const types = pick(input.types, ITEM_TYPES)
+          const patch: Partial<Filters> = {}
+          if (resourceIds) patch.resourceIds = resourceIds
+          if (roleNames) patch.roles = roleNames
+          if (statuses) patch.statuses = statuses
+          if (types) patch.types = types
+          for (const k of ['onlyIssues', 'unassigned', 'uncovered'] as const) {
+            if (typeof input[k] === 'boolean') patch[k] = input[k] as boolean
+          }
+          if (!Object.keys(patch).length && !projectIds?.length) { showToast(t("Couldn't find anything to filter by")); break }
+          // By default a request replaces the filters (keeping the date range);
+          // refine keeps them and changes only what was named.
+          if (input.refine) setFilters(patch)
+          else setFilters({ ...EMPTY_FILTERS, ...patch })
+          if (projectIds?.length) setVisibleProjects(projectIds)
+          else if (!input.refine) setVisibleProjects([])
+
+          const parts = [
+            ...(projectIds ?? []).map(id => projects.find(p => p.id === id)!.name),
+            ...(resourceIds ?? []).map(id => resources.find(r => r.id === id)!.name),
+            ...(roleNames ?? []).map(r => t(r)),
+            ...(statuses ?? []).map(s => t(s)),
+            ...(types ?? []).map(ty => t(ty.charAt(0).toUpperCase() + ty.slice(1))),
+            ...(patch.onlyIssues ? [t('Only issues')] : []),
+            ...(patch.unassigned ? [t('Unassigned')] : []),
+            ...(patch.uncovered ? [t('Required role not covered')] : []),
+          ]
+          showToast(parts.length ? t('Filtered: {summary}', { summary: parts.join(' · ') }) : t('Filters updated'))
+          break
+        }
         default:
           showToast(t("Didn't recognize that action"))
       }
@@ -187,7 +238,7 @@ export function useVoiceCommand() {
   }, [
     showToast, agentCreateResource, agentUpdateResource, agentCreateProject, agentUpdateProject,
     agentCreateItem, agentUpdateItem, resources, projects, items,
-    openRes, openItem, editResource, editProject, setFilter,
+    openRes, openItem, editResource, editProject, setFilter, setFilters, setVisibleProjects, clearFilter, roles,
   ])
 
   const start = useCallback(() => {

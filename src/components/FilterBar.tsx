@@ -1,14 +1,48 @@
 'use client'
 
+import { useSyncExternalStore } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { dateStr, offFromStr } from '@/lib/roadmapUtils'
 import { TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { activeFilterCount } from '@/lib/filters'
+import ProjectsFilter from '@/components/filters/ProjectsFilter'
+import StatusFilter from '@/components/filters/StatusFilter'
+import PeopleFilter from '@/components/filters/PeopleFilter'
+import RolesFilter from '@/components/filters/RolesFilter'
+import TypeFilter from '@/components/filters/TypeFilter'
+import IssuesToggle from '@/components/filters/IssuesToggle'
+import GapsFilter from '@/components/filters/GapsFilter'
+import PathChip from '@/components/filters/PathChip'
+import FindingChip from '@/components/filters/FindingChip'
+import ViewsMenu from '@/components/filters/ViewsMenu'
+import SearchBox from '@/components/filters/SearchBox'
+import FiltersGroup from '@/components/filters/FiltersGroup'
+
+// Below this width the chips don't fit next to the dates, search, Reset and
+// the badge, so they collapse into FiltersGroup. Each path/finding chip
+// (up to 260px) needs that much more room.
+const WIDE_PX = 1600
+const EXTRA_CHIP_PX = 270
+const subscribeResize = (cb: () => void) => {
+  window.addEventListener('resize', cb)
+  return () => window.removeEventListener('resize', cb)
+}
 
 export default function FilterBar() {
-  const { filterStartDay, filterEndDay, setFilter, clearFilter } = useRoadmapStore()
+  const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
   const { t } = useTranslation()
-  const isActive = filterStartDay !== null || filterEndDay !== null
+  const activeCount = activeFilterCount({ filters, visible, projects, filterStartDay, filterEndDay })
+  const isActive = activeCount > 0
+  const extraChips = (filters.focusItemId ? 1 : 0) + (filters.finding ? 1 : 0)
+  const minWide = WIDE_PX + extraChips * EXTRA_CHIP_PX
+  const wide = useSyncExternalStore(subscribeResize, () => window.innerWidth >= minWide, () => true)
+  // What the grouped chips cover: everything but dates, search, the path and a finding.
+  const chipCount = activeCount
+    - (filterStartDay !== null || filterEndDay !== null ? 1 : 0)
+    - (filters.text.trim() ? 1 : 0)
+    - (filters.focusItemId ? 1 : 0)
+    - (filters.finding ? 1 : 0)
 
   const startVal = dateStr(filterStartDay ?? 0)
   const endVal   = dateStr(filterEndDay   ?? TOTAL_DAYS)
@@ -27,9 +61,22 @@ export default function FilterBar() {
     setFilter(start, Math.max(day, start + 1))
   }
 
+  const chips = (
+    <>
+      <ProjectsFilter />
+      <StatusFilter />
+      <TypeFilter />
+      <PeopleFilter />
+      <RolesFilter />
+      <GapsFilter />
+      <IssuesToggle />
+    </>
+  )
+
   return (
     <div className="flex items-center gap-2 px-4 py-2 border-b border-[#ececec] bg-[#fafafa]">
-      <span className="text-[11px] font-semibold text-[#71717a] uppercase tracking-[0.05em] whitespace-nowrap">{t('Date range')}</span>
+      <ViewsMenu />
+      <span className="hidden min-[1440px]:inline text-[11px] font-semibold text-[#71717a] uppercase tracking-[0.05em] whitespace-nowrap">{t('Date range')}</span>
 
       <div className="flex items-center gap-1.5">
         <input
@@ -47,6 +94,13 @@ export default function FilterBar() {
         />
       </div>
 
+      <div className="flex items-center gap-1.5 ml-2">
+        <SearchBox />
+        {wide ? chips : <FiltersGroup count={chipCount}>{chips}</FiltersGroup>}
+        <PathChip />
+        <FindingChip />
+      </div>
+
       {isActive && (
         <button
           onClick={clearFilter}
@@ -56,9 +110,9 @@ export default function FilterBar() {
         </button>
       )}
 
-      {isActive && (
-        <span className="ml-1 text-[11px] font-medium text-[#3b6ef5] bg-[#eaf1ff] border border-[#c2d4ff] rounded-full px-2 py-0.5">
-          {t('filtered')}
+      {isActive && wide && (
+        <span className="ml-1 whitespace-nowrap text-[11px] font-medium text-[#3b6ef5] bg-[#eaf1ff] border border-[#c2d4ff] rounded-full px-2 py-0.5">
+          {t('filtered')}{activeCount > 1 && ` · ${activeCount}`}
         </span>
       )}
     </div>

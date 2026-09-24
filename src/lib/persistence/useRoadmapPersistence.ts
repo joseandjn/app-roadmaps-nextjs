@@ -2,9 +2,19 @@
 
 import { useEffect, useRef } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import type { ScenarioData, ScenarioMeta } from '@/types'
+import type { ScenarioData, ScenarioMeta, Filters, PersistedFilters, SavedView } from '@/types'
+import { viewPayload } from './viewPayload'
+import { MOMENTARY_FILTER_KEYS } from '@/lib/filters'
 
 const SAVE_DEBOUNCE_MS = 600
+
+// Whether a saved part of the filters changed. The text search, dependency
+// path and finding highlight aren't saved, so typing a search doesn't
+// rewrite view.json.
+function persistedFiltersChanged(a: Filters, b: Filters): boolean {
+  if (a === b) return false
+  return (Object.keys(a) as (keyof Filters)[]).some(k => !(MOMENTARY_FILTER_KEYS as readonly string[]).includes(k) && a[k] !== b[k])
+}
 
 export function useRoadmapPersistence() {
   const hydrateScenario = useRoadmapStore(s => s.hydrateScenario)
@@ -15,17 +25,18 @@ export function useRoadmapPersistence() {
   const scenarioSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const viewSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Boot sequence: view state (which scenario + filter) → scenario list →
-  // that scenario's data. All three run before `hydrated` flips true, so
-  // none of these hydration writes trigger a save (see the subscribe below).
+  // Boot sequence: view state (which scenario) → scenario list → that
+  // scenario's data → the rest of the view (date range, filters, hidden
+  // projects), which needs the data to drop ids that no longer exist. All of
+  // it runs before `hydrated` flips true, so none of these writes trigger a
+  // save (see the subscribe below).
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
         const viewRes = await fetch('/api/view')
         if (cancelled || !viewRes.ok) return
-        const view = await viewRes.json() as { filterStartDay: number | null; filterEndDay: number | null; activeScenarioId: string }
-        hydrateView(view)
+        const view = await viewRes.json() as { filterStartDay: number | null; filterEndDay: number | null; activeScenarioId: string; filters?: PersistedFilters; hiddenProjectIds?: string[]; savedViews?: SavedView[] }
         setActiveScenarioId(view.activeScenarioId)
 
         const listRes = await fetch('/api/scenarios')
@@ -37,6 +48,7 @@ export function useRoadmapPersistence() {
         if (cancelled || !scenarioRes.ok) return
         const data = await scenarioRes.json() as ScenarioData
         hydrateScenario(data)
+        hydrateView(view)
       } catch {
         // offline/unreachable — keep whatever's in the store (seed data)
       } finally {
@@ -57,12 +69,12 @@ export function useRoadmapPersistence() {
       }).catch(() => {})
     }
     const saveView = () => {
-      const { activeScenarioId, filterStartDay, filterEndDay } = useRoadmapStore.getState()
+      const { activeScenarioId } = useRoadmapStore.getState()
       if (!activeScenarioId) return
       fetch('/api/view', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filterStartDay, filterEndDay, activeScenarioId }),
+        body: JSON.stringify(viewPayload(activeScenarioId)),
       }).catch(() => {})
     }
 
@@ -82,7 +94,11 @@ export function useRoadmapPersistence() {
         scenarioSaveTimer.current = setTimeout(saveScenario, SAVE_DEBOUNCE_MS)
       }
 
-      if (state.filterStartDay !== prevState.filterStartDay || state.filterEndDay !== prevState.filterEndDay) {
+      if (
+        state.filterStartDay !== prevState.filterStartDay || state.filterEndDay !== prevState.filterEndDay ||
+        persistedFiltersChanged(state.filters, prevState.filters) || state.visible !== prevState.visible ||
+        state.savedViews !== prevState.savedViews
+      ) {
         if (viewSaveTimer.current) clearTimeout(viewSaveTimer.current)
         viewSaveTimer.current = setTimeout(saveView, SAVE_DEBOUNCE_MS)
       }

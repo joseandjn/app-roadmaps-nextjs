@@ -1,19 +1,24 @@
 'use client'
 
-import React, { useRef, useCallback, useEffect } from 'react'
+import React, { useRef, useCallback, useEffect, useMemo } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { deriveScale, buckets, buildHeader, initials, allocColor, utilizationPct } from '@/lib/roadmapUtils'
 import { getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useFilterContext } from '@/lib/useFilterContext'
 import { useTodayDay } from '@/lib/useTodayDay'
+import { itemsForMetrics, colorLoad, resourceMatches } from '@/lib/filters'
+import FilterEmptyState from '@/components/filters/FilterEmptyState'
+import UncoveredDemand from '@/components/UncoveredDemand'
 
 const RH = 46
 const LABEL_W = 264
 const HEADER_H = 54
 
 export default function ResourcesView() {
-  const { pxPerDay, resources, items, projects, filterStartDay, filterEndDay, openCell, setViewport } = useRoadmapStore()
+  const { pxPerDay, resources, items, projects, filterStartDay, filterEndDay, filters, openCell, setViewport } = useRoadmapStore()
   const { t } = useTranslation()
+  const fctx = useFilterContext()
   const todayDay = useTodayDay()
   const scrollRef = useRef<HTMLDivElement>(null)
   const si = deriveScale(pxPerDay)
@@ -22,6 +27,11 @@ export default function ResourcesView() {
   const lastDay   = Math.min(TOTAL_DAYS, filterEndDay ?? TOTAL_DAYS)
   const visibleDays = Math.max(1, lastDay - baseDay)
   const totalWidth = visibleDays * ppd
+  const rows = useMemo(() => resources.filter(r => resourceMatches(r, filters)), [resources, filters])
+  const countedItems = useMemo(() => itemsForMetrics(items, fctx), [items, fctx])
+  const counted = useMemo(() => new Set(countedItems.map(i => i.id)), [countedItems])
+  // Nobody left, or every item filtered out (the rows would all read 0%).
+  const filteredEmpty = (resources.length > 0 && rows.length === 0) || (items.length > 0 && counted.size === 0)
 
   const syncViewport = useCallback(() => {
     const el = scrollRef.current
@@ -44,15 +54,15 @@ export default function ResourcesView() {
   }, [filterStartDay, filterEndDay])
 
   const bkts = buckets(si, baseDay, lastDay)
-  const { bands, gridLines } = buildHeader(si, ppd, totalWidth, resources.length * RH, baseDay, lastDay)
+  const { bands, gridLines } = buildHeader(si, ppd, totalWidth, rows.length * RH, baseDay, lastDay)
   const todayX = todayDay === null ? null : (todayDay - baseDay) * ppd
 
   const rowLabels: React.ReactElement[] = []
   const cells: React.ReactElement[] = []
 
   let y = 0
-  for (let ri = 0; ri < resources.length; ri++) {
-    const r = resources[ri]
+  for (let ri = 0; ri < rows.length; ri++) {
+    const r = rows[ri]
 
     rowLabels.push(
       <div key={r.id} style={{ position: 'absolute', top: y, left: 0, width: 264, height: RH, display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px', borderBottom: '1px solid #f4f4f5', boxSizing: 'border-box' }}>
@@ -68,7 +78,8 @@ export default function ResourcesView() {
 
     for (let bi = 0; bi < bkts.length; bi++) {
       const b = bkts[bi]
-      let total = 0
+      let total = 0 // load from items the filters keep
+      let full = 0  // load from every item, to flag overloads the filters would hide
       const pAgg: Record<string, number> = {}
 
       const absS = baseDay + b.s
@@ -77,13 +88,16 @@ export default function ResourcesView() {
         if (it.dur <= 0) continue
         if (it.startDay >= absE || it.startDay + it.dur <= absS) continue
         for (const as of it.assignments) {
-          if (as.r === r.id) { total += as.pct; pAgg[it.projectId] = (pAgg[it.projectId] ?? 0) + as.pct }
+          if (as.r !== r.id) continue
+          full += as.pct
+          if (counted.has(it.id)) { total += as.pct; pAgg[it.projectId] = (pAgg[it.projectId] ?? 0) + as.pct }
         }
       }
 
-      const col = allocColor(utilizationPct(total, r))
+      const col = allocColor(utilizationPct(colorLoad(total, full, r), r))
       const w = b.d * ppd
       const show = w > 30 && total > 0
+      const outside = full - total
 
       const projs = Object.keys(pAgg).map(pid => {
         const p = projects.find(pr => pr.id === pid)
@@ -94,7 +108,8 @@ export default function ResourcesView() {
         <div
           key={`${r.id}-${bi}`}
           onClick={() => openCell(r.id, bi, b)}
-          style={{ position: 'absolute', left: b.s * ppd + 1, top: y + 5, width: w - 2, height: RH - 10, background: col.bg, border: `1px solid ${col.bd}`, borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, cursor: 'pointer', boxSizing: 'border-box', overflow: 'hidden' }}
+          title={outside > 0 ? t('Total load {full}% ({n}% outside the filters)', { full, n: outside }) : undefined}
+          style={{ position: 'absolute', left: b.s * ppd + 1, top: y + 5, width: w - 2, height: RH - 10, background: col.bg, border: `1px ${outside > 0 ? 'dashed' : 'solid'} ${col.bd}`, borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, cursor: 'pointer', boxSizing: 'border-box', overflow: 'hidden' }}
         >
           {show && <span style={{ fontSize: 11, fontWeight: 600, color: col.fg, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{total}%</span>}
           {projs.length > 0 && w > 16 && (
@@ -112,6 +127,9 @@ export default function ResourcesView() {
   const canvasHeight = Math.max(y, 240)
 
   return (
+    <>
+    {filteredEmpty && <FilterEmptyState />}
+    {filters.uncovered && <UncoveredDemand items={countedItems} fromDay={baseDay} toDay={lastDay} />}
     <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto" onScroll={syncViewport}>
       <div style={{ display: 'grid', gridTemplateColumns: `${LABEL_W}px ${totalWidth}px`, gridTemplateRows: `${HEADER_H}px ${canvasHeight}px`, minWidth: LABEL_W + totalWidth }}>
         {/* Top-left corner */}
@@ -135,7 +153,7 @@ export default function ResourcesView() {
         </div>
         {/* Bottom-right: allocation canvas */}
         <div style={{ position: 'relative', width: totalWidth, height: canvasHeight, overflow: 'hidden' }}>
-          {resources.map((r, i) => (
+          {rows.map((r, i) => (
             <div key={r.id} style={{ position: 'absolute', left: 0, top: i * RH, width: totalWidth, height: RH, background: i % 2 ? '#fcfcfd' : '#fff', borderBottom: '1px solid #f4f4f5' }} />
           ))}
           {gridLines.map((g, i) => <div key={i} style={g.style} />)}
@@ -144,5 +162,6 @@ export default function ResourcesView() {
         </div>
       </div>
     </div>
+    </>
   )
 }

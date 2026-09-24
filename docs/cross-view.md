@@ -110,3 +110,9 @@ granularity for `buildHeader()`, and the visible window is clamped to
 `[filterStartDay ?? 0, filterEndDay ?? TOTAL_DAYS)`. The `_tr` transition
 flag is read here too, so expand/collapse and zoom changes animate bar
 position/width the same way they do in `TimelineView`.
+
+FilterBar filters apply as in the Timeline (`docs/filters.md`): envelopes,
+ticks and expanded bars are built from the items `itemMatch()` doesn't hide,
+so a project whose items are all hidden has no lane; dimmed items render
+faded (ticks and expanded bars). `FilterEmptyState` shows when nothing is
+left. Ticks and expanded bars carry `data-item-id` for the search box.

@@ -189,6 +189,44 @@ wired to the sidebar's "+ Add" button; `editResource` (which also sets
 `canDelete: true`, unlocking `ResourceModal`'s "Remove" button) is wired
 to the summary panel's Edit button.
 
+### Filters
+
+The grid cells, the sidebar peak, and both drill-down panels count only the
+items that `itemsForMetrics()` (`src/lib/filters.ts`) keeps — so hiding a
+project (LeftRail checkbox or the FilterBar **Projects** chip) removes its
+load and its colored segment everywhere in this view.
+
+A filter must never hide a real overload, so each place also computes the
+**full** load (every item) next to the filtered one:
+
+- The number shown is the filtered load.
+- The color comes from `colorLoad(filtered, full, r)`: the filtered load,
+  unless the full load is over the person's capacity, in which case it's
+  colored (amber) by the full load.
+- Grid cells with load outside the filters get a **dashed** border and a
+  tooltip "Total load X% (Y% outside the filters)"; the cell panel shows
+  the same line, and the person panel shows "Total peak X% …".
+
+With a **People** filter, the grid shows only those people's rows (the
+LeftRail still lists everyone, with a funnel button per person to add or
+remove them from the filter).
+
+The same goes for a **Roles** filter (people whose role is picked). Other
+filters (status, type, issues, gaps) only change which items count; dimming
+filters (dependency path, text search) don't change the numbers. When no
+row or no item is left, `FilterEmptyState` shows "No items match the
+filters" with Reset. Full rules: `docs/filters.md`.
+
+With the **Required role not covered** gap filter on, a strip above the grid
+("Uncovered demand by role", `UncoveredDemand.tsx`) sums that work per
+combination of accepted roles — items and working days inside the visible
+date range, from `uncoveredDemand()` in `filters.ts`. Clicking a group sets
+the Roles filter to those roles, so the grid lists who could take it.
+
+The cell panel maps the bucket back to absolute days with the same
+`baseDay` (`filterStartDay`) offset the grid uses, so its items match the
+clicked cell when a date range is set.
+
 ### Coloring
 
 `allocColor(pct)` (in `roadmapUtils.ts`) is the single source of truth for

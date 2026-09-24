@@ -1,18 +1,19 @@
 'use client'
 
 import { create } from 'zustand'
-import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta } from '@/types'
+import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta, Filters, FilterListKey, PersistedFilters, SavedView, ViewSnapshot } from '@/types'
 import {
   INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS,
   getTodayDay, SCALE_PRESETS, PROJECT_COLORS, DEFAULT_PROJECT_TASKS,
 } from '@/data/initialData'
 import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
+import { EMPTY_FILTERS, pruneFilters, currentViewSnapshot, persistedFilters, BUILTIN_VIEWS } from '@/lib/filters'
 
 type Store = RoadmapState & {
   // persistence
   hydrateScenario: (data: ScenarioData) => void
-  hydrateView: (v: { filterStartDay: number | null; filterEndDay: number | null }) => void
+  hydrateView: (v: { filterStartDay: number | null; filterEndDay: number | null; filters?: PersistedFilters; hiddenProjectIds?: string[]; savedViews?: SavedView[] }) => void
   setScenarioList: (scenarios: ScenarioMeta[], officialId: string) => void
   setActiveScenarioId: (id: string) => void
   onNewScenario: () => void
@@ -29,6 +30,8 @@ type Store = RoadmapState & {
   zoom: (f: number) => void
   toggleRail: () => void
   toggleProject: (id: string) => void
+  // Shows exactly these projects; an empty list means all of them.
+  setVisibleProjects: (ids: string[]) => void
   toggleExpand: (id: string) => void
   setViewport: (v: { left: number; width: number }) => void
   showToast: (text: string) => void
@@ -98,7 +101,15 @@ type Store = RoadmapState & {
   toggleDeps: () => void
   addDependency: (fromId: string, toId: string) => void
   setFilter: (startDay: number | null, endDay: number | null) => void
+  setFilters: (patch: Partial<Filters>) => void
+  toggleFilterValue: (key: FilterListKey, value: string) => void
+  // Resets every filter: date range, `filters`, and hidden projects.
   clearFilter: () => void
+  // saved views (Views menu): apply a saved or built-in one, or manage your own
+  applyView: (id: string) => void
+  saveCurrentView: (name: string) => void
+  renameSavedView: (id: string, name: string) => void
+  deleteSavedView: (id: string) => void
   // voice agent — direct mutations from structured LLM output, bypassing pform/rform staging
   agentCreateResource: (data: { name: string; role: string; cost: number; costUnit?: 'month' | 'hour' }) => void
   agentUpdateResource: (id: string, patch: Partial<{ name: string; role: string; cost: number; costUnit: 'month' | 'hour' }>) => void
@@ -106,6 +117,18 @@ type Store = RoadmapState & {
   agentUpdateProject: (id: string, patch: Partial<{ name: string; desc: string; owner: string; category: string; status: Project['status'] }>) => void
   agentCreateItem: (data: { projectId: string; title: string; type: Item['type']; startDay: number; dur: number; status?: Item['status']; requiredRoles?: string[] }) => void
   agentUpdateItem: (id: string, patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number; requiredRoles: string[] | undefined }>) => void
+}
+
+// Store fields a view snapshot sets: dates, filters (minus momentary ones,
+// and without ids this scenario doesn't have) and project visibility.
+function snapshotState(s: RoadmapState, v: ViewSnapshot) {
+  const hidden = new Set(v.hiddenProjectIds)
+  return {
+    filterStartDay: v.filterStartDay,
+    filterEndDay: v.filterEndDay,
+    filters: pruneFilters({ ...EMPTY_FILTERS, ...v.filters }, s),
+    visible: new Set(s.projects.filter(p => !hidden.has(p.id)).map(p => p.id)),
+  }
 }
 
 function projRange(items: Item[], pid: string) {
@@ -242,6 +265,9 @@ export const useRoadmapStore = create<Store>((set, get) => {
     showDeps: false,
     filterStartDay: null,
     filterEndDay: null,
+    filters: EMPTY_FILTERS,
+    savedViews: [],
+    activeViewId: null,
     toast: null,
     viewport: { left: 0, width: 1000 },
     tick: 0,
@@ -252,6 +278,10 @@ export const useRoadmapStore = create<Store>((set, get) => {
     // editing panel, since its ids belong to whichever scenario was active
     // before.
     hydrateScenario: data => {
+      // Projects hidden before stay hidden if this scenario has them too
+      // (duplicated scenarios share project ids).
+      const s0 = get()
+      const hidden = new Set(s0.projects.filter(p => !s0.visible.has(p.id)).map(p => p.id))
       set({
         projects: data.projects,
         items: data.items,
@@ -260,12 +290,17 @@ export const useRoadmapStore = create<Store>((set, get) => {
         sprints: data.sprints,
         settings: data.settings,
         roles: data.roles,
-        visible: new Set(data.projects.map(p => p.id)),
+        visible: new Set(data.projects.filter(p => !hidden.has(p.id)).map(p => p.id)),
         panel: null, draft: null, draftOrig: null, cell: null, contextMenu: null, impact: null, resSel: null,
       })
       resetHistory()
     },
-    hydrateView: v => set({ filterStartDay: v.filterStartDay, filterEndDay: v.filterEndDay }),
+    // Applied after the scenario loads, so hidden projects and filtered
+    // people/roles can be checked against its data.
+    hydrateView: v => set(s => ({
+      ...snapshotState(s, { filterStartDay: v.filterStartDay, filterEndDay: v.filterEndDay, filters: { ...persistedFilters(EMPTY_FILTERS), ...v.filters }, hiddenProjectIds: v.hiddenProjectIds ?? [] }),
+      savedViews: v.savedViews ?? [],
+    })),
     setScenarioList: (scenarios, officialId) => set({ scenarios, officialScenarioId: officialId }),
     setActiveScenarioId: id => set({ activeScenarioId: id }),
     onNewScenario: () => set({ scenarioForm: { show: true, name: '', note: '' } }),
@@ -286,6 +321,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
       if (v.has(id)) v.delete(id); else v.add(id)
       return { visible: v }
     }),
+    setVisibleProjects: ids => set(s => ({ visible: new Set(ids.length ? ids : s.projects.map(p => p.id)) })),
     toggleExpand: id => set(s => {
       const e = new Set(s.expanded)
       if (e.has(id)) e.delete(id); else e.add(id)
@@ -306,7 +342,38 @@ export const useRoadmapStore = create<Store>((set, get) => {
       showToast(t('Dependency added'))
     },
     setFilter: (startDay, endDay) => set({ filterStartDay: startDay, filterEndDay: endDay }),
-    clearFilter: () => set({ filterStartDay: null, filterEndDay: null }),
+    setFilters: patch => set(s => ({ filters: { ...s.filters, ...patch } })),
+    toggleFilterValue: (key, value) => set(s => {
+      const list = s.filters[key] as string[]
+      const next = list.includes(value) ? list.filter(v => v !== value) : [...list, value]
+      return { filters: { ...s.filters, [key]: next } }
+    }),
+    clearFilter: () => set(s => ({
+      filterStartDay: null, filterEndDay: null, filters: EMPTY_FILTERS,
+      visible: new Set(s.projects.map(p => p.id)),
+      activeViewId: null,
+    })),
+    applyView: id => {
+      const v = [...BUILTIN_VIEWS, ...get().savedViews].find(x => x.id === id)
+      if (!v) return
+      set(s => ({ ...snapshotState(s, v), activeViewId: id }))
+    },
+    saveCurrentView: name => {
+      const trimmed = name.trim()
+      if (!trimmed) return
+      const view: SavedView = { id: 'v' + Date.now(), name: trimmed, ...currentViewSnapshot(get()) }
+      set(s => ({ savedViews: [...s.savedViews, view], activeViewId: view.id }))
+      showToast(t('View "{name}" saved', { name: trimmed }))
+    },
+    renameSavedView: (id, name) => {
+      const trimmed = name.trim()
+      if (!trimmed) return
+      set(s => ({ savedViews: s.savedViews.map(v => v.id === id ? { ...v, name: trimmed } : v) }))
+    },
+    deleteSavedView: id => set(s => ({
+      savedViews: s.savedViews.filter(v => v.id !== id),
+      activeViewId: s.activeViewId === id ? null : s.activeViewId,
+    })),
 
     openItem: id => set(s => {
       const it = s.items.find(i => i.id === id)!
@@ -667,6 +734,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
         roles: s.roles.map(r => r.name === oldName ? { ...r, name: trimmed } : r),
         resources: s.resources.map(r => r.role === oldName ? { ...r, role: trimmed } : r),
         items: s.items.map(i => i.requiredRoles?.includes(oldName) ? { ...i, requiredRoles: i.requiredRoles!.map(r => r === oldName ? trimmed : r) } : i),
+        filters: s.filters.roles.includes(oldName) ? { ...s.filters, roles: s.filters.roles.map(r => r === oldName ? trimmed : r) } : s.filters,
       }))
       showToast(t('Role renamed'))
     },
@@ -721,4 +789,13 @@ export const useRoadmapStore = create<Store>((set, get) => {
 useRoadmapStore.subscribe((state, prev) => {
   if (historyPaused || gestureStart || sameRefs(state, prev)) return
   recordPast(takeSnapshot(prev))
+})
+
+// Keep filters pointing at data that exists — covers deletes, undo/redo,
+// checkpoint restores and scenario switches in one place. Only filters
+// change here, so the history subscriber above sees same refs and ignores it.
+useRoadmapStore.subscribe((state, prev) => {
+  if (state.items === prev.items && state.resources === prev.resources && state.roles === prev.roles) return
+  const filters = pruneFilters(state.filters, state)
+  if (filters !== state.filters) useRoadmapStore.setState({ filters })
 })

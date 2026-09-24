@@ -121,6 +121,43 @@ export interface Draft extends Item {
   _new?: boolean
 }
 
+// View filters beyond the date range and per-project visibility (which stays
+// in `visible`). Empty lists mean "no restriction"; values within a list are
+// OR'ed, different fields are AND'ed. UI state only — never in undo history.
+export interface Filters {
+  resourceIds: string[]
+  roles: string[]
+  statuses: StatusKey[]
+  types: ItemType[]
+  onlyIssues: boolean
+  unassigned: boolean // work items with nobody assigned
+  uncovered: boolean // items whose required roles nobody assigned has
+  focusItemId: string | null // dependency chain of this item
+  text: string
+  finding: { title: string; itemIds: string[] } | null // items of an Analysis finding ("Show in Timeline")
+}
+
+export type FilterListKey = 'resourceIds' | 'roles' | 'statuses' | 'types'
+
+// The filters kept across reloads (view.json). The dependency path and the
+// text search are momentary, so they're left out (so is a finding's highlight).
+export type PersistedFilters = Omit<Filters, MomentaryFilterKey>
+export type MomentaryFilterKey = 'focusItemId' | 'text' | 'finding'
+
+// Everything a saved view restores: the date range, filters and hidden projects.
+export interface ViewSnapshot {
+  filterStartDay: number | null
+  filterEndDay: number | null
+  filters: PersistedFilters
+  hiddenProjectIds: string[]
+}
+
+// A named combination of filters ("Backend Q4", "Risks"), kept in view.json.
+export interface SavedView extends ViewSnapshot {
+  id: string
+  name: string
+}
+
 export interface ImpactResult {
   deps: { item: Item; clash: boolean }[]
   resources: { rid: string; before: number; after: number; capacity: number; over: boolean }[]
@@ -190,6 +227,10 @@ export interface RoadmapState {
   showDeps: boolean
   filterStartDay: number | null
   filterEndDay: number | null
+  filters: Filters
+  savedViews: SavedView[]
+  // The saved or built-in view last applied, to label the Views menu; cleared by Reset.
+  activeViewId: string | null
   toast: { show: boolean; text: string } | null
   viewport: { left: number; width: number }
   tick: number

@@ -2,70 +2,76 @@
 
 import { useMemo } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { itemCostInRange, fmtMoney, initials, workingDaysInRange, resourceDailyRate, AVG_DAYS_PER_MONTH } from '@/lib/roadmapUtils'
+import { assignmentCostsInRange, fmtMoney, initials, resourceDailyRate, AVG_DAYS_PER_MONTH } from '@/lib/roadmapUtils'
 import { TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useFilterContext } from '@/lib/useFilterContext'
+import { itemsForMetrics, resourceMatches } from '@/lib/filters'
+import FilterEmptyState from '@/components/filters/FilterEmptyState'
 
-function Card({ label, value }: { label: string; value: string }) {
+function Card({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <div className="border border-[#ececec] rounded-xl px-4 py-3.5 bg-[#fcfcfd]">
       <div className="text-[11px] font-semibold text-[#a1a1aa] mb-1">{label}</div>
       <div className="text-[22px] font-bold tracking-tight text-[#27272a] tabular-nums">{value}</div>
+      {note && <div className="text-[11px] text-[#a1a1aa] mt-0.5">{note}</div>}
     </div>
   )
 }
 
 export default function CostsView() {
-  const { projects, items, resources, filterStartDay, filterEndDay, settings } = useRoadmapStore()
+  const { projects, items, resources, filterStartDay, filterEndDay, settings, filters, visible } = useRoadmapStore()
   const { t } = useTranslation()
+  const fctx = useFilterContext()
   const fm = (n: number) => fmtMoney(n, settings.currencySymbol)
 
   const rangeStart = filterStartDay ?? 0
   const rangeEnd = filterEndDay ?? TOTAL_DAYS
   const rangeDays = Math.max(1, rangeEnd - rangeStart)
 
+  const counted = useMemo(() => itemsForMetrics(items, fctx), [items, fctx])
+  // Only the matching people's assignments count toward cost.
+  const people = useMemo(() => resources.filter(r => resourceMatches(r, filters)), [resources, filters])
+  const narrowed = counted.length !== items.length || people.length !== resources.length
+
   const { byProject, byResource, total } = useMemo(() => {
     const byProject: Record<string, number> = {}
     const byResource: Record<string, number> = {}
     let total = 0
-    for (const it of items) {
-      const cost = itemCostInRange(it, resources, rangeStart, rangeEnd, settings)
-      if (cost <= 0) continue
-      byProject[it.projectId] = (byProject[it.projectId] ?? 0) + cost
-      total += cost
-
-      const s = Math.max(it.startDay, rangeStart)
-      const e = Math.min(it.startDay + it.dur, rangeEnd)
-      const days = e > s ? workingDaysInRange(s, e - s, settings) : 0
-      for (const a of it.assignments) {
-        const r = resources.find(rr => rr.id === a.r)
-        if (!r || days <= 0) continue
-        const c = resourceDailyRate(r, settings) * (a.pct / 100) * days
-        byResource[r.id] = (byResource[r.id] ?? 0) + c
+    for (const it of counted) {
+      for (const { rid, cost } of assignmentCostsInRange(it, people, rangeStart, rangeEnd, settings)) {
+        byProject[it.projectId] = (byProject[it.projectId] ?? 0) + cost
+        byResource[rid] = (byResource[rid] ?? 0) + cost
+        total += cost
       }
     }
     return { byProject, byResource, total }
-  }, [items, resources, rangeStart, rangeEnd, settings])
+  }, [counted, people, rangeStart, rangeEnd, settings])
 
   const runRate = resources.reduce((s, r) => s + resourceDailyRate(r, settings) * AVG_DAYS_PER_MONTH, 0)
   const dailyBurn = total / rangeDays
 
   const projectRows = projects
+    .filter(p => visible.has(p.id))
     .map(p => ({ p, cost: byProject[p.id] ?? 0, count: items.filter(i => i.projectId === p.id).length }))
     .sort((a, b) => b.cost - a.cost)
 
-  const resourceRows = resources
+  const resourceRows = people
     .map(r => ({ r, cost: byResource[r.id] ?? 0 }))
     .sort((a, b) => b.cost - a.cost)
 
   const maxProjectCost = Math.max(1, ...projectRows.map(r => r.cost))
   const maxResourceCost = Math.max(1, ...resourceRows.map(r => r.cost))
 
+  const filteredEmpty = (resources.length > 0 && people.length === 0) || (items.length > 0 && counted.length === 0)
+
   return (
+    <>
+    {filteredEmpty && <FilterEmptyState />}
     <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
       <div className="grid grid-cols-3 gap-3 mb-6 max-w-[900px]">
         <Card label={t('Allocated cost (range)')} value={fm(total)} />
-        <Card label={t('Monthly run-rate')} value={`${fm(runRate)}${t('/mo')}`} />
+        <Card label={t('Monthly run-rate')} value={`${fm(runRate)}${t('/mo')}`} note={narrowed ? t('Whole team, not filtered') : undefined} />
         <Card label={t('Avg daily burn')} value={`${fm(dailyBurn)}${t('/day')}`} />
       </div>
 
@@ -114,5 +120,6 @@ export default function CostsView() {
         </section>
       </div>
     </div>
+    </>
   )
 }

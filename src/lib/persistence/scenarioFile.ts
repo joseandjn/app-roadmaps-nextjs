@@ -118,7 +118,7 @@ export async function createScenario(opts: { name: string; note: string; basedOn
 
 // Marks a scenario as the official plan. Doesn't touch any data — the
 // previous official scenario stays intact as a regular scenario, just no
-// longer the default one the app loads and the voice agent reads from.
+// longer the default one the app opens when no scenario is active yet.
 export async function promoteScenario(id: string): Promise<void> {
   const index = await readIndex()
   if (!index.scenarios.some(s => s.id === id)) throw new Error('Unknown scenario')

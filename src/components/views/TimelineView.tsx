@@ -1,26 +1,31 @@
 'use client'
 
-import React, { useRef, useEffect, useCallback, useState } from 'react'
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react'
 import { useRoadmapStore, didDrag } from '@/store/useRoadmapStore'
-import { deriveScale, pack, buildHeader, isWorkingDay, fmtDate, addDays, initials, workingDaysInRange, itemEnd } from '@/lib/roadmapUtils'
+import { deriveScale, pack, buildHeader, isWorkingDay, fmtDate, addDays, initials, workingDaysInRange, itemEnd, dependencyIssues } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { roleIconDef } from '@/data/roleIcons'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { useFilterContext } from '@/lib/useFilterContext'
 import { useTodayDay } from '@/lib/useTodayDay'
 import ContextMenu from '@/components/ContextMenu'
+import { itemMatch, hidesItems, DIM_OPACITY } from '@/lib/filters'
+import FilterEmptyState from '@/components/filters/FilterEmptyState'
 
 const ROW = 32, BAR_H = 22, LP = 14
+const issueBadge: React.CSSProperties = { fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 5, background: '#fdf1e3', color: '#9a5b00', border: '1px solid #f1d3a8' }
 const LABEL_W = 264
 const SPRINT_ROW_H = 22
 const HEADER_H = 54 + SPRINT_ROW_H
 
 export default function TimelineView() {
   const {
-    pxPerDay, projects, items, deps, sprints, visible, draft, settings,
+    pxPerDay, projects, items, deps, sprints, visible, filters, draft, settings, resources, roles,
     showDeps, _tr, filterStartDay, filterEndDay, setViewport, openItem, editProject, startDrag, addDependency,
     openContextMenu, editSprint, onNewSprint, startSprintDrag,
   } = useRoadmapStore()
   const { t } = useTranslation()
+  const fctx = useFilterContext()
   const todayDay = useTodayDay()
 
   // Single scroll container — both axes live here
@@ -59,6 +64,12 @@ export default function TimelineView() {
   const totalWidth = visibleDays * ppd
 
   const visProjects = projects.filter(p => visible.has(p.id))
+  // Items the filters keep. Dependency conflicts below still use all items,
+  // so a filter never hides a clash signal on the bars that remain.
+  const shown = useMemo(() => items.filter(i => itemMatch(i, fctx) !== 'hide'), [items, fctx])
+  const dropEmptyLanes = hidesItems(filters)
+  // Dimmed items (people filter) stay drawn and clickable, just faded.
+  const dimmed = useMemo(() => new Set(shown.filter(i => itemMatch(i, fctx) === 'dim').map(i => i.id)), [shown, fctx])
   const tr = _tr ? 'left .42s cubic-bezier(.4,0,.2,1),top .42s cubic-bezier(.4,0,.2,1),width .42s cubic-bezier(.4,0,.2,1)' : 'none'
 
   const syncViewport = useCallback(() => {
@@ -129,34 +140,11 @@ export default function TimelineView() {
   // Per-project vertical extent within the canvas — used to resolve which
   // project's lane a right-click landed in.
   const laneRanges: { id: string; top: number; height: number }[] = []
-  const resources = useRoadmapStore.getState().resources
-  const roles = useRoadmapStore.getState().roles
 
   // Dependency clash/cycle detection — computed unconditionally (not gated
   // by `showDeps`) so bars can flag a scheduling conflict even when the
   // dependency arrows themselves aren't currently shown.
-  const depAdj: Record<string, string[]> = {}
-  for (const e of deps) { (depAdj[e.from] = depAdj[e.from] ?? []).push(e.to) }
-  const depCycles = new Set<string>()
-  const depColor: Record<string, number> = {}
-  const depDfs = (n: string) => {
-    depColor[n] = 1
-    for (const m of depAdj[n] ?? []) {
-      if (depColor[m] === 1) depCycles.add(`${n}>${m}`)
-      else if (!depColor[m]) depDfs(m)
-    }
-    depColor[n] = 2
-  }
-  for (const n in depAdj) { if (!depColor[n]) depDfs(n) }
-
-  const conflictedIds = new Set<string>()
-  for (const e of deps) {
-    const itTo = items.find(i => i.id === e.to)
-    const itFrom = items.find(i => i.id === e.from)
-    if (!itTo || !itFrom) continue
-    const bad = itemEnd(itTo) > itFrom.startDay || depCycles.has(`${e.from}>${e.to}`)
-    if (bad) { conflictedIds.add(e.to); conflictedIds.add(e.from) }
-  }
+  const { cycles: depCycles, conflicted: conflictedIds } = dependencyIssues(items, deps)
 
   // Right-click on empty canvas: resolve the day/project under the cursor and
   // open the "create here" menu. Right-click on a bar stops propagation and
@@ -179,7 +167,8 @@ export default function TimelineView() {
   }
 
   for (const p of visProjects) {
-    const list = items.filter(i => i.projectId === p.id)
+    const list = shown.filter(i => i.projectId === p.id)
+    if (dropEmptyLanes && !list.length) continue
     const { placed, rowCount } = pack(list, ppd)
     const h = rowCount * ROW + LP * 2
     const owner = resources.find(r => r.id === p.owner)
@@ -215,6 +204,7 @@ export default function TimelineView() {
       const isM = it.type === 'milestone' || it.type === 'release'
       const sel = draft?.id === it.id
       const inConflict = conflictedIds.has(it.id)
+      const fade = dimmed.has(it.id) && !sel ? DIM_OPACITY : 1
 
       pos[it.id] = { x: Math.max(0, left), w: isM ? 0 : Math.max(7, it.dur * ppd), y: topPx + BAR_H / 2, right: Math.max(0, left) + (isM ? 0 : Math.max(7, it.dur * ppd)) }
 
@@ -223,7 +213,7 @@ export default function TimelineView() {
           <div
             key={it.id}
             data-item-id={it.id}
-            style={{ position: 'absolute', left: left - 7, top: topPx, height: BAR_H, display: 'flex', alignItems: 'center', gap: 6, cursor: 'grab', zIndex: sel ? 5 : 2, whiteSpace: 'nowrap', transition: tr, touchAction: 'none' }}
+            style={{ position: 'absolute', left: left - 7, top: topPx, height: BAR_H, display: 'flex', alignItems: 'center', gap: 6, cursor: 'grab', zIndex: sel ? 5 : 2, whiteSpace: 'nowrap', transition: tr, touchAction: 'none', opacity: fade }}
             onClick={() => { if (!didDrag()) openItem(it.id) }}
             onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'move', e.clientX) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}
@@ -255,7 +245,7 @@ export default function TimelineView() {
           <div
             key={it.id}
             data-item-id={it.id}
-            style={{ position: 'absolute', left, top: topPx, width: w, height: BAR_H, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRadius: 6, background: c.bg, border: `1px solid ${inConflict ? '#d08a8a' : c.bd}`, color: c.fg, fontSize: isEpic ? 12 : 11, fontWeight: isEpic ? 600 : 500, cursor: 'grab', overflow: 'visible', whiteSpace: 'nowrap', boxShadow: sel ? '0 0 0 2px #18181b' : inConflict ? '0 0 0 1.5px #d08a8a' : 'none', zIndex: sel ? 5 : inConflict ? 2 : 1, transition: tr, touchAction: 'none' }}
+            style={{ position: 'absolute', left, top: topPx, width: w, height: BAR_H, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRadius: 6, background: c.bg, border: `1px solid ${inConflict ? '#d08a8a' : c.bd}`, color: c.fg, fontSize: isEpic ? 12 : 11, fontWeight: isEpic ? 600 : 500, cursor: 'grab', overflow: 'visible', whiteSpace: 'nowrap', boxShadow: sel ? '0 0 0 2px #18181b' : inConflict ? '0 0 0 1.5px #d08a8a' : 'none', zIndex: sel ? 5 : inConflict ? 2 : 1, transition: tr, touchAction: 'none', opacity: fade }}
             onClick={() => { if (!didDrag()) openItem(it.id) }}
             onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'move', e.clientX) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}
@@ -344,8 +334,10 @@ export default function TimelineView() {
             <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 5, background: c.bg, color: c.fg, border: `1px solid ${c.bd}` }}>{t(it.status)}</span>
             <span style={{ fontSize: 11, color: '#a1a1aa' }}>{t(it.type.charAt(0).toUpperCase() + it.type.slice(1))}</span>
             {conflictedIds.has(it.id) && (
-              <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 5, background: '#fdf1e3', color: '#9a5b00', border: '1px solid #f1d3a8' }}>{t('Clash')}</span>
+              <span style={issueBadge}>{t('Clash')}</span>
             )}
+            {fctx.issues.get(it.id)?.includes('overload') && <span style={issueBadge}>{t('Overloaded')}</span>}
+            {fctx.issues.get(it.id)?.includes('role') && <span style={issueBadge}>{t('Wrong role')}</span>}
           </div>
           {it.requiredRoles && it.requiredRoles.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
@@ -415,10 +407,14 @@ export default function TimelineView() {
     }
   }
 
-  // Dependency lines
+  // Dependency lines. While a dependency path is focused, its arrows are
+  // drawn even with the toggle off, and only those.
+  const chain = fctx.chain
+  const drawDeps = showDeps || !!chain
   const depLines: React.ReactElement[] = []
-  if (showDeps) {
+  if (drawDeps) {
     for (const e of deps) {
+      if (chain && !(chain.has(e.from) && chain.has(e.to))) continue
       const a = pos[e.to], b = pos[e.from]
       if (!a || !b) continue
       const itTo = items.find(i => i.id === e.to)!
@@ -435,6 +431,7 @@ export default function TimelineView() {
 
   return (
     <>
+    {dropEmptyLanes && laneLabels.length === 0 && <FilterEmptyState />}
     {/* Single scroll container — one ref handles both X and Y scroll */}
     <div
       ref={scrollRef}
@@ -542,7 +539,7 @@ export default function TimelineView() {
           {/* Today line */}
           {todayX !== null && <div style={{ position: 'absolute', left: todayX, top: 0, width: 1, height: canvasHeight, background: '#ef4444', opacity: 0.5, zIndex: 2 }} />}
           {bars}
-          {showDeps && (
+          {drawDeps && (
             <svg style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 1, overflow: 'visible' }} width={totalWidth} height={canvasHeight}>
               <defs>
                 <marker id="ah" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">

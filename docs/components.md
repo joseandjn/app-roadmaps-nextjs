@@ -8,14 +8,24 @@ of the shell.
 
 ## FilterBar
 
-`src/components/FilterBar.tsx` — the thin bar directly under the Toolbar
-that lets you clip every view to a date range.
+`src/components/FilterBar.tsx` — the thin bar directly under the Toolbar.
+Left to right: the **Views** menu, the date range, the text search, the
+filter chips (Projects, Status, Type, People, Roles, Gaps, Only issues), the
+dependency-path and Analysis-finding chips when active, **Reset** and the
+**filtered · N** pill. Below 1600px wide (270px more per path/finding chip)
+the chips collapse into one **Filters · N** button (`FiltersGroup`), and the
+"Date range" label hides below 1440px.
+
+Everything except the date range — what each filter matches, hide vs. dim,
+which metrics respect filters, saved views and persistence — is documented
+in [`docs/filters.md`](filters.md). The rest of this section covers the date
+range.
 
 ### Functional description
 
-- Two native `<input type="date">` fields ("start" and "end") plus a
-  "Reset" button and a "filtered" pill, both of which only appear once a
-  filter is actually active.
+- Two native `<input type="date">` fields ("start" and "end"). "Reset"
+  and the "filtered" pill appear once any filter is active; Reset clears
+  the dates along with every other filter.
 - Changing either date narrows what all three views render: bars/lanes
   outside the range are hidden and each view's horizontal scroll extent
   shrinks to match.

@@ -4,7 +4,7 @@ Lets you speak a command ("add a new resource named Alex, mobile developer,
 twelve thousand a month") and have it turned into an actual action on
 resources, projects, or Timeline tasks — no typing, no forms, no clicking.
 An LLM (local Ollama by default, Claude optionally) interprets the
-transcript and picks one of thirteen supported actions; the app applies it
+transcript and picks one of fourteen supported actions; the app applies it
 through the same store the UI already uses.
 
 ## Functional description
@@ -42,6 +42,12 @@ through the same store the UI already uses.
   resources/projects: opens the item's edit panel with Delete visible; a
   human still has to click it.
 
+- **Filter the view**: "Show me only Diego's work" / "what's at risk in
+  Modulo de seguridad" / "only milestones" / "remove the filters" → sets
+  the same filters as the FilterBar chips and confirms with a toast
+  ("Filtered: Modulo de seguridad · At Risk"). A new request replaces the
+  current filters; "also…" / "además…" refines them instead.
+
 That's the full action surface — **not** covered: dependencies between
 tasks, assigning resources/percentages to a task, or any other app setting.
 A command outside this scope (or one that's just unclear) gets a short
@@ -77,7 +83,7 @@ alive and how commands in flight don't fight over the button's state.
 
 | File | Role |
 |---|---|
-| `src/lib/agent/shared.ts` | The 13 tool definitions (JSON Schema), context types, system-prompt builder — the single source of truth both providers read from |
+| `src/lib/agent/shared.ts` | The 14 tool definitions (JSON Schema), context types, system-prompt builder — the single source of truth both providers read from |
 | `src/lib/agent/providers/ollama.ts` | Calls local Ollama's `/api/chat` with tools |
 | `src/lib/agent/providers/anthropic.ts` | Calls Claude's Messages API with tools (optional alternative) |
 | `src/lib/agent/roadmapAgent.ts` | Picks the active provider, loads current resources/projects/items as context, dispatches |
@@ -108,7 +114,7 @@ shape (`VoiceCommandResult`, defined in `shared.ts`), so nothing downstream
 (plain JSON Schema); each provider file adapts that into its own wire
 format — Anthropic's `{name, description, input_schema}` vs. Ollama's
 OpenAI-style `{type:'function', function:{name, description, parameters}}`
-— rather than maintaining two parallel copies of the same 13 schemas.
+— rather than maintaining two parallel copies of the same 14 schemas.
 
 ### Ollama provider
 
@@ -152,8 +158,9 @@ resources (`id`, `name`, `role`, `cost`), projects (`id`, `name`, `owner`,
 exact ids and to respond in plain text (no tool call, no invented id) if
 the request doesn't clearly match one of the tools, or names a
 person/project/item that isn't in those lists. This comes from
-`readRoadmapData()` — the same persisted-file reader the `/api/roadmap`
-route uses (see `docs/persistence.md`) — so the agent is always grounded
+`readScenario()` on the active scenario in `view.json` — the same
+persisted files the `/api/scenarios` routes use (see
+`docs/persistence.md`) — so the agent is always grounded
 in what's actually on the board, not the seed data. Item dates
 (`startDay`/`dur`) are deliberately left out of this context — the model
 never needs to know an item's *current* dates to compute a *new* one from
@@ -196,6 +203,34 @@ store actions directly, the same ones the sidebar/click UI already calls:
   `date` the LLM returns is a `YYYY-MM-DD` string, converted to the
   app's internal day-offset client-side via `offFromStr()`
   (`roadmapUtils.ts`) before calling `setFilter`.
+
+### Filters (`set_filters`)
+
+`set_filters` takes optional `projectIds`, `resourceIds`, `roles`,
+`statuses`, `types`, `onlyIssues`, `unassigned` and `uncovered`, plus two
+flags. Project and resource ids are enums built per request, like roles,
+so the model can only pick real ones (`buildAgentTools(roleNames,
+resourceIds, projectIds)`).
+
+- **Replace by default.** Without `refine`, the hook resets `filters` to
+  `EMPTY_FILTERS` and shows all projects, then applies what was named. The
+  date range is kept, since `go_to_date` owns it. The model can't see the
+  current filters, so a voice question ("what's at risk in X") should get
+  a fresh answer, not one narrowed by an earlier request.
+- **`refine: true`** ("also", "además") keeps the current filters and only
+  changes the dimensions given.
+- **`clear: true`** calls `clearFilter`, the same as the Reset button, so
+  it also clears the date range.
+- **Sanitized on the client.** Values that don't exist are dropped. A list
+  whose values were all invalid is ignored rather than treated as "no
+  restriction". If nothing valid is left, the filters stay as they were and
+  the toast says so.
+- Projects go through `setVisibleProjects`, since `visible` is the source
+  of truth for projects (see `docs/filters-backlog.md`).
+
+With `qwen2.5:latest`, "what's at risk" usually comes back as
+`onlyIssues` instead of `statuses: ['At Risk']`. That filter is a superset
+(it includes At Risk items), so the answer is broader, not wrong.
 
 ### Item actions (`create_item`, `update_item`)
 
@@ -448,7 +483,7 @@ first time rather than rediscovering the pattern.
 
 ## Known limitations
 
-- **Scope is intentionally narrow**: the 13 actions above and nothing
+- **Scope is intentionally narrow**: the 14 actions above and nothing
   else — no dependencies between items, no assigning resources/percentages
   to a task, no other app settings. Those have a meaningfully larger field
   surface (and, for dependencies, a clash/cycle-preview UX the item-edit
