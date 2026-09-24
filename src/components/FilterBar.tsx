@@ -14,6 +14,7 @@ import IssuesToggle from '@/components/filters/IssuesToggle'
 import GapsFilter from '@/components/filters/GapsFilter'
 import PathChip from '@/components/filters/PathChip'
 import ViewsMenu from '@/components/filters/ViewsMenu'
+import SearchBox from '@/components/filters/SearchBox'
 
 export default function FilterBar() {
   const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
@@ -60,6 +61,7 @@ export default function FilterBar() {
       </div>
 
       <div className="flex items-center gap-1.5 ml-2">
+        <SearchBox />
         <ProjectsFilter />
         <StatusFilter />
         <TypeFilter />

@@ -101,7 +101,7 @@ export default function CrossView() {
         if (it.startDay + it.dur < baseDay || it.startDay > lastDay) continue
         const c = STATUS_CONFIG[it.status]
         bars.push(
-          <div key={`${it.id}-tick`} style={{ position: 'absolute', left: (it.startDay - baseDay) * ppd, top: top + 34, width: Math.max(3, it.dur * ppd), height: 8, borderRadius: 3, background: c.dot, opacity: dimmed.has(it.id) ? 0.5 * DIM_OPACITY : 0.5, cursor: 'pointer' }}
+          <div key={`${it.id}-tick`} data-item-id={it.id} style={{ position: 'absolute', left: (it.startDay - baseDay) * ppd, top: top + 34, width: Math.max(3, it.dur * ppd), height: 8, borderRadius: 3, background: c.dot, opacity: dimmed.has(it.id) ? 0.5 * DIM_OPACITY : 0.5, cursor: 'pointer' }}
             onClick={() => toggleExpand(p.id)} />
         )
       }
@@ -114,7 +114,7 @@ export default function CrossView() {
         const isM = it.type === 'milestone' || it.type === 'release'
         if (isM) {
           bars.push(
-            <div key={`${it.id}-x`} style={{ position: 'absolute', left: left - 7, top: topPx, height: BAR_H, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', whiteSpace: 'nowrap', opacity: dimmed.has(it.id) ? DIM_OPACITY : 1 }}
+            <div key={`${it.id}-x`} data-item-id={it.id} style={{ position: 'absolute', left: left - 7, top: topPx, height: BAR_H, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', whiteSpace: 'nowrap', opacity: dimmed.has(it.id) ? DIM_OPACITY : 1 }}
               onClick={() => openItem(it.id)}>
               <div style={{ width: 11, height: 11, transform: 'rotate(45deg)', background: it.type === 'release' ? c.dot : '#fff', border: `2px solid ${c.dot}`, borderRadius: 2, flex: '0 0 auto' }} />
               <span style={{ fontSize: 11, fontWeight: 600, color: '#3f3f46' }}>{it.title}</span>
@@ -123,7 +123,7 @@ export default function CrossView() {
         } else {
           const w = Math.max(7, it.dur * ppd)
           bars.push(
-            <div key={`${it.id}-x`} style={{ position: 'absolute', left, top: topPx, width: w, height: BAR_H, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRadius: 6, background: c.bg, border: `1px solid ${c.bd}`, color: c.fg, fontSize: it.type === 'epic' ? 12 : 11, fontWeight: it.type === 'epic' ? 600 : 500, cursor: 'pointer', overflow: 'hidden', whiteSpace: 'nowrap', opacity: dimmed.has(it.id) ? DIM_OPACITY : 1 }}
+            <div key={`${it.id}-x`} data-item-id={it.id} style={{ position: 'absolute', left, top: topPx, width: w, height: BAR_H, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRadius: 6, background: c.bg, border: `1px solid ${c.bd}`, color: c.fg, fontSize: it.type === 'epic' ? 12 : 11, fontWeight: it.type === 'epic' ? 600 : 500, cursor: 'pointer', overflow: 'hidden', whiteSpace: 'nowrap', opacity: dimmed.has(it.id) ? DIM_OPACITY : 1 }}
               onClick={() => openItem(it.id)}>
               {w > 34 && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{it.title}</span>}
             </div>

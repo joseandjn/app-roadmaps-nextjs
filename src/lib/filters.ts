@@ -24,6 +24,20 @@ export interface FilterContext {
   resources: Resource[] // to match roles through who's assigned
   issues: Map<string, IssueKind[]> // from itemIssues, for "only issues"
   chain: Set<string> | null // dependencyChain of filters.focusItemId, when set
+  projects: Project[] // text search also matches the project name
+}
+
+// Lowercase, accents stripped: "Certificación" matches "certificacion".
+export function normalizeText(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
+// Text search: the item's title or its project's name contains the query.
+export function matchesText(item: Item, query: string, projects: Project[]): boolean {
+  const q = normalizeText(query.trim())
+  if (!q) return true
+  const project = projects.find(p => p.id === item.projectId)?.name ?? ''
+  return normalizeText(item.title).includes(q) || normalizeText(project).includes(q)
 }
 
 // The focused item plus everything it transitively depends on (upstream)
@@ -80,6 +94,7 @@ export function itemMatch(item: Item, ctx: FilterContext): ItemMatch {
   if (f.resourceIds.length && !item.assignments.some(a => f.resourceIds.includes(a.r))) return 'dim'
   if (f.roles.length && !itemHasRole(item, f.roles, ctx.resources)) return 'dim'
   if (ctx.chain && !ctx.chain.has(item.id)) return 'dim'
+  if (f.text.trim() && !matchesText(item, f.text, ctx.projects)) return 'dim'
   return 'show'
 }
 

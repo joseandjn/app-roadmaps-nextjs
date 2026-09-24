@@ -12,8 +12,9 @@ export function useFilterContext(): FilterContext {
   const resources = useRoadmapStore(s => s.resources)
   const items = useRoadmapStore(s => s.items)
   const deps = useRoadmapStore(s => s.deps)
+  const projects = useRoadmapStore(s => s.projects)
   const issues = useMemo(() => itemIssues(items, deps, resources), [items, deps, resources])
   const focus = filters.focusItemId
   const chain = useMemo(() => focus ? dependencyChain(focus, deps) : null, [focus, deps])
-  return useMemo(() => ({ filters, visible, resources, issues, chain }), [filters, visible, resources, issues, chain])
+  return useMemo(() => ({ filters, visible, resources, issues, chain, projects }), [filters, visible, resources, issues, chain, projects])
 }

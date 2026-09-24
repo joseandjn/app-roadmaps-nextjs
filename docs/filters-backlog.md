@@ -556,7 +556,27 @@ así que evaluar si conviene hacerlo en esta tarea o en una aparte.
 
 ---
 
-## F12 · Búsqueda por texto `[ ]`
+## F12 · Búsqueda por texto `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - `filters.ts`: `normalizeText` (minúsculas, sin acentos) y `matchesText`, que busca en el título y en el
+>   nombre del proyecto. `itemMatch` atenúa lo que no coincide. `FilterContext` ahora incluye `projects`.
+> - `SearchBox.tsx` es el primer control de los chips del `FilterBar`. Tiene estado local con debounce de
+>   150 ms y se sincroniza cuando el texto cambia desde afuera (Restablecer, aplicar una vista). Muestra el
+>   contador ("5" o "2/5"). El contador y Enter usan el valor tipeado, así que no esperan el debounce.
+> - Enter salta a la siguiente coincidencia dibujada en la vista (Shift+Enter a la anterior), en orden
+>   temporal. Solo desplaza el contenedor `.overflow-auto` de la vista (`scrollIntoView` corría ancestros y
+>   cortaba la columna fija) y marca el item con un destello. Cross ahora pone `data-item-id` en sus
+>   barras y ticks.
+> - `/` y Cmd/Ctrl+F ponen el foco en el campo, salvo si ya se está escribiendo o hay un diálogo abierto.
+>   Esc borra la búsqueda.
+> - Verificado: "merge" deja 5 barras resaltadas y 38 atenuadas, y Enter recorre las coincidencias.
+>   "certificacion" encuentra "Certificación" y "prevencion" los 12 items del proyecto. También funciona
+>   en Cross. Restablecer y Esc limpian el campo.
+> - Pendiente: cambiar solo el texto dispara un guardado de `view.json` con el mismo contenido. No
+>   afecta el comportamiento.
+>
+> Plan original de referencia:
 
 - `filters.text`, con debounce de ~150 ms. Busca en `item.title` y en el nombre del proyecto,
   sin distinguir mayúsculas ni acentos (`normalize('NFD')`).
