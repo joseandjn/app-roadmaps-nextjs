@@ -587,7 +587,24 @@ así que evaluar si conviene hacerlo en esta tarea o en una aparte.
 
 ---
 
-## F13 · Filtros por voz / agente `[ ]`
+## F13 · Filtros por voz / agente `[x]`
+
+> **Hecho.** Resumen de lo implementado:
+> - Tool `set_filters` en `shared.ts`, que comparten los dos proveedores (no tienen listas propias). Los ids de
+>   proyectos y personas son enums armados en cada request, igual que los roles. También acepta `uncovered`.
+> - Semántica: por defecto **reemplaza** los filtros (mantiene el rango de fechas). `refine` ("además",
+>   "también") cambia solo lo nombrado. `clear` equivale a Restablecer. El prompt aclara que las preguntas
+>   sobre un grupo de items ("qué está en riesgo en X") usan `set_filters` y no `show_project`/`show_item`.
+> - `useVoiceCommand.ts` descarta ids y valores inexistentes. Si no queda nada válido, no cambia los filtros y
+>   avisa. El toast resume lo aplicado ("Filtrado: Modulo de seguridad · At Risk").
+> - Verificado con Ollama (`qwen2.5`): "solo lo de Diego Alcala", "solo los hitos", "quita los filtros",
+>   "además solo lo de John" (refine), "qué tareas no tienen a nadie asignado" y "qué está en riesgo en el
+>   proyecto X" resuelven bien. "En riesgo" suele llegar como `onlyIssues`, que incluye At Risk, así que el
+>   resultado es más amplio pero no incorrecto. El ejecutor se probó en el navegador con reconocimiento de voz
+>   simulado: filtros, toasts, refine, ids inválidos y clear.
+> - `docs/voice-agent.md` tiene una sección nueva sobre filtros.
+>
+> Plan original de referencia:
 
 **Contexto:** el agente de voz (`src/lib/agent/shared.ts`, con tools como `go_to_date`,
 `show_resource`…) y el ejecutor `src/lib/voice/useVoiceCommand.ts`.

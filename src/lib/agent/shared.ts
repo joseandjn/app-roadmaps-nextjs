@@ -39,9 +39,12 @@ export interface ItemContext {
 // Roles are a user-editable catalog (Settings → Roles), not a fixed list, so
 // the tool schema is built per request from whatever the active scenario's
 // roles currently are — a role added or renamed there is immediately valid
-// here too, and a deleted one immediately stops being offered.
-export function buildAgentTools(roleNames: string[]): AgentToolDef[] {
+// here too, and a deleted one immediately stops being offered. The filter
+// tool gets the same treatment for resource and project ids.
+export function buildAgentTools(roleNames: string[], resourceIds: string[], projectIds: string[]): AgentToolDef[] {
   const roleEnum = { type: 'string', enum: [...roleNames] }
+  // An empty enum is invalid JSON Schema, so fall back to a plain string.
+  const idEnum = (ids: string[]) => ids.length ? { type: 'string', enum: [...ids] } : { type: 'string' }
   return [
     {
       name: 'create_resource',
@@ -214,6 +217,25 @@ export function buildAgentTools(roleNames: string[]): AgentToolDef[] {
         required: ['id'],
       },
     },
+    {
+      name: 'set_filters',
+      description: 'Filter what the roadmap shows, e.g. "show me only Ana\'s work", "what is at risk in project X", "only milestones", "clear the filters". By default this replaces the current filters with the ones given; set refine to true only when the user says to add to or narrow the current filters ("also", "and only"). Only include the fields the user mentions.',
+      parameters: {
+        type: 'object',
+        properties: {
+          projectIds: { type: 'array', items: idEnum(projectIds), description: 'Show only these projects, ids from the existing projects list' },
+          resourceIds: { type: 'array', items: idEnum(resourceIds), description: 'Only work assigned to these people, ids from the existing resources list' },
+          roles: { type: 'array', items: roleEnum, description: 'Only work for these roles' },
+          statuses: { type: 'array', items: { type: 'string', enum: [...STATUS_ORDER] }, description: 'Only items with these statuses. "At risk" means ["At Risk"] here, not onlyIssues.' },
+          types: { type: 'array', items: { type: 'string', enum: [...ITEM_TYPES] }, description: 'Only these kinds of item' },
+          onlyIssues: { type: 'boolean', description: 'Only items with a problem: dependency clash, overloaded or wrong-role assignee, or At Risk status. Use when the user says problems/issues/conflicts; for just \"at risk\" prefer statuses.' },
+          unassigned: { type: 'boolean', description: 'Only work nobody is assigned to' },
+          uncovered: { type: 'boolean', description: 'Only items whose required role nobody assigned has' },
+          refine: { type: 'boolean', description: 'Keep the current filters and change only the fields given. Set it when the user says "also", "as well", "and only", "además" or "también".' },
+          clear: { type: 'boolean', description: 'Remove every filter, including the date range. Use alone for "clear/remove the filters" or "show everything".' },
+        },
+      },
+    },
   ]
 }
 
@@ -230,6 +252,11 @@ of the available tools (e.g. it's about dependencies between items, or is unclea
 names a person/project/item that isn't in the lists below, do NOT call a tool and never invent \
 an id — respond with one short plain-text sentence instead, saying what you can help with or \
 that you couldn't find that person/project/item.
+
+Requests to narrow down what's shown use set_filters — including questions about a group of items,
+like "what's at risk in project X" (projectIds + statuses), "which tasks have nobody assigned"
+(unassigned), "what does Ana have" (resourceIds) or "remove the filters" (clear). show_project and
+show_item are only for opening one specific project or item.
 
 delete_resource, delete_project, and delete_item only open a confirmation panel — a human still
 has to click "Remove"/"Delete" themselves, so it's safe to call them whenever the user clearly
