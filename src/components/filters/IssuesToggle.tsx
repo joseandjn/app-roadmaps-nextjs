@@ -20,7 +20,7 @@ export default function IssuesToggle() {
   return (
     <button
       onClick={() => setFilters({ onlyIssues: !on })}
-      title={t('Only items with a dependency clash, an overloaded assignee, an assignee with the wrong role, or At Risk status')}
+      title={t('Only items with a dependency clash, an overloaded assignee, an assignee with the wrong role or on time off, or At Risk status')}
       className="flex items-center gap-1.5 text-[12px] font-medium rounded-lg px-2.5 py-1.5 border cursor-pointer font-inherit whitespace-nowrap"
       style={on
         ? { color: '#3b6ef5', background: '#eaf1ff', borderColor: '#c2d4ff' }

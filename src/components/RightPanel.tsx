@@ -114,6 +114,11 @@ export default function RightPanel() {
                   const hours = Math.round(workDays * settings.workHoursPerDay * a.pct / 100)
                   const cap = resourceCapacity(r)
                   const mismatch = roleMismatch(draft, r)
+                  // Working days of this item the person is away (recomputed as dates are edited).
+                  const awayDays = assignedDuringTimeOff(draft, r, settings)
+                  const awayRanges = (r.timeOff ?? [])
+                    .filter(o => o.startDay < draft.startDay + draft.dur && o.startDay + o.dur > draft.startDay)
+                    .map(o => `${o.note ? `${o.note}: ` : ''}${fmtDate(addDays(o.startDay))} – ${fmtDate(addDays(o.startDay + o.dur - 1))}`)
                   return (
                     <div key={a.r} className="flex items-center gap-2">
                       <div className="w-[26px] h-[26px] rounded-[8px] bg-[#ececef] text-[#52525b] text-[10px] font-semibold flex items-center justify-center flex-none">{initials(r.name)}</div>
@@ -123,6 +128,11 @@ export default function RightPanel() {
                         {mismatch && (
                           <span className="text-[10px] text-[#9a5b00] ml-1.5" title={t('{role} does not match the required role', { role: t(r.role) })}>
                             {t('wrong role')}
+                          </span>
+                        )}
+                        {awayDays > 0 && (
+                          <span className="text-[10px] text-[#9a5b00] ml-1.5" title={awayRanges.join('\n')}>
+                            {t('away {n} days', { n: awayDays })}
                           </span>
                         )}
                       </span>

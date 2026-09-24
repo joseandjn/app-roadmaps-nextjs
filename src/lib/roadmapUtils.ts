@@ -238,7 +238,8 @@ export function dependencyIssues(items: Item[], deps: Dependency[]): { cycles: S
 }
 
 // Items where at least one assignee is over their capacity on some day the
-// item spans (counting all their work that day, not just this item).
+// item spans (counting all their work that day, not just this item). Days the
+// person is away don't count: work then is a time-off conflict instead.
 export function overloadedItemIds(items: Item[], resources: Resource[]): Set<string> {
   const daily: Record<string, Record<number, number>> = {}
   for (const it of items) {
@@ -254,7 +255,7 @@ export function overloadedItemIds(items: Item[], resources: Resource[]): Set<str
     const over = it.assignments.some(a => {
       const r = resources.find(rr => rr.id === a.r)
       if (!r) return false
-      for (let day = it.startDay; day < it.startDay + it.dur; day++) if (isOverloaded(daily[a.r][day], r)) return true
+      for (let day = it.startDay; day < it.startDay + it.dur; day++) if (!timeOffOn(r, day) && isOverloaded(daily[a.r][day], r)) return true
       return false
     })
     if (over) out.add(it.id)

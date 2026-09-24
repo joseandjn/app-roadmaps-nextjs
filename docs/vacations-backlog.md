@@ -78,7 +78,14 @@ un escenario viejo sin el campo carga igual.
 **Criterios:** una ausencia de una semana se ve en la vista Semana y Mes; una tarea
 asignada encima marca la celda.
 
-## V3 · Alertas en tareas y filtros `[ ]`
+## V3 · Alertas en tareas y filtros `[x]`
+
+> **Hecho.** `IssueKind` `'timeoff'` en `itemIssues` (ahora recibe `settings` para contar días hábiles):
+> entra en "Solo problemas" y su contador. `overloadedItemIds` ignora los días de ausencia, que ya se
+> reportan como ausencia. `resPeak` y `overallocated` no cambian, porque miden la carga y no la
+> capacidad del día. Cronograma: badge "Ausencia" en el hover. Panel de la tarea: "ausente N días" junto al
+> asignado, con las fechas en el tooltip; se recalcula al mover las fechas. Verificado: "Solo problemas"
+> pasa de 0 a 1 con una ausencia encima de una tarea y vuelve a 0 al quitarla.
 
 - `IssueKind` nuevo, `'timeoff'`: la tarea tiene a alguien asignado en un día hábil de su
   ausencia. Entra en "Solo problemas" y en el conteo.
