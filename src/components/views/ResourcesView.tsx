@@ -2,7 +2,7 @@
 
 import React, { useRef, useCallback, useEffect, useMemo } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { deriveScale, buckets, buildHeader, initials, allocColor, utilizationPct } from '@/lib/roadmapUtils'
+import { deriveScale, buckets, buildHeader, initials, allocColor, utilizationPct, assignedDuringTimeOff } from '@/lib/roadmapUtils'
 import { getTodayDay, TOTAL_DAYS } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useFilterContext } from '@/lib/useFilterContext'
@@ -16,7 +16,7 @@ const LABEL_W = 264
 const HEADER_H = 54
 
 export default function ResourcesView() {
-  const { pxPerDay, resources, items, projects, filterStartDay, filterEndDay, filters, openCell, setViewport } = useRoadmapStore()
+  const { pxPerDay, resources, items, projects, settings, filterStartDay, filterEndDay, filters, openCell, setViewport } = useRoadmapStore()
   const { t } = useTranslation()
   const fctx = useFilterContext()
   const todayDay = useTodayDay()
@@ -84,6 +84,9 @@ export default function ResourcesView() {
 
       const absS = baseDay + b.s
       const absE = baseDay + b.s + b.d
+      // Working days of work assigned while the person is away — from every
+      // item, like `full`, so a filter never hides it.
+      let offConflict = 0
       for (const it of items) {
         if (it.dur <= 0) continue
         if (it.startDay >= absE || it.startDay + it.dur <= absS) continue
@@ -92,9 +95,11 @@ export default function ResourcesView() {
           full += as.pct
           if (counted.has(it.id)) { total += as.pct; pAgg[it.projectId] = (pAgg[it.projectId] ?? 0) + as.pct }
         }
+        offConflict += assignedDuringTimeOff(it, r, settings, absS, absE)
       }
 
-      const col = allocColor(utilizationPct(colorLoad(total, full, r), r))
+      // Work during time off reads as a problem, like an overload.
+      const col = allocColor(offConflict > 0 ? Infinity : utilizationPct(colorLoad(total, full, r), r))
       const w = b.d * ppd
       const show = w > 30 && total > 0
       const outside = full - total
@@ -108,7 +113,10 @@ export default function ResourcesView() {
         <div
           key={`${r.id}-${bi}`}
           onClick={() => openCell(r.id, bi, b)}
-          title={outside > 0 ? t('Total load {full}% ({n}% outside the filters)', { full, n: outside }) : undefined}
+          title={[
+            offConflict > 0 ? t('Work assigned during time off ({n} working days)', { n: offConflict }) : '',
+            outside > 0 ? t('Total load {full}% ({n}% outside the filters)', { full, n: outside }) : '',
+          ].filter(Boolean).join('\n') || undefined}
           style={{ position: 'absolute', left: b.s * ppd + 1, top: y + 5, width: w - 2, height: RH - 10, background: col.bg, border: `1px ${outside > 0 ? 'dashed' : 'solid'} ${col.bd}`, borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, cursor: 'pointer', boxSizing: 'border-box', overflow: 'hidden' }}
         >
           {show && <span style={{ fontSize: 11, fontWeight: 600, color: col.fg, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{total}%</span>}
@@ -117,6 +125,22 @@ export default function ResourcesView() {
               {projs}
             </div>
           )}
+        </div>
+      )
+    }
+
+    // Time off: a striped band over the exact days, on top of the cells but
+    // letting clicks through to them.
+    for (const o of r.timeOff ?? []) {
+      const s = Math.max(o.startDay, baseDay), e = Math.min(o.startDay + o.dur, lastDay)
+      if (e <= s) continue
+      const w = (e - s) * ppd
+      cells.push(
+        <div
+          key={`${r.id}-off-${o.id}`}
+          style={{ position: 'absolute', left: (s - baseDay) * ppd, top: y + 2, width: w, height: RH - 4, borderRadius: 6, pointerEvents: 'none', zIndex: 2, background: 'repeating-linear-gradient(135deg, rgba(113,113,122,0.16) 0 4px, rgba(113,113,122,0) 4px 9px)', border: '1px solid rgba(113,113,122,0.25)', boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', padding: '2px 5px', overflow: 'hidden' }}
+        >
+          {w > 70 && <span style={{ fontSize: 9, fontWeight: 600, color: '#52525b', background: 'rgba(255,255,255,0.85)', borderRadius: 3, padding: '0 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.note || t('Time off')}</span>}
         </div>
       )
     }

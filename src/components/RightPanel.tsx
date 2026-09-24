@@ -1,7 +1,8 @@
 'use client'
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { initials, allocColor, resPeak, roleMismatch, fmtDate, addDays, dateStr, workingDaysInRange, itemEnd, resourceCapacity, utilizationPct, isOverloaded } from '@/lib/roadmapUtils'
+import { initials, allocColor, resPeak, roleMismatch, fmtDate, addDays, dateStr, workingDaysInRange, itemEnd, resourceCapacity, utilizationPct, isOverloaded, timeOffWorkingDays, assignedDuringTimeOff } from '@/lib/roadmapUtils'
+import { useTodayDay } from '@/lib/useTodayDay'
 import { STATUS_ORDER, ITEM_TYPES } from '@/data/initialData'
 import { roleIconDef } from '@/data/roleIcons'
 import { useTranslation } from '@/lib/i18n/useTranslation'
@@ -21,6 +22,7 @@ export default function RightPanel() {
   } = useRoadmapStore()
   const { t } = useTranslation()
   const fctx = useFilterContext()
+  const todayDay = useTodayDay()
   const workDays = draft ? workingDaysInRange(draft.startDay, draft.dur, settings) : 0
 
   const open = panel === 'item' || panel === 'cell' || panel === 'res'
@@ -211,6 +213,10 @@ export default function RightPanel() {
           }
         }
         const tag = fullPeak <= 0 ? t('Free') : util < 85 ? t('Available') : util <= 100 ? t('Full') : t('Overallocated')
+        // Current and upcoming time off (past entries stay in the edit form),
+        // and the work that lands on it — from every item, like the full peak.
+        const upcomingOff = (r.timeOff ?? []).filter(o => todayDay === null || o.startDay + o.dur > todayDay)
+        const offConflicts = items.filter(it => assignedDuringTimeOff(it, r, settings) > 0)
 
         return (
           <>
@@ -241,6 +247,27 @@ export default function RightPanel() {
               <div className="h-1.5 bg-[#f4f4f5] rounded-full mb-5">
                 <div className="h-full rounded-full" style={{ width: `${Math.min(100, util)}%`, background: over ? '#e0902a' : '#3b6ef5' }} />
               </div>
+
+              {upcomingOff.length > 0 && (
+                <div className="mb-5">
+                  <div className={labelCls}>{t('Time off')}</div>
+                  <div className="flex flex-col gap-1.5">
+                    {upcomingOff.map(o => (
+                      <div key={o.id} className="flex items-center gap-2 text-[12px] text-[#52525b] px-2.5 py-1.5 rounded-lg border border-[#f1f1f1]"
+                        style={{ background: 'repeating-linear-gradient(135deg, rgba(113,113,122,0.07) 0 4px, transparent 4px 9px)' }}>
+                        <span className="flex-1 truncate">{o.note || t('Time off')}</span>
+                        <span className="text-[11px] text-[#71717a] whitespace-nowrap">{fmtDate(addDays(o.startDay))} – {fmtDate(addDays(o.startDay + o.dur - 1))}</span>
+                        <span className="text-[11px] text-[#a1a1aa] tabular-nums whitespace-nowrap">{t('{n} working days', { n: workingDaysInRange(o.startDay, o.dur, settings) })}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {offConflicts.length > 0 && (
+                    <div className="mt-2 text-[11px] text-[#9a5b00] bg-[#fdf1e3] border border-[#f1d3a8] rounded-lg px-2.5 py-1.5">
+                      {t('Assigned during time off: {items}', { items: offConflicts.map(it => it.title).join(', ') })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {Object.keys(byProj).map(pid => {
                 const p = projects.find(pr => pr.id === pid)!
@@ -278,7 +305,7 @@ export default function RightPanel() {
         const counted = new Set(itemsForMetrics(items, fctx).map(i => i.id))
         let total = 0
         let full = 0
-        const cellItems: { title: string; project: string; pct: number; color: string }[] = []
+        const cellItems: { title: string; project: string; pct: number; color: string; offDays: number }[] = []
         for (const it of items) {
           if (it.dur <= 0) continue
           if (it.startDay >= absE || it.startDay + it.dur <= absS) continue
@@ -288,7 +315,7 @@ export default function RightPanel() {
             if (counted.has(it.id)) {
               total += as.pct
               const pr = projects.find(p => p.id === it.projectId)
-              cellItems.push({ title: it.title, project: pr?.name ?? '', pct: as.pct, color: pr?.color ?? '#a1a1aa' })
+              cellItems.push({ title: it.title, project: pr?.name ?? '', pct: as.pct, color: pr?.color ?? '#a1a1aa', offDays: assignedDuringTimeOff(it, r, settings, absS, absE) })
             }
           }
         }
@@ -296,6 +323,8 @@ export default function RightPanel() {
         const col = allocColor(util)
         const over = isOverloaded(full, r)
         const tag = full <= 0 ? t('Free') : util < 85 ? t('Available') : util <= 100 ? t('Full') : t('Overallocated')
+        const awayDays = timeOffWorkingDays(r, absS, absE, settings)
+        const awayNotes = [...new Set((r.timeOff ?? []).filter(o => o.startDay < absE && o.startDay + o.dur > absS).map(o => o.note || t('Time off')))]
 
         return (
           <>
@@ -311,12 +340,23 @@ export default function RightPanel() {
               {full !== total && (
                 <div className="text-[11px] text-[#71717a]">{t('Total load {full}% ({n}% outside the filters)', { full, n: full - total })}</div>
               )}
+              {awayDays > 0 && (
+                <div className="mt-2 text-[11px] text-[#52525b] rounded-lg border border-[#ececec] px-2.5 py-1.5"
+                  style={{ background: 'repeating-linear-gradient(135deg, rgba(113,113,122,0.07) 0 4px, transparent 4px 9px)' }}>
+                  {t('Away {n} working days in this period ({notes})', { n: awayDays, notes: awayNotes.join(', ') })}
+                </div>
+              )}
               <div className="flex flex-col gap-2 mt-4">
                 {cellItems.map((ci, i) => (
                   <div key={i} className="flex items-center gap-2 py-1.5 px-2.5 border border-[#f1f1f1] rounded-lg">
                     <span className="w-2 h-2 rounded-[2px] flex-none" style={{ background: ci.color }} />
                     <span className="text-[12px] text-[#27272a] flex-1 truncate">{ci.title}</span>
                     <span className="text-[11px] text-[#52525b] truncate">{ci.project.split(' — ')[0]}</span>
+                    {ci.offDays > 0 && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#fdf1e3] text-[#9a5b00] border border-[#f1d3a8] whitespace-nowrap" title={t('Work assigned during time off ({n} working days)', { n: ci.offDays })}>
+                        {t('Time off')}
+                      </span>
+                    )}
                     <span className="text-[12px] font-semibold text-[#27272a] tabular-nums">{ci.pct}%</span>
                   </div>
                 ))}

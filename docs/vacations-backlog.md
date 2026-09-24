@@ -58,7 +58,16 @@ contexto, los archivos y los criterios para poder retomarla sin volver a investi
 **Criterios:** cargar, editar y borrar una ausencia desde el modal; sobrevive al recargar;
 un escenario viejo sin el campo carga igual.
 
-## V2 · Resources muestra las ausencias `[ ]`
+## V2 · Resources muestra las ausencias `[x]`
+
+> **Hecho.** Cada ausencia se dibuja como una franja rayada sobre los días exactos de la fila (con la nota si
+> entra), por encima de las celdas y sin bloquear los clics. Una celda con trabajo asignado durante una
+> ausencia se pinta como problema (ámbar) y su tooltip dice cuántos días hábiles. Se calcula con todas las
+> tareas, igual que la carga total, para que un filtro no lo oculte. Helpers nuevos: `timeOffWorkingDays`
+> (cuenta una vez los días de ausencias superpuestas) y `assignedDuringTimeOff`. Panel de la persona:
+> ausencias actuales y próximas, con aviso de las tareas asignadas encima. Panel de celda: "Ausente N días
+> hábiles en este período (nota)" y un badge en cada tarea afectada. Verificado en Semana y Mes con datos de
+> prueba en memoria.
 
 - En la grilla, los días de ausencia se pintan con rayas en la fila de la persona
   (proporcional dentro de cada bucket).

@@ -160,6 +160,25 @@ export function capacityOn(r: Pick<Resource, 'availability' | 'timeOff'>, day: n
   return timeOffOn(r, day) ? 0 : resourceCapacity(r)
 }
 
+// Working days in [from, to) the person is away (overlapping entries count
+// each day once).
+export function timeOffWorkingDays(r: Pick<Resource, 'timeOff'>, from: number, to: number, settings: Settings): number {
+  const days = new Set<number>()
+  for (const o of r.timeOff ?? []) {
+    const e = Math.min(o.startDay + o.dur, to)
+    for (let d = Math.max(o.startDay, from); d < e; d++) if (isWorkingDay(d, settings)) days.add(d)
+  }
+  return days.size
+}
+
+// Working days the item has this person assigned while they're away,
+// optionally only within [from, to). Instants carry no work, so never count.
+export function assignedDuringTimeOff(it: Item, r: Pick<Resource, 'id' | 'timeOff'>, settings: Settings, from = -Infinity, to = Infinity): number {
+  if (isInstantItem(it) || it.dur <= 0 || !r.timeOff?.length) return 0
+  if (!it.assignments.some(a => a.r === r.id && a.pct > 0)) return 0
+  return timeOffWorkingDays(r, Math.max(it.startDay, from), Math.min(it.startDay + it.dur, to), settings)
+}
+
 // Whether two lists of time off are the same, regardless of order (ids
 // aside). Used to tell whether a person's absences changed between scenarios.
 export function sameTimeOff(a: TimeOff[] = [], b: TimeOff[] = []): boolean {
