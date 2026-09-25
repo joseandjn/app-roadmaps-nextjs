@@ -10,7 +10,9 @@ services:
     image: roadmap-app
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-3000}:3000"
+      # Only this Mac can reach it: the app has no login. To open it to the
+      # network, set BIND_ADDRESS=0.0.0.0 in .env (see docs/docker.md).
+      - "${BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-3000}:3000"
     volumes:
       # The data folder on this Mac. Back it up or move it to another Mac by
       # copying the folder.

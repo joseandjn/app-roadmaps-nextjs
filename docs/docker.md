@@ -28,6 +28,7 @@ Every setting has a default, so the app runs without one.
 | Variable | Default | What it does |
 |---|---|---|
 | `APP_PORT` | `3000` | Port on the Mac |
+| `BIND_ADDRESS` | `127.0.0.1` | Who can reach it: only this Mac. `0.0.0.0` opens it to the network |
 | `DATA_DIR` | `./storage` | Data folder on the Mac, mounted at `/app/storage` |
 | `LLM_PROVIDER` | `ollama` | `ollama` or `anthropic` |
 | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Ollama running on the Mac |
@@ -76,15 +77,21 @@ building it there is simplest. To move the built image instead:
   on a secure origin. `http://localhost:3000` on the same Mac works; from
   another machine over plain `http://` it doesn't. Putting a proxy with a
   certificate in front (e.g. Caddy) fixes that.
-- **No login.** Anyone who can reach the port can view and edit the
-  roadmap. Fine on your own Mac or a trusted network; add authentication
-  (e.g. basic auth in a proxy) before exposing it further.
+- **No login, so only this Mac by default.** Anyone who can reach the port
+  can view and edit the roadmap, so it's published on `127.0.0.1` only.
+  Setting `BIND_ADDRESS=0.0.0.0` makes it reachable from the network (e.g.
+  from the office Wi-Fi); add authentication first (e.g. basic auth in a
+  proxy) unless everyone on that network may edit it.
+- **No image optimization.** `images.unoptimized` is on in
+  `next.config.ts`: the app doesn't use `next/image`, and it keeps the
+  image-processing code (sharp/libvips, a recurring source of advisories)
+  off the request path.
 - **One container.** Data lives in files on one disk, so don't run replicas.
 
 ## Files
 
 | File | Role |
 |---|---|
-| `Dockerfile` | Multi-stage build: `npm ci`, `next build` (`output: "standalone"` in `next.config.ts`), then a small runtime with the standalone server, `.next/static` and `public`, running as a non-root user |
+| `Dockerfile` | Multi-stage build: `npm ci`, `next build` (`output: "standalone"` in `next.config.ts`), then a small runtime with the standalone server, `.next/static` and `public`, running as a non-root user, without npm |
 | `.dockerignore` | Keeps `node_modules`, `.next`, `storage`, `.env` and git out of the build context |
 | `docker-compose.yml` | The service: port, data folder, LLM settings |
