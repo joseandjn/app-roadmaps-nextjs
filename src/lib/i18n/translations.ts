@@ -52,6 +52,7 @@ const es: Record<string, string> = {
   'Finding: {title}': 'Hallazgo: {title}',
   'Clear finding': 'Quitar hallazgo',
   'Show in Timeline': 'Ver en el Cronograma',
+  '1 item': '1 tarea',
   'Clears the current filters and highlights these items': 'Quita los filtros actuales y resalta estas tareas',
   'Uncovered demand by role': 'Demanda sin cubrir por rol',
   'Every required role is covered in this period.': 'Todos los roles requeridos están cubiertos en este período.',

@@ -143,7 +143,18 @@ problemas" al instante; quitar la ausencia la saca.
 **Criterios:** con la casilla apagada el total de Costs no cambia; encendida, baja
 exactamente el costo diario × % × días de ausencia dentro de la tarea.
 
-## V5 · Motor de análisis `[ ]`
+## V5 · Motor de análisis `[x]`
+
+> **Hecho.** `EngineTimeOff` y `EngineResource.timeOff`, con `timeOffOn` e `isAway` en `domain.ts`. `api.ts`
+> valida las entradas (máximo 500 por persona, `startDay` entero, `dur` ≥ 1, nota recortada a 200). Hallazgo
+> nuevo `time_off_conflict` (`analyzers/timeoff.ts`): uno por ausencia con trabajo encima, con los días
+> hábiles, los persona-días y las tareas con su %. Severidad por persona-días (≥5 alta, ≥2 media); textos es y
+> en. `overload` salta los días de ausencia. En `idle`, una ausencia dentro de un hueco lo parte, y una persona
+> sin tareas se cotiza solo por los días que está (si está ausente todo el período, no se reporta). El
+> narrador sabe qué sugerir: reasignar o mover la tarea, nunca acortar la ausencia. "Ver en el Cronograma"
+> soporta el tipo nuevo. 13 tests nuevos en `engine/test/timeoff.test.ts` (90 en total, todos pasan).
+> Verificado en el navegador: el hallazgo aparece como "Alta" y el botón resalta la tarea. De paso, el botón
+> dice "1 tarea" en singular.
 
 - `engine/api.ts` acepta y valida `timeOff` en cada persona; `domain.ts` lo tipa.
 - Hallazgo nuevo `time_off_conflict`: la persona tiene trabajo asignado durante su

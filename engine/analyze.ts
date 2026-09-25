@@ -2,6 +2,8 @@ import { analyzeIdle } from './analyzers/idle.ts'
 import { analyzeOverload } from './analyzers/overload.ts'
 import { analyzeSchedule } from './analyzers/schedule.ts'
 import { analyzeSprints } from './analyzers/sprints.ts'
+import { analyzeTimeOff } from './analyzers/timeoff.ts'
+import { buildLoads } from './analyzers/load.ts'
 import { createCalendar } from './calendar.ts'
 import type { Locale, RoadmapSnapshot } from './domain.ts'
 import { rankFindings } from './findings.ts'
@@ -47,7 +49,8 @@ export function analyzeRoadmap(snapshot: RoadmapSnapshot, options: AnalyzeOption
   const schedule = analyzeSchedule(ctx)
   const overload = analyzeOverload(ctx, schedule.slackByItem)
   const idle = analyzeIdle(ctx, overload)
-  const findings = rankFindings([...schedule.findings, ...overload, ...idle, ...analyzeSprints(ctx)])
+  const timeOff = analyzeTimeOff(ctx, buildLoads(ctx))
+  const findings = rankFindings([...schedule.findings, ...overload, ...timeOff, ...idle, ...analyzeSprints(ctx)])
 
   const bySeverity: Record<Severity, number> = { high: 0, medium: 0, low: 0 }
   for (const f of findings) bySeverity[f.severity]++

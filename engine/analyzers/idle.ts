@@ -1,5 +1,5 @@
 import { dailyRate, fmtMoney } from '../cost.ts'
-import { capacityPct, isInstant, itemEnd } from '../domain.ts'
+import { capacityPct, isAway, isInstant, itemEnd } from '../domain.ts'
 import type { EngineItem, EngineResource } from '../domain.ts'
 import type { IdleCapacityFinding, ItemRef, OverloadFinding, Severity, UnassignedResourcesFinding } from '../findings.ts'
 import { idleText, unassignedText } from '../messages.ts'
@@ -19,7 +19,9 @@ const ref = (i: EngineItem): ItemRef => ({ id: i.id, title: i.title, projectId: 
 // Both are cross-checked against the overload findings, so free people during
 // someone else's overload stand out. Idle cost counts only the share of a
 // person's rate that is available to this roadmap (their availability), and
-// people with 0% availability are never reported as idle.
+// people with 0% availability are never reported as idle. Time off is never
+// idle: an absence inside a gap splits it, and only the days the person is
+// around are counted and priced.
 export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]): Array<IdleCapacityFinding | UnassignedResourcesFinding> {
   const { snapshot, calendar, locale, todayDay } = ctx
   const symbol = snapshot.settings.currencySymbol ?? '$'
@@ -91,12 +93,26 @@ export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]):
     const pick = (day: number, compare: (a: EngineItem, b: EngineItem) => number): EngineItem =>
       [...days.get(day)!.byItem.keys()].map(id => itemById.get(id)!).sort((a, b) => compare(a, b) || a.id.localeCompare(b.id))[0]
 
-    for (let i = 0; i < busy.length - 1; i++) {
-      const idleWorkingDays = countWorking(busy[i] + 1, busy[i + 1])
+    // Runs of working days the person is around between two busy days: a day
+    // away ends a run, a weekend or holiday doesn't.
+    const availableRuns = (from: number, to: number) => {
+      const runs: Array<{ startDay: number; endDay: number; days: number }> = []
+      let cur: { startDay: number; endDay: number; days: number } | null = null
+      for (let d = from; d < to; d++) {
+        if (!calendar.isWorking(d)) continue
+        if (isAway(resource, d)) { cur = null; continue }
+        if (!cur) runs.push(cur = { startDay: d, endDay: d, days: 0 })
+        cur.endDay = d
+        cur.days++
+      }
+      return runs
+    }
+
+    for (let i = 0; i < busy.length - 1; i++) for (const run of availableRuns(busy[i] + 1, busy[i + 1])) {
+      const idleWorkingDays = run.days
       if (idleWorkingDays < MIN_IDLE_WORKING_DAYS) continue
 
-      const startDay = firstWorkingFrom(busy[i] + 1)
-      const endDay = lastWorkingBefore(busy[i + 1])
+      const { startDay, endDay } = run
       const beforeItem = pick(busy[i], (a, b) => itemEnd(b) - itemEnd(a))
       const afterItem = pick(busy[i + 1], (a, b) => a.startDay - b.startDay)
       const relief = overloadedDuring(startDay, endDay, resource.id)
@@ -150,20 +166,28 @@ export function analyzeIdle(ctx: AnalysisContext, overloads: OverloadFinding[]):
   }
 
   const workingDays = countWorking(from, horizonEnd)
-  if (unassigned.length > 0 && workingDays >= MIN_IDLE_WORKING_DAYS) {
+  // Working days each unassigned person is around (not on time off); someone
+  // away for most of it isn't really idle.
+  const aroundDays = (r: EngineResource) => {
+    let n = 0
+    for (let d = from; d < horizonEnd; d++) if (calendar.isWorking(d) && !isAway(r, d)) n++
+    return n
+  }
+  const idlePeople = unassigned.filter(r => aroundDays(r) >= MIN_IDLE_WORKING_DAYS)
+  if (idlePeople.length > 0 && workingDays >= MIN_IDLE_WORKING_DAYS) {
     const startDay = firstWorkingFrom(from)
     const endDay = lastWorkingBefore(horizonEnd)
-    const people = unassigned
+    const people = idlePeople
       .map(r => {
         const rate = availableRate(r)
-        return { resourceId: r.id, resourceName: r.name, role: r.role ?? null, idleCost: rate === null ? null : Math.round(rate * workingDays) }
+        return { resourceId: r.id, resourceName: r.name, role: r.role ?? null, idleCost: rate === null ? null : Math.round(rate * aroundDays(r)) }
       })
       .sort((a, b) => (b.idleCost ?? 0) - (a.idleCost ?? 0) || a.resourceName.localeCompare(b.resourceName))
     const totalIdleCost = people.some(p => p.idleCost !== null) ? people.reduce((sum, p) => sum + (p.idleCost ?? 0), 0) : null
     // Only cite an overloaded person here if at least one idle person could plausibly cover
     // for them — same reasoning as the per-person relief filter above.
     const overloaded = overloadedDuring(startDay, endDay, null)
-      .filter(o => unassigned.some(u => !rolesConflict(u.role, o.resourceRole, o.requiredRoles)))
+      .filter(o => idlePeople.some(u => !rolesConflict(u.role, o.resourceRole, o.requiredRoles)))
       .sort((a, b) => b.overlapWorkingDays - a.overlapWorkingDays || a.resourceName.localeCompare(b.resourceName))
       .slice(0, MAX_RELIEF)
       .map(({ resourceId, resourceName, overlapWorkingDays, overloadFindingId }) => ({ resourceId, resourceName, overlapWorkingDays, overloadFindingId }))

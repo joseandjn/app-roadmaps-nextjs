@@ -7,6 +7,14 @@ export interface EngineProject {
   name: string
 }
 
+// Days a person is away (vacation, leave…): `startDay` + `dur` calendar days,
+// end exclusive, like items. They have no capacity on those days.
+export interface EngineTimeOff {
+  startDay: number
+  dur: number
+  note?: string
+}
+
 export interface EngineResource {
   id: string
   name: string
@@ -17,6 +25,7 @@ export interface EngineResource {
   // Share of this person's time available for this roadmap, 0-100 (default 100).
   // A person at 50 can hold 50% of concurrent assignments before being overloaded.
   availability?: number
+  timeOff?: EngineTimeOff[]
 }
 
 export interface EngineSprint {
@@ -72,6 +81,15 @@ export interface RoadmapSnapshot {
 
 export function capacityPct(resource: Pick<EngineResource, 'availability'>): number {
   return resource.availability ?? 100
+}
+
+// The time-off entry covering this day, if the person is away.
+export function timeOffOn(resource: Pick<EngineResource, 'timeOff'>, day: number): EngineTimeOff | undefined {
+  return resource.timeOff?.find(o => day >= o.startDay && day < o.startDay + o.dur)
+}
+
+export function isAway(resource: Pick<EngineResource, 'timeOff'>, day: number): boolean {
+  return timeOffOn(resource, day) !== undefined
 }
 
 export function isInstant(item: Pick<EngineItem, 'type'>): boolean {

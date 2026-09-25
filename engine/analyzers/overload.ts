@@ -1,4 +1,4 @@
-import { capacityPct } from '../domain.ts'
+import { capacityPct, isAway } from '../domain.ts'
 import type { OverloadFinding, Severity } from '../findings.ts'
 import { overloadText } from '../messages.ts'
 import type { AnalysisContext } from './context.ts'
@@ -16,7 +16,8 @@ function severityFor(peakPct: number, capacity: number, excessPersonDays: number
 // Finds stretches where a person's concurrent assignments exceed their capacity
 // (their availability, 100% unless set lower).
 // Only working days count (weekends/holidays per settings), finished items
-// are ignored, and so is anything before `todayDay`.
+// are ignored, and so is anything before `todayDay`. Days the person is away
+// are left to the time-off analyzer: any work then is a conflict, not load.
 export function analyzeOverload(ctx: AnalysisContext, slackByItem: Map<string, number>): OverloadFinding[] {
   const { snapshot, calendar, locale } = ctx
   const itemById = new Map(snapshot.items.map(i => [i.id, i]))
@@ -32,7 +33,7 @@ export function analyzeOverload(ctx: AnalysisContext, slackByItem: Map<string, n
   for (const [rid, days] of loads) {
     const resource = resources.get(rid)!
     const capacity = capacityPct(resource)
-    const overloaded = [...days.entries()].filter(([, l]) => l.total > capacity).sort((a, b) => a[0] - b[0])
+    const overloaded = [...days.entries()].filter(([d, l]) => !isAway(resource, d) && l.total > capacity).sort((a, b) => a[0] - b[0])
 
     const windows: Array<Array<[number, DayLoad]>> = []
     for (const entry of overloaded) {
