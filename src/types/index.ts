@@ -40,6 +40,15 @@ export interface Role {
   icon: string
 }
 
+// A stretch of days a person is away (vacation, leave…). Same day math as
+// items: `startDay` offset from START_DATE, `dur` calendar days, end exclusive.
+export interface TimeOff {
+  id: string
+  startDay: number
+  dur: number
+  note?: string
+}
+
 export interface Resource {
   id: string
   name: string
@@ -48,6 +57,8 @@ export interface Resource {
   costUnit: CostUnit
   // Share of this person's time available for this roadmap, 0-100. Missing means 100.
   availability?: number
+  // Days away: capacity 0 on those days. Missing means none.
+  timeOff?: TimeOff[]
 }
 
 export interface Dependency {
@@ -69,6 +80,9 @@ export interface Settings {
   currencySymbol: string
   countWeekends: boolean
   holidays: string[] // 'YYYY-MM-DD'
+  // Whether a person's time off lowers the cost of their assignments (unpaid).
+  // Missing means false: time off is paid, cost is unchanged.
+  timeOffReducesCost?: boolean
 }
 
 // A scenario is a full, independent copy of the planning data below — a
@@ -203,6 +217,7 @@ export interface RoadmapState {
     cost: number
     costUnit: CostUnit
     availability: number
+    timeOff: TimeOff[]
     heading?: string
     canDelete?: boolean
   } | null

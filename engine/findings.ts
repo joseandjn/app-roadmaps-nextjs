@@ -2,7 +2,7 @@ import type { ItemStatus } from './domain.ts'
 
 export type Severity = 'high' | 'medium' | 'low'
 export type FindingKind =
-  | 'dependency_cycle' | 'dependency_conflict' | 'overload' | 'critical_path'
+  | 'dependency_cycle' | 'dependency_conflict' | 'overload' | 'time_off_conflict' | 'critical_path'
   | 'idle_capacity' | 'unassigned_resources' | 'sprint_spillover' | 'oversized_items'
 
 export interface ItemRef {
@@ -39,6 +39,28 @@ export interface OverloadFinding extends FindingBase {
     // without delaying a dependent, or null when it isn't part of any dependency chain.
     // `requiredRoles` are the roles that item accepts (any one of them), or empty when any role can take it.
     items: Array<ItemRef & { pct: number; slackDays: number | null; requiredRoles: string[] }>
+  }
+}
+
+export interface TimeOffConflictFinding extends FindingBase {
+  kind: 'time_off_conflict'
+  // Work assigned on working days a person is away, one finding per time-off entry.
+  evidence: {
+    resourceId: string
+    resourceName: string
+    // The time-off entry itself (inclusive end date) and its note, if any.
+    timeOffStartDate: string
+    timeOffEndDate: string
+    note: string | null
+    // First and last working day with work assigned during it.
+    startDay: number
+    endDay: number
+    startDate: string
+    endDate: string
+    workingDays: number
+    // Sum over those days of the assigned % / 100: how much work has no one to do it.
+    personDays: number
+    items: Array<ItemRef & { pct: number }>
   }
 }
 
@@ -141,12 +163,12 @@ export interface OversizedItemsFinding extends FindingBase {
 }
 
 export type Finding =
-  | OverloadFinding | DependencyConflictFinding | DependencyCycleFinding | CriticalPathFinding
+  | OverloadFinding | TimeOffConflictFinding | DependencyConflictFinding | DependencyCycleFinding | CriticalPathFinding
   | IdleCapacityFinding | UnassignedResourcesFinding | SprintSpilloverFinding | OversizedItemsFinding
 
 const SEVERITY_ORDER: Record<Severity, number> = { high: 0, medium: 1, low: 2 }
 const KIND_ORDER: Record<FindingKind, number> = {
-  dependency_cycle: 0, dependency_conflict: 1, overload: 2, critical_path: 3, idle_capacity: 4, unassigned_resources: 5, sprint_spillover: 6, oversized_items: 7,
+  dependency_cycle: 0, dependency_conflict: 1, overload: 2, time_off_conflict: 3, critical_path: 4, idle_capacity: 5, unassigned_resources: 6, sprint_spillover: 7, oversized_items: 8,
 }
 
 export function rankFindings(findings: Finding[]): Finding[] {

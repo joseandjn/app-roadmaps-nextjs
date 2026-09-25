@@ -1,4 +1,4 @@
-import { assignmentCostsInRange, computeScenarioMetrics, itemEnd, resourceCapacity } from '@/lib/roadmapUtils'
+import { assignmentCostsInRange, computeScenarioMetrics, itemEnd, resourceCapacity, sameTimeOff } from '@/lib/roadmapUtils'
 import type { Item, Resource, ScenarioData, ScenarioMetrics } from '@/types'
 
 export interface AssignmentChange {
@@ -106,7 +106,7 @@ export function diffScenarios(base: ScenarioData, target: ScenarioData): Scenari
     const costBefore = baseCosts.byResource[id] ?? 0
     if (!after) {
       resources.push({ id, kind: 'removed', before, after: null, costBefore, costAfter: 0 })
-    } else if (before.name !== after.name || before.role !== after.role || before.cost !== after.cost || before.costUnit !== after.costUnit || resourceCapacity(before) !== resourceCapacity(after)) {
+    } else if (before.name !== after.name || before.role !== after.role || before.cost !== after.cost || before.costUnit !== after.costUnit || resourceCapacity(before) !== resourceCapacity(after) || !sameTimeOff(before.timeOff, after.timeOff)) {
       resources.push({ id, kind: 'changed', before, after, costBefore, costAfter: targetCosts.byResource[id] ?? 0 })
     }
   }

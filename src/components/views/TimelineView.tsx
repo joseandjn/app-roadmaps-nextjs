@@ -338,6 +338,7 @@ export default function TimelineView() {
             )}
             {fctx.issues.get(it.id)?.includes('overload') && <span style={issueBadge}>{t('Overloaded')}</span>}
             {fctx.issues.get(it.id)?.includes('role') && <span style={issueBadge}>{t('Wrong role')}</span>}
+            {fctx.issues.get(it.id)?.includes('timeoff') && <span style={issueBadge}>{t('Time off')}</span>}
           </div>
           {it.requiredRoles && it.requiredRoles.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>

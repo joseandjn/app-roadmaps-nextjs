@@ -1,7 +1,7 @@
 import { analyzeRoadmap } from './analyze.ts'
 import type { AnalysisReport } from './analyze.ts'
 import { parseIsoDate } from './calendar.ts'
-import type { EngineItem, EngineResource, EngineSprint, ItemStatus, ItemType, Locale, RoadmapSnapshot } from './domain.ts'
+import type { EngineItem, EngineResource, EngineSprint, EngineTimeOff, ItemStatus, ItemType, Locale, RoadmapSnapshot } from './domain.ts'
 import { narrate } from './llm/narrate.ts'
 import type { Narrative } from './llm/narrate.ts'
 import type { LlmClient } from './llm/types.ts'
@@ -33,7 +33,7 @@ export interface ApiResult {
 
 const STATUSES: ReadonlySet<string> = new Set<ItemStatus>(['In Progress', 'At Risk', 'Planned', 'Done'])
 const TYPES: ReadonlySet<string> = new Set<ItemType>(['epic', 'task', 'milestone', 'release'])
-const LIMITS = { items: 5000, resources: 1000, projects: 1000, deps: 20000, sprints: 2000, assignments: 100, requiredRoles: 50, holidays: 1000, maxDur: 3650, maxDay: 1_000_000 }
+const LIMITS = { items: 5000, resources: 1000, projects: 1000, deps: 20000, sprints: 2000, assignments: 100, requiredRoles: 50, holidays: 1000, timeOff: 500, note: 200, maxDur: 3650, maxDay: 1_000_000 }
 
 type Parsed = { ok: true; value: AnalyzeRequest } | { ok: false; error: string }
 
@@ -85,6 +85,17 @@ export function parseAnalyzeRequest(raw: unknown): Parsed {
     if (r.availability !== undefined && r.availability !== null) {
       if (typeof r.availability !== 'number' || !Number.isFinite(r.availability) || r.availability < 0 || r.availability > 100) return fail(`Resource ${r.id}: availability must be a number between 0 and 100.`)
       resource.availability = r.availability
+    }
+    if (r.timeOff !== undefined && r.timeOff !== null) {
+      if (!Array.isArray(r.timeOff) || r.timeOff.length > LIMITS.timeOff) return fail(`Resource ${r.id}: timeOff must be an array (max ${LIMITS.timeOff}).`)
+      resource.timeOff = []
+      for (const o of r.timeOff as unknown[]) {
+        if (!isObject(o) || !Number.isInteger(o.startDay) || Math.abs(o.startDay as number) > LIMITS.maxDay) return fail(`Resource ${r.id}: every timeOff entry needs an integer startDay.`)
+        if (!Number.isInteger(o.dur) || (o.dur as number) < 1 || (o.dur as number) > LIMITS.maxDur) return fail(`Resource ${r.id}: timeOff dur must be an integer between 1 and ${LIMITS.maxDur}.`)
+        const entry: EngineTimeOff = { startDay: o.startDay as number, dur: o.dur as number }
+        if (typeof o.note === 'string' && o.note.trim()) entry.note = o.note.trim().slice(0, LIMITS.note)
+        resource.timeOff.push(entry)
+      }
     }
     resources.push(resource)
   }

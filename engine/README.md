@@ -17,7 +17,10 @@ RoadmapSnapshot ──► analyzers (deterministic) ──► ranked Findings �
    - `overload` — stretches where a person's concurrent assignments exceed their
      capacity: their `availability` (share of their time available for this roadmap,
      0-100, default 100). Severity is relative to that capacity. Only working days count (weekends/holidays per `settings`); finished items
-     and days before `todayDay` are ignored.
+     and days before `todayDay` are ignored. Days a person is away are skipped: work then is a time-off conflict.
+   - `timeoff` — work assigned on working days a person is away (`time_off_conflict`,
+     one finding per time-off entry), with the items and person-days involved. Severity by
+     person-days (≥5 high, ≥2 medium). Same scope as overload.
    - `schedule` — dependency conflicts (a dependent starts before what it waits
      on ends), dependency cycles, and one **critical path** per group of linked
      items: the chain of dependencies leading to the item that finishes last,
@@ -28,7 +31,9 @@ RoadmapSnapshot ──► analyzers (deterministic) ──► ranked Findings �
      Both are priced from each person's rate scaled by their availability (a rate of
      0 counts as "no rate"); people with 0% availability are never reported as idle. They are
      cross-checked against overloads, so free people during someone's overload are
-     linked to it. Time after someone's last item is not reported.
+     linked to it. Time after someone's last item is not reported. Time off is never idle:
+     an absence inside a gap splits it, and unassigned people are priced only for the days
+     they are around.
    - `sprints` — tasks that would fit in one sprint but straddle its boundary
      (`sprint_spillover`, one finding per sprint) and tasks longer than their sprint
      (`oversized_items`). Epics, milestones, finished tasks and past sprints are exempt.
@@ -55,7 +60,7 @@ Dates are integer day offsets from `originDate`, like in the app.
   uses Claude. `OLLAMA_BASE_URL` / `OLLAMA_MODEL` configure Ollama.
 
 Request body (`POST /api/analyze`): `{ snapshot, originDate, locale?, todayDay?, narrate? }`.
-`snapshot.sprints` and the resources' `role`/`cost`/`costUnit`/`availability` are optional; without
+`snapshot.sprints` and the resources' `role`/`cost`/`costUnit`/`availability`/`timeOff` are optional; without
 them the sprint and cost analyses are simply skipped.
 Send `narrate: false` for an instant, LLM-free reply and `narrate: true` to also
 get `narrative` (or `narrativeError` if the LLM is unavailable).

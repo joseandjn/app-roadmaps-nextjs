@@ -1,5 +1,5 @@
 import type { Dependency, Filters, Item, MomentaryFilterKey, PersistedFilters, Project, Resource, Role, SavedView, Settings, ViewSnapshot } from '@/types'
-import { isOverloaded, dependencyIssues, overloadedItemIds, roleMismatch, workingDaysInRange } from '@/lib/roadmapUtils'
+import { isOverloaded, dependencyIssues, overloadedItemIds, roleMismatch, workingDaysInRange, assignedDuringTimeOff } from '@/lib/roadmapUtils'
 
 // Single source of truth for what the view filters mean. Views never
 // re-implement these rules — they ask `itemMatch` per item, or use
@@ -65,9 +65,9 @@ export function dependencyChain(itemId: string, deps: Dependency[]): Set<string>
 // Why an item needs attention. Cheap, live signals only — the Analysis
 // engine (engine/analyzers) has richer rules (critical path, idle capacity,
 // sprint spillover) and stays the place for those.
-export type IssueKind = 'dependency' | 'overload' | 'role' | 'risk'
+export type IssueKind = 'dependency' | 'overload' | 'role' | 'risk' | 'timeoff'
 
-export function itemIssues(items: Item[], deps: Dependency[], resources: Resource[]): Map<string, IssueKind[]> {
+export function itemIssues(items: Item[], deps: Dependency[], resources: Resource[], settings: Settings): Map<string, IssueKind[]> {
   const { conflicted } = dependencyIssues(items, deps)
   const overloaded = overloadedItemIds(items, resources)
   const out = new Map<string, IssueKind[]>()
@@ -77,6 +77,8 @@ export function itemIssues(items: Item[], deps: Dependency[], resources: Resourc
     if (overloaded.has(it.id)) kinds.push('overload')
     if (it.assignments.some(a => { const r = resources.find(rr => rr.id === a.r); return !!r && roleMismatch(it, r) })) kinds.push('role')
     if (it.status === 'At Risk') kinds.push('risk')
+    // Someone is assigned on a working day they're away.
+    if (it.assignments.some(a => { const r = resources.find(rr => rr.id === a.r); return !!r && assignedDuringTimeOff(it, r, settings) > 0 })) kinds.push('timeoff')
     if (kinds.length) out.set(it.id, kinds)
   }
   return out

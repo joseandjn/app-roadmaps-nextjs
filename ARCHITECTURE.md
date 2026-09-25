@@ -42,9 +42,11 @@ src/
 │   ├── LeftRail.tsx           Sidebar: project list or people list (see "Shared Components" below)
 │   ├── RightPanel.tsx         Slide-in drawer: item editor / resource detail / cell detail
 │   ├── Toast.tsx              Transient notification (e.g. "Item updated")
+│   ├── TimeOffPopover.tsx     Quick time-off form opened from the Resources grid
 │   ├── modals/
 │   │   ├── ProjectModal.tsx   Create/edit/delete a project, optionally seeding default tasks (see "Shared Components" below)
-│   │   ├── ResourceModal.tsx  Create/edit/delete a person
+│   │   ├── ResourceModal.tsx  Create/edit/delete a person, including their time off
+│   │   ├── ImportTimeOffModal.tsx  Bulk time off from a pasted spreadsheet or CSV (see docs/time-off.md)
 │   │   └── ImpactModal.tsx    Shows dependency clashes / over-allocation before committing an item edit
 │   ├── views/
 │   │   ├── TimelineView.tsx   Per-project Gantt (see "TimelineView" below)
@@ -61,6 +63,7 @@ src/
 │   │                           peak-allocation calc
 │   ├── utils.ts               `cn()` (clsx + tailwind-merge)
 │   ├── filters.ts             Filter rules: itemMatch, resourceMatches, itemsForMetrics… (see docs/filters.md)
+│   ├── timeOffImport.ts       Pure parser for pasted/CSV time off (see docs/time-off.md)
 │   ├── useFilterContext.ts    Memoized FilterContext the views pass to itemMatch
 │   ├── persistence/            (see "Persistence" below)
 │   │   ├── scenarioFile.ts     Server-only: scenario index + data files
@@ -267,6 +270,11 @@ person's total allocation % for that bucket plus a breakdown by project.
   and canvas scroll together; on mount the view auto-scrolls to center
   "today", and resets to the left edge whenever the date-range filter
   changes.
+- **Time off**: each person's absences are striped bands on their row;
+  cells with work assigned during one are flagged, and dragging across a
+  row adds one. Absences zero the person's capacity on those days
+  everywhere (issues, overload, Analysis) and optionally reduce cost. See
+  [`docs/time-off.md`](docs/time-off.md).
 
 ## Path aliases
 

@@ -37,6 +37,24 @@ export function overloadText(
       }
 }
 
+export function timeOffText(
+  locale: Locale,
+  p: { name: string; note: string | null; offStart: string; offEnd: string; start: string; end: string; days: number; personDays: number; items: Array<{ title: string; pct: number }> },
+) {
+  const items = p.items.map(i => `${i.title} (${i.pct}%)`).join(', ')
+  const pd = p.personDays.toFixed(1)
+  const sameDay = p.start === p.end
+  return locale === 'es'
+    ? {
+        title: `${p.name} tiene trabajo asignado durante su ausencia${p.note ? ` (${p.note})` : ''}`,
+        detail: `${p.name} está ausente del ${fmtDate(p.offStart, 'es')} al ${fmtDate(p.offEnd, 'es')}, pero tiene trabajo asignado ${sameDay ? `el ${fmtDate(p.start, 'es')}` : `del ${fmtDate(p.start, 'es')} al ${fmtDate(p.end, 'es')}`} (${p.days} ${plural(p.days, 'día laborable', 'días laborables')}, ${pd} persona-días sin cubrir). Asignado a: ${items}.`,
+      }
+    : {
+        title: `${p.name} has work assigned during time off${p.note ? ` (${p.note})` : ''}`,
+        detail: `${p.name} is away from ${fmtDate(p.offStart, 'en')} to ${fmtDate(p.offEnd, 'en')}, but has work assigned ${sameDay ? `on ${fmtDate(p.start, 'en')}` : `from ${fmtDate(p.start, 'en')} to ${fmtDate(p.end, 'en')}`} (${p.days} working ${plural(p.days, 'day', 'days')}, ${pd} person-days with nobody to do them). Assigned to: ${items}.`,
+      }
+}
+
 export function conflictText(
   locale: Locale,
   p: { predecessor: string; successor: string; overlapDays: number; predEnd: string; succStart: string },

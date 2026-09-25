@@ -1,5 +1,5 @@
 import { START_DATE, TOTAL_DAYS, MONTHS, WEEKDAYS } from '@/data/initialData'
-import type { Item, Resource, Dependency, ScaleIndex, Settings, ScenarioMetrics } from '@/types'
+import type { Item, Resource, Dependency, ScaleIndex, Settings, ScenarioMetrics, TimeOff } from '@/types'
 
 export const DAY_MS = 86400000
 
@@ -85,6 +85,7 @@ export function resourceDailyRate(r: Resource, settings: Settings): number {
 // Cost of one item's assignments, prorated to the working days (per
 // settings.countWeekends/holidays) of its duration that overlap
 // [rangeStart, rangeEnd). Milestones/releases (dur 0) never carry cost.
+// With settings.timeOffReducesCost, each person's time-off days are left out.
 export function itemCostInRange(it: Item, resources: Resource[], rangeStart: number, rangeEnd: number, settings: Settings): number {
   return assignmentCostsInRange(it, resources, rangeStart, rangeEnd, settings).reduce((sum, c) => sum + c.cost, 0)
 }
@@ -101,7 +102,8 @@ export function assignmentCostsInRange(it: Item, resources: Resource[], rangeSta
   for (const a of it.assignments) {
     const r = resources.find(rr => rr.id === a.r)
     if (!r) continue
-    out.push({ rid: r.id, cost: resourceDailyRate(r, settings) * (a.pct / 100) * days })
+    const paid = settings.timeOffReducesCost ? days - timeOffWorkingDays(r, s, e, settings) : days
+    out.push({ rid: r.id, cost: resourceDailyRate(r, settings) * (a.pct / 100) * paid })
   }
   return out
 }
@@ -148,6 +150,43 @@ export function utilizationPct(load: number, r: Pick<Resource, 'availability'>):
 
 export function isOverloaded(load: number, r: Pick<Resource, 'availability'>): boolean {
   return load > resourceCapacity(r)
+}
+
+// The time-off entry covering this day, if the person is away.
+export function timeOffOn(r: Pick<Resource, 'timeOff'>, day: number): TimeOff | undefined {
+  return r.timeOff?.find(o => day >= o.startDay && day < o.startDay + o.dur)
+}
+
+// Capacity on a given day: 0 while away, otherwise their availability.
+export function capacityOn(r: Pick<Resource, 'availability' | 'timeOff'>, day: number): number {
+  return timeOffOn(r, day) ? 0 : resourceCapacity(r)
+}
+
+// Working days in [from, to) the person is away (overlapping entries count
+// each day once).
+export function timeOffWorkingDays(r: Pick<Resource, 'timeOff'>, from: number, to: number, settings: Settings): number {
+  const days = new Set<number>()
+  for (const o of r.timeOff ?? []) {
+    const e = Math.min(o.startDay + o.dur, to)
+    for (let d = Math.max(o.startDay, from); d < e; d++) if (isWorkingDay(d, settings)) days.add(d)
+  }
+  return days.size
+}
+
+// Working days the item has this person assigned while they're away,
+// optionally only within [from, to). Instants carry no work, so never count.
+export function assignedDuringTimeOff(it: Item, r: Pick<Resource, 'id' | 'timeOff'>, settings: Settings, from = -Infinity, to = Infinity): number {
+  if (isInstantItem(it) || it.dur <= 0 || !r.timeOff?.length) return 0
+  if (!it.assignments.some(a => a.r === r.id && a.pct > 0)) return 0
+  return timeOffWorkingDays(r, Math.max(it.startDay, from), Math.min(it.startDay + it.dur, to), settings)
+}
+
+// Whether two lists of time off are the same, regardless of order (ids
+// aside). Used to tell whether a person's absences changed between scenarios.
+export function sameTimeOff(a: TimeOff[] = [], b: TimeOff[] = []): boolean {
+  const key = (o: TimeOff) => `${o.startDay}|${o.dur}|${o.note ?? ''}`
+  const ka = a.map(key).sort(), kb = b.map(key).sort()
+  return ka.length === kb.length && ka.every((k, i) => k === kb[i])
 }
 
 // Peak concurrent allocation % for a resource, day by day. Bucketing by a
@@ -201,7 +240,8 @@ export function dependencyIssues(items: Item[], deps: Dependency[]): { cycles: S
 }
 
 // Items where at least one assignee is over their capacity on some day the
-// item spans (counting all their work that day, not just this item).
+// item spans (counting all their work that day, not just this item). Days the
+// person is away don't count: work then is a time-off conflict instead.
 export function overloadedItemIds(items: Item[], resources: Resource[]): Set<string> {
   const daily: Record<string, Record<number, number>> = {}
   for (const it of items) {
@@ -217,7 +257,7 @@ export function overloadedItemIds(items: Item[], resources: Resource[]): Set<str
     const over = it.assignments.some(a => {
       const r = resources.find(rr => rr.id === a.r)
       if (!r) return false
-      for (let day = it.startDay; day < it.startDay + it.dur; day++) if (isOverloaded(daily[a.r][day], r)) return true
+      for (let day = it.startDay; day < it.startDay + it.dur; day++) if (!timeOffOn(r, day) && isOverloaded(daily[a.r][day], r)) return true
       return false
     })
     if (over) out.add(it.id)

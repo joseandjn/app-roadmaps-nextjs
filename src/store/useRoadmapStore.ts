@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta, Filters, FilterListKey, PersistedFilters, SavedView, ViewSnapshot } from '@/types'
+import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta, Filters, FilterListKey, PersistedFilters, SavedView, ViewSnapshot, TimeOff } from '@/types'
 import {
   INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS,
   getTodayDay, SCALE_PRESETS, PROJECT_COLORS, DEFAULT_PROJECT_TASKS,
@@ -77,6 +77,10 @@ type Store = RoadmapState & {
   patchRF: (p: Partial<NonNullable<RoadmapState['rform']>>) => void
   onRSave: () => void
   onRCancel: () => void
+  // time off outside the resource form (Resources grid drag, bulk import)
+  saveTimeOff: (rid: string, entry: TimeOff) => void
+  deleteTimeOff: (rid: string, id: string) => void
+  importTimeOff: (entries: { rid: string; entry: Omit<TimeOff, 'id'> }[]) => void
   onRDelete: () => void
   // sprints
   onNewSprint: () => void
@@ -129,6 +133,15 @@ function snapshotState(s: RoadmapState, v: ViewSnapshot) {
     filters: pruneFilters({ ...EMPTY_FILTERS, ...v.filters }, s),
     visible: new Set(s.projects.filter(p => !hidden.has(p.id)).map(p => p.id)),
   }
+}
+
+// Time off as saved: sorted by start, empty list stored as absent (like
+// `requiredRoles`), and a blank note dropped.
+function cleanTimeOff(list: TimeOff[]): TimeOff[] | undefined {
+  if (!list.length) return undefined
+  return [...list]
+    .sort((a, b) => a.startDay - b.startDay)
+    .map(o => (o.note?.trim() ? { ...o, note: o.note.trim() } : { id: o.id, startDay: o.startDay, dur: o.dur }))
 }
 
 function projRange(items: Item[], pid: string) {
@@ -590,24 +603,41 @@ export const useRoadmapStore = create<Store>((set, get) => {
     openRes: rid => set({ resSel: rid, panel: 'res', cell: null, draft: null }),
     openCell: (rid, bIdx, bucket) => set({ cell: { rid, bIdx, bucket }, panel: 'cell' }),
 
-    onNewResource: () => set({ rform: { show: true, id: null, name: '', role: 'Engineering', cost: 0, costUnit: 'month', availability: 100 } }),
+    onNewResource: () => set({ rform: { show: true, id: null, name: '', role: 'Engineering', cost: 0, costUnit: 'month', availability: 100, timeOff: [] } }),
     editResource: id => {
       const r = get().resources.find(r => r.id === id)!
-      set({ rform: { show: true, id, name: r.name, role: r.role, cost: r.cost, costUnit: r.costUnit, availability: resourceCapacity(r), canDelete: true } })
+      set({ rform: { show: true, id, name: r.name, role: r.role, cost: r.cost, costUnit: r.costUnit, availability: resourceCapacity(r), timeOff: r.timeOff ?? [], canDelete: true } })
     },
     patchRF: p => set(s => ({ rform: s.rform ? { ...s.rform, ...p } : null })),
     onRSave: () => {
       const f = get().rform!
       if (f.id) {
-        set(s => ({ resources: s.resources.map(r => r.id === f.id ? { ...r, name: f.name || r.name, role: f.role, cost: f.cost, costUnit: f.costUnit, availability: f.availability } : r), rform: null }))
+        set(s => ({ resources: s.resources.map(r => r.id === f.id ? { ...r, name: f.name || r.name, role: f.role, cost: f.cost, costUnit: f.costUnit, availability: f.availability, timeOff: cleanTimeOff(f.timeOff) } : r), rform: null }))
         showToast(t('Resource updated'))
       } else {
         const id = 'r' + Date.now()
-        set(s => ({ resources: [...s.resources, { id, name: f.name || 'New person', role: f.role || '', cost: f.cost, costUnit: f.costUnit, availability: f.availability }], rform: null }))
+        set(s => ({ resources: [...s.resources, { id, name: f.name || 'New person', role: f.role || '', cost: f.cost, costUnit: f.costUnit, availability: f.availability, timeOff: cleanTimeOff(f.timeOff) }], rform: null }))
         showToast(t('Resource added'))
       }
     },
     onRCancel: () => set({ rform: null }),
+    // Adds the entry, or replaces the one with the same id.
+    saveTimeOff: (rid, entry) => set(s => ({
+      resources: s.resources.map(r => r.id !== rid ? r : {
+        ...r, timeOff: cleanTimeOff([...(r.timeOff ?? []).filter(o => o.id !== entry.id), entry]),
+      }),
+    })),
+    deleteTimeOff: (rid, id) => set(s => ({
+      resources: s.resources.map(r => r.id !== rid ? r : { ...r, timeOff: cleanTimeOff((r.timeOff ?? []).filter(o => o.id !== id)) }),
+    })),
+    // One update for the whole import, so a single undo reverts it.
+    importTimeOff: entries => set(s => ({
+      resources: s.resources.map(r => {
+        const stamp = Date.now()
+        const mine = entries.filter(e => e.rid === r.id).map((e, i) => ({ ...e.entry, id: `o${stamp}-${r.id}-${i}` }))
+        return mine.length ? { ...r, timeOff: cleanTimeOff([...(r.timeOff ?? []), ...mine]) } : r
+      }),
+    })),
     onRDelete: () => {
       const id = get().rform!.id!
       const closePanel = get().panel === 'res' && get().resSel === id

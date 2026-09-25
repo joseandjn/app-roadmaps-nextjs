@@ -15,7 +15,7 @@ touch scenario data and never enter undo/redo history.
 | **Projects** | Projects chip, or the color square in the LeftRail | its project is visible | Hide |
 | **Status** | Status chip ("Hide Done" shortcut) | its status is one of those picked | Hide |
 | **Type** | Type chip ("Executive view" shortcut: epic, milestone, release) | its type is one of those picked | Hide |
-| **Only issues** | Toggle, with a live count | it has a dependency clash, an overloaded or wrong-role assignee, or is At Risk | Hide |
+| **Only issues** | Toggle, with a live count | it has a dependency clash, an overloaded or wrong-role assignee, someone assigned during their time off (`docs/time-off.md`), or is At Risk | Hide |
 | **Gaps** | Gaps chip: *Unassigned* / *Required role not covered* | it has either gap picked (epic/task with nobody on it; required roles nobody assigned has) | Hide |
 | **People** | People chip, or the funnel button per person in the Resources LeftRail | someone picked is assigned to it | Dim |
 | **Roles** | Roles chip | it requires one of the roles, or someone with one of them is assigned | Dim |

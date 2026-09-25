@@ -175,7 +175,7 @@ function AnalysisPanel() {
                       >
                         <Crosshair size={12} />
                         {t('Show in Timeline')}
-                        <span className="text-[#a1a1aa] font-medium">· {t('{n} items', { n: ids.length })}</span>
+                        <span className="text-[#a1a1aa] font-medium">· {ids.length === 1 ? t('1 item') : t('{n} items', { n: ids.length })}</span>
                       </button>
                     )}
                   </div>
