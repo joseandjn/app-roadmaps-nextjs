@@ -80,7 +80,7 @@ type Store = RoadmapState & {
   // time off outside the resource form (Resources grid drag, bulk import)
   saveTimeOff: (rid: string, entry: TimeOff) => void
   deleteTimeOff: (rid: string, id: string) => void
-  importTimeOff: (entries: { rid: string; entry: TimeOff }[]) => void
+  importTimeOff: (entries: { rid: string; entry: Omit<TimeOff, 'id'> }[]) => void
   onRDelete: () => void
   // sprints
   onNewSprint: () => void
@@ -633,7 +633,8 @@ export const useRoadmapStore = create<Store>((set, get) => {
     // One update for the whole import, so a single undo reverts it.
     importTimeOff: entries => set(s => ({
       resources: s.resources.map(r => {
-        const mine = entries.filter(e => e.rid === r.id).map(e => e.entry)
+        const stamp = Date.now()
+        const mine = entries.filter(e => e.rid === r.id).map((e, i) => ({ ...e.entry, id: `o${stamp}-${r.id}-${i}` }))
         return mine.length ? { ...r, timeOff: cleanTimeOff([...(r.timeOff ?? []), ...mine]) } : r
       }),
     })),

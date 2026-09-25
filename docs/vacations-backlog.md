@@ -106,7 +106,18 @@ problemas" al instante; quitar la ausencia la saca.
 > `importTimeOff` (esta, para V3b). Cada una es un solo paso de deshacer. Verificado: crear, editar,
 > quitar, Cmd+Z y el clic normal.
 
-## V3b · Importar desde una planilla `[ ]`
+## V3b · Importar desde una planilla `[x]`
+
+> **Hecho.** Botón con ícono de calendario en el pie de la lista de personas (Resources), junto a "+ Agregar".
+> Abre `ImportTimeOffModal`: se pega texto o se carga un CSV, y se ve la vista previa con el total para
+> importar, las ya cargadas y las que tienen errores, fila por fila con su motivo. El parser está en
+> `src/lib/timeOffImport.ts`: es puro y sin imports de la app. Detecta tab, `;` o `,`, respeta comillas,
+> acepta `AAAA-MM-DD` y `DD/MM/AAAA`, rechaza fechas imposibles y salta el encabezado. Reconoce a la persona
+> sin mayúsculas, acentos ni puntuación ("Soto, Luis" = Luis Soto), también por coincidencia parcial si es
+> única; "Ana" con dos Anas da error. Marca como duplicada una ausencia igual a otra existente o a otra fila
+> pegada. Las ids se asignan en el store (`importTimeOff`) y todo es un solo paso de deshacer. Verificado:
+> 13 casos del parser con Node, y en el navegador 3 importadas, 1 duplicada, 2 errores, re-pegar marca todo
+> como ya cargado, y un Cmd+Z revierte la importación.
 
 - Botón "Importar ausencias" en Resources. Se pega desde Excel o Google Sheets o se sube un CSV con
   columnas `persona, desde, hasta, nota`. Acepta tab, coma o punto y coma, fechas `AAAA-MM-DD` o

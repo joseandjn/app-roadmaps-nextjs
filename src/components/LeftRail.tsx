@@ -1,6 +1,8 @@
 'use client'
 
-import { Filter } from 'lucide-react'
+import { useState } from 'react'
+import { Filter, CalendarPlus } from 'lucide-react'
+import ImportTimeOffModal from '@/components/modals/ImportTimeOffModal'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { resPeak, initials, isOverloaded } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, STATUS_ORDER } from '@/data/initialData'
@@ -16,6 +18,7 @@ export default function LeftRail() {
   } = useRoadmapStore()
   const { t } = useTranslation()
   const fctx = useFilterContext()
+  const [importOpen, setImportOpen] = useState(false)
 
   const isResources = view === 'resources'
   const isCross = view === 'cross'
@@ -107,12 +110,20 @@ export default function LeftRail() {
               </div>
             ))}
             <button
+              onClick={() => setImportOpen(true)}
+              title={t('Import time off')}
+              className="ml-auto flex items-center justify-center w-[26px] h-[24px] text-[#52525b] border border-[#ececec] rounded-md bg-white cursor-pointer"
+            >
+              <CalendarPlus size={13} />
+            </button>
+            <button
               onClick={onNewResource}
-              className="ml-auto text-[11px] font-semibold text-[#52525b] border border-[#ececec] rounded-md px-2 py-1 bg-white cursor-pointer"
+              className="text-[11px] font-semibold text-[#52525b] border border-[#ececec] rounded-md px-2 py-1 bg-white cursor-pointer"
             >
               {t('+ Add')}
             </button>
           </div>
+          {importOpen && <ImportTimeOffModal onClose={() => setImportOpen(false)} />}
         </>
       ) : (
         <>
