@@ -44,7 +44,12 @@ path focus and the text search.
   view replace it.
 - **On edit**: no "Saving…" indicator — every change is saved in the
   background shortly after you make it.
-- **Multiple tabs**: not handled; whichever tab saves last wins.
+- **Multiple tabs**: a save in one tab shows up in the others of the same
+  browser right away ("Updated with changes from another tab"). Saves from
+  another browser or machine show up when the tab comes back into view or
+  focus, or within 30 s while it's in use. A tab never overwrites a save it
+  hasn't seen: if it tries, it loads the latest version instead and says
+  its last change wasn't saved.
 
 ## Technical description
 
@@ -57,7 +62,8 @@ path focus and the text search.
 | `src/lib/persistence/viewFile.ts` | Server-only: `view.json`, with `sanitizeFilters` / `sanitizeIds` / `sanitizeSavedViews` |
 | `src/app/api/scenarios/…` | Route Handlers (below) |
 | `src/app/api/view/route.ts` | `GET`/`PUT` the view state |
-| `src/lib/persistence/useRoadmapPersistence.ts` | Client hook: boot sequence and debounced saves |
+| `src/lib/persistence/useRoadmapPersistence.ts` | Client hook: boot sequence, change detection, view saves |
+| `src/lib/persistence/scenarioSync.ts` | Client: loads and saves scenario data with its revision, conflicts, sync across tabs |
 | `src/lib/persistence/scenarioActions.ts` | Client helpers for switching, creating, promoting scenarios and checkpoint actions |
 | `src/lib/persistence/viewPayload.ts` | Builds the `view.json` PUT body from the store (one place for both callers) |
 
@@ -66,7 +72,7 @@ path focus and the text search.
 | Route | Methods |
 |---|---|
 | `/api/scenarios` | `GET` list + `officialId` · `POST { name, note, basedOn }` duplicates a scenario |
-| `/api/scenarios/[id]` | `GET` data · `PUT` data · `DELETE` |
+| `/api/scenarios/[id]` | `GET` data (`ETag`; `If-None-Match` → 304) · `PUT` data (requires `If-Match`) · `DELETE` |
 | `/api/scenarios/[id]/promote` | `POST` |
 | `/api/scenarios/[id]/checkpoints` | `GET` metadata list · `POST { name, note }` |
 | `/api/scenarios/[id]/checkpoints/[cid]` | `GET` full checkpoint · `DELETE` |
@@ -82,6 +88,14 @@ touching the filesystem keeps them uncached, so no extra config is needed
 
 ### Server side
 
+- **Revisions.** A scenario's revision is a hash of its file
+  (`revisionOf`), so any write changes it: a save, a checkpoint restore,
+  a hand edit. `GET` sends it as the `ETag`. `PUT` must send it back in
+  `If-Match`: missing → 428, different from the file → 409 with the
+  current `data` and `rev`, so the client can load it. Writes to one
+  scenario are queued (`queued`), so two saves can't both pass the check
+  before either writes. Checkpoint restore writes without a revision:
+  it's an explicit overwrite.
 - **Atomic writes.** Every file is written to `<file>.tmp` and then
   `fs.rename`d over the real one, so a crash mid-write never leaves
   truncated JSON.
@@ -106,7 +120,8 @@ filters and hidden projects that don't exist in the data are dropped
 **Saves** come from one `useRoadmapStore.subscribe`:
 
 - Planning data (`projects`, `items`, `resources`, `deps`, `sprints`,
-  `settings`, `roles`) → `PUT /api/scenarios/<active>`.
+  `settings`, `roles`) → `scheduleSave()` in `scenarioSync.ts` →
+  `PUT /api/scenarios/<active>` with `If-Match`.
 - Date range, `visible`, saved views, or a persisted part of `filters` →
   `PUT /api/view`. The text search and dependency path are ignored, so
   typing a search doesn't rewrite the file.
@@ -115,13 +130,34 @@ Both are debounced (600 ms, restarting on each change) — a drag calls
 `set()` on every mousemove but only one PUT fires once it settles. Change
 detection is reference equality (`state.items !== prevState.items`): store
 actions update immutably, and UI-only `set()` calls leave these references
-untouched. A `hydrated` ref gates the subscriber until boot finishes, so
-loading from disk never triggers a save of the same data.
+untouched. A `hydrated` ref gates the subscriber until boot finishes, and
+`isApplyingScenario()` while any load replaces the data, so loading from
+disk never triggers a save of the same data.
 
-Switching scenarios (`scenarioActions.switchScenario`) loads the data with
-`hydrateScenario` — which keeps hidden projects the new scenario also has —
-and saves the view immediately. `saveCheckpoint` first flushes the current
-data with a PUT so the checkpoint never misses a pending edit.
+**Revisions and other tabs** (`scenarioSync.ts`). Every load
+(`loadScenario`) remembers the revision; every save sends it and keeps the
+new one. Saves run one after another, so each sends the revision the
+previous one got back.
+
+- **Conflict** (409, or 428 when the tab has no revision, e.g. after a hot
+  reload): load what's on disk (`hydrateScenario`, which also resets undo
+  history so Cmd+Z can't bring back the old version) and toast that the
+  last change wasn't saved.
+- **Other tabs of this browser**: a successful save (or a conflict load, or
+  a checkpoint restore) is announced on the `roadmap-scenario-sync`
+  `BroadcastChannel`. A tab that gets it reloads the scenario, unless it
+  already has that revision or a save is in flight. If it had an unsaved
+  change waiting on the debounce, that change is dropped with the conflict
+  toast, since it can't be saved on top.
+- **Other browsers or machines**: on `visibilitychange`, window `focus`,
+  and every 30 s while the tab is visible or focused, a `GET` with
+  `If-None-Match` checks the disk; an unchanged scenario costs a 304.
+
+Switching scenarios (`scenarioActions.switchScenario`) first saves any
+pending change, then loads the data with `hydrateScenario` — which keeps
+hidden projects the new scenario also has — and saves the view
+immediately. `saveCheckpoint` flushes a pending save first so the
+checkpoint never misses an edit.
 
 ### Known limitations
 
@@ -130,5 +166,11 @@ data with a PUT so the checkpoint never misses a pending edit.
   move to a database or object storage.
 - **No unload flush.** A change made in the last 600 ms before closing the
   tab can be lost (no `beforeunload` + `sendBeacon`).
+- **A conflict drops the losing tab's change.** It's announced, not
+  merged. Edits in two places inside the same ~600 ms window are rare;
+  the cost is redoing one change.
+- **`view.json` is still last-writer-wins.** It's UI state (filters, date
+  range, active scenario), so two tabs with different filters take turns
+  writing it. No planning data is at stake.
 - **Whole-file writes.** Each save rewrites the whole scenario file, and
   every checkpoint stores a full copy. Fine at this data size.

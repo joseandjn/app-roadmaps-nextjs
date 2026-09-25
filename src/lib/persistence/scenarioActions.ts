@@ -1,8 +1,9 @@
 'use client'
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import type { ScenarioData, ScenarioMeta, CheckpointMeta, Checkpoint } from '@/types'
+import type { ScenarioMeta, CheckpointMeta, Checkpoint } from '@/types'
 import { viewPayload } from './viewPayload'
+import { loadScenario, flushSave, announceScenarioChanged } from './scenarioSync'
 
 function saveView(activeScenarioId: string) {
   fetch('/api/view', {
@@ -19,11 +20,11 @@ export async function refreshScenarioList(): Promise<void> {
   useRoadmapStore.getState().setScenarioList(scenarios, officialId)
 }
 
+// Saves any pending change to the current scenario first, so switching away
+// right after an edit doesn't drop it.
 export async function switchScenario(id: string): Promise<void> {
-  const res = await fetch(`/api/scenarios/${id}`)
-  if (!res.ok) return
-  const data = await res.json() as ScenarioData
-  useRoadmapStore.getState().hydrateScenario(data)
+  await flushSave()
+  if (!(await loadScenario(id))) return
   useRoadmapStore.getState().setActiveScenarioId(id)
   saveView(id)
 }
@@ -63,12 +64,7 @@ export async function fetchCheckpoint(scenarioId: string, checkpointId: string):
 // Flush any pending debounced edit first so the checkpoint reflects the
 // latest changes rather than a stale save.
 export async function saveCheckpoint(scenarioId: string, name: string, note: string): Promise<CheckpointMeta | null> {
-  const { projects, items, resources, deps, sprints, settings, roles } = useRoadmapStore.getState()
-  await fetch(`/api/scenarios/${scenarioId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projects, items, resources, deps, sprints, settings, roles }),
-  }).catch(() => {})
+  await flushSave()
 
   const res = await fetch(`/api/scenarios/${scenarioId}/checkpoints`, {
     method: 'POST',
@@ -87,6 +83,9 @@ export async function deleteCheckpointAction(scenarioId: string, checkpointId: s
 export async function restoreCheckpointAction(scenarioId: string, checkpointId: string): Promise<boolean> {
   const res = await fetch(`/api/scenarios/${scenarioId}/checkpoints/${checkpointId}/restore`, { method: 'POST' })
   if (!res.ok) return false
-  if (useRoadmapStore.getState().activeScenarioId === scenarioId) await switchScenario(scenarioId)
+  if (useRoadmapStore.getState().activeScenarioId === scenarioId) {
+    await switchScenario(scenarioId)
+    announceScenarioChanged(scenarioId)
+  }
   return true
 }

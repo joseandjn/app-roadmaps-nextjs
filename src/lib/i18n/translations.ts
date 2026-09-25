@@ -259,6 +259,8 @@ const es: Record<string, string> = {
   'Move up': 'Subir',
   'Move down': 'Bajar',
   'Restore defaults': 'Restaurar predeterminadas',
+  'Another tab saved changes to this scenario. The latest version was loaded; your last change was not saved.': 'Otra pestaña guardó cambios en este escenario. Se cargó la versión más reciente; tu último cambio no se guardó.',
+  'Updated with changes from another tab': 'Actualizado con los cambios de otra pestaña',
   "Off: time off is paid and costs don't change. On: a person's time-off days don't add cost to their assignments.": 'Apagado: las ausencias son pagadas y el costo no cambia. Encendido: los días de ausencia de una persona no suman costo a sus asignaciones.',
   'Paste rows from a spreadsheet or load a CSV. Columns: person, from, to, note (optional). Dates as YYYY-MM-DD or DD/MM/YYYY.': 'Pega filas desde una planilla o carga un CSV. Columnas: persona, desde, hasta, nota (opcional). Fechas como AAAA-MM-DD o DD/MM/AAAA.',
   'Load a CSV file…': 'Cargar un archivo CSV…',
