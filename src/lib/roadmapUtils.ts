@@ -1,4 +1,4 @@
-import { START_DATE, TOTAL_DAYS, MONTHS, WEEKDAYS } from '@/data/initialData'
+import { START_DATE, TOTAL_DAYS, MONTHS, WEEKDAYS, DEFAULT_PROJECT_TASKS } from '@/data/initialData'
 import type { Item, Resource, Dependency, ScaleIndex, Settings, ScenarioMetrics, TimeOff } from '@/types'
 
 export const DAY_MS = 86400000
@@ -15,6 +15,11 @@ export function isInstantItem(it: Item): boolean {
 // item "ends" the moment it starts, regardless of any stored `dur`.
 export function itemEnd(it: Item): number {
   return isInstantItem(it) ? it.startDay : it.startDay + it.dur
+}
+
+// The task titles a new project starts with (Settings → General), blanks dropped.
+export function projectTaskTemplate(settings: Settings): string[] {
+  return (settings.defaultProjectTasks ?? DEFAULT_PROJECT_TASKS).map(t => t.trim()).filter(Boolean)
 }
 
 export function deriveScale(ppd: number): ScaleIndex {

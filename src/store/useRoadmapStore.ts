@@ -4,9 +4,9 @@ import { create } from 'zustand'
 import type { RoadmapState, Item, Project, Resource, Settings, Draft, ViewKey, ScenarioData, ScenarioMeta, Filters, FilterListKey, PersistedFilters, SavedView, ViewSnapshot, TimeOff } from '@/types'
 import {
   INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS,
-  getTodayDay, SCALE_PRESETS, PROJECT_COLORS, DEFAULT_PROJECT_TASKS,
+  getTodayDay, SCALE_PRESETS, PROJECT_COLORS,
 } from '@/data/initialData'
-import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded } from '@/lib/roadmapUtils'
+import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded, projectTaskTemplate } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
 import { EMPTY_FILTERS, pruneFilters, currentViewSnapshot, persistedFilters, BUILTIN_VIEWS } from '@/lib/filters'
 
@@ -547,7 +547,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     },
 
     onNewProject: () => set(s => ({
-      pform: { show: true, id: null, name: '', desc: '', owner: 'r1', category: 'Product', startStr: dateStr(getTodayDay()), endStr: dateStr(getTodayDay() + 90), status: 'Planned', defaultTasks: true }
+      pform: { show: true, id: null, name: '', desc: '', owner: 'r1', category: 'Product', startStr: dateStr(getTodayDay()), endStr: dateStr(getTodayDay() + 90), status: 'Planned', defaultTasks: projectTaskTemplate(s.settings).length > 0 }
     })),
     editProject: id => set(s => {
       const p = s.projects.find(pr => pr.id === id)!
@@ -565,14 +565,15 @@ export const useRoadmapStore = create<Store>((set, get) => {
         const color = PROJECT_COLORS[get().projects.length % PROJECT_COLORS.length]
         const np: Project = { id, name: f.name || 'Untitled project', desc: f.desc, owner: f.owner, category: f.category, color, status: f.status }
 
+        const tasks = f.defaultTasks ? projectTaskTemplate(get().settings) : []
         let newItems: Item[] = []
-        if (f.defaultTasks) {
+        if (tasks.length) {
           const start = offFromStr(f.startStr)
-          const end = Math.max(start + DEFAULT_PROJECT_TASKS.length, offFromStr(f.endStr))
-          const share = Math.floor((end - start) / DEFAULT_PROJECT_TASKS.length)
+          const end = Math.max(start + tasks.length, offFromStr(f.endStr))
+          const share = Math.floor((end - start) / tasks.length)
           let cursor = start
-          newItems = DEFAULT_PROJECT_TASKS.map((title, i) => {
-            const isLast = i === DEFAULT_PROJECT_TASKS.length - 1
+          newItems = tasks.map((title, i) => {
+            const isLast = i === tasks.length - 1
             const dur = Math.max(1, isLast ? end - cursor : share)
             const it: Item = { id: `i${Date.now()}_${i}`, projectId: id, title, startDay: cursor, dur, status: 'Planned', type: 'task', assignments: [] }
             cursor += dur
@@ -584,7 +585,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
           const v = new Set(s.visible); v.add(id)
           return { projects: [...s.projects, np], items: [...s.items, ...newItems], visible: v, pform: null }
         })
-        showToast(f.defaultTasks ? t('Project created with default tasks') : t('Project created'))
+        showToast(newItems.length ? t('Project created with default tasks') : t('Project created'))
       }
     },
     onPCancel: () => set({ pform: null }),

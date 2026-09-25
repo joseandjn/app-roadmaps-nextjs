@@ -145,15 +145,18 @@ and the delete-confirmation gate respectively.
   Start/End date pair.
 - **Creating** (`+ New project`): Start/End default to today through
   +90 days. Below them, an **"Add default tasks"** checkbox — checked by
-  default — only appears here, never when editing.
+  default — only appears here, never when editing, and only when the list
+  of default tasks isn't empty.
 - **Editing** (click a project): Start/End instead show the *computed*
   range of the project's existing items (earliest start to latest end),
   falling back to the same today/+90 default if it has none yet. A
   "Delete" button appears in the footer.
-- **Add default tasks**: when checked at creation time, four sequential
-  tasks — Desarrollo, Certificación, Gestión de pase, Pase a PRD — are
-  created alongside the project, spread evenly across the Start–End range
-  entered above. This is also what gives the Start/End fields real effect
+- **Add default tasks**: when checked at creation time, the default tasks
+  are created alongside the project, in order, spread evenly across the
+  Start–End range entered above. The list is edited in **Settings →
+  General → "Default tasks for new projects"**: add, rename, reorder,
+  remove, or restore the built-in four (Desarrollo, Certificación, Gestión
+  de pase, Pase a PRD). An empty list means new projects start empty. This is also what gives the Start/End fields real effect
   on creation for the first time — see Technical description below.
 
 ### Technical description
@@ -164,7 +167,8 @@ and the delete-confirmation gate respectively.
   `defaultTasks?`), read/written via `patchPF(partial)`. The modal itself
   holds no local state, same pattern as `ResourceModal`
   (`docs/resources-view.md`).
-- `onNewProject()` seeds `pform` with `defaultTasks: true` — opt-out, not
+- `onNewProject()` seeds `pform` with `defaultTasks: true` (when the list
+  isn't empty) — opt-out, not
   opt-in, since it's meant to be the common case for this app's workflow
   rather than a rarely-used extra. `editProject(id)` never sets
   `defaultTasks` at all, which is what the `!pform.id` check in the
@@ -174,13 +178,19 @@ and the delete-confirmation gate respectively.
 - **`onPSave()`'s create branch** (`pform.id === null`) is where the
   default-tasks logic lives:
   ```ts
+  const tasks = f.defaultTasks ? projectTaskTemplate(get().settings) : []
   const start = offFromStr(f.startStr)
-  const end = Math.max(start + DEFAULT_PROJECT_TASKS.length, offFromStr(f.endStr))
-  const share = Math.floor((end - start) / DEFAULT_PROJECT_TASKS.length)
-  // ...map DEFAULT_PROJECT_TASKS to sequential Items, each `share` days
+  const end = Math.max(start + tasks.length, offFromStr(f.endStr))
+  const share = Math.floor((end - start) / tasks.length)
+  // ...map tasks to sequential Items, each `share` days
   // long except the last, which absorbs the remainder up to `end`
   ```
-  `DEFAULT_PROJECT_TASKS` (`initialData.ts`) is the 4-title list. The
+  `projectTaskTemplate(settings)` (`roadmapUtils.ts`) returns
+  `Settings.defaultProjectTasks`, trimmed and without blanks, or
+  `DEFAULT_PROJECT_TASKS` (`initialData.ts`, the built-in 4-title list)
+  when the setting is missing. The setting lives in the scenario's
+  settings like the rest of Settings → General, so each scenario keeps its
+  own list, and "Restore defaults" clears it back to missing. The
   `Math.max(start + length, ...)` guards against a very short or inverted
   Start/End pair collapsing segments below 1 day each; every segment is
   additionally clamped to `Math.max(1, ...)` when built. New items are

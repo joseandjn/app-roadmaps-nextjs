@@ -189,8 +189,8 @@ const es: Record<string, string> = {
   'Owner': 'Responsable',
   'Category': 'Categoría',
   'Add default tasks': 'Agregar tareas predeterminadas',
-  'Desarrollo, Certificación, Gestión de pase, Pase a PRD — spread evenly across the Start–End range above':
-    'Desarrollo, Certificación, Gestión de pase, Pase a PRD — distribuidas uniformemente en el rango de Inicio a Fin indicado arriba',
+  '{tasks} — spread evenly across the Start–End range above. Edit them in Settings → General.':
+    '{tasks} — distribuidas uniformemente en el rango de Inicio a Fin indicado arriba. Se editan en Configuración → General.',
   'Create project': 'Crear proyecto',
 
   // ResourceModal
@@ -252,6 +252,13 @@ const es: Record<string, string> = {
   'Drag across a row to add time off': 'Arrastra sobre una fila para agregar una ausencia',
   'Import time off': 'Importar ausencias',
   'Time off reduces cost': 'Las ausencias descuentan costo',
+  'Default tasks for new projects': 'Tareas predeterminadas de un proyecto nuevo',
+  'When creating a project you can add these tasks, in this order, spread across its dates.': 'Al crear un proyecto puedes agregar estas tareas, en este orden, repartidas entre sus fechas.',
+  'No default tasks: new projects start empty.': 'Sin tareas predeterminadas: los proyectos nuevos empiezan vacíos.',
+  'New task name': 'Nombre de la nueva tarea',
+  'Move up': 'Subir',
+  'Move down': 'Bajar',
+  'Restore defaults': 'Restaurar predeterminadas',
   "Off: time off is paid and costs don't change. On: a person's time-off days don't add cost to their assignments.": 'Apagado: las ausencias son pagadas y el costo no cambia. Encendido: los días de ausencia de una persona no suman costo a sus asignaciones.',
   'Paste rows from a spreadsheet or load a CSV. Columns: person, from, to, note (optional). Dates as YYYY-MM-DD or DD/MM/YYYY.': 'Pega filas desde una planilla o carga un CSV. Columnas: persona, desde, hasta, nota (opcional). Fechas como AAAA-MM-DD o DD/MM/AAAA.',
   'Load a CSV file…': 'Cargar un archivo CSV…',
