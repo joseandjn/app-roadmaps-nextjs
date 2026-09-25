@@ -42,8 +42,8 @@ range.
   `setFilter(start, end)` / `clearFilter()`. `FilterBar` itself holds no
   local state.
 - `null` means "unbounded on that side" — `FilterBar` displays it as day
-  `0` / `TOTAL_DAYS` (`dateStr(filterStartDay ?? 0)` /
-  `dateStr(filterEndDay ?? TOTAL_DAYS)`), but the underlying value stays
+  `0` / the plan end (`dateStr(filterStartDay ?? 0)` /
+  `dateStr(planEnd)`, from `usePlanEnd()`), but the underlying value stays
   `null` until the user actually edits that field, so "no filter" is a
   real distinct state from "filter spanning the whole range."
 - Date `<input>` values are ISO strings (`YYYY-MM-DD`); `offFromStr()` /
@@ -51,9 +51,14 @@ range.
   day-offset representation every view's rendering math uses.
 - `handleStart`/`handleEnd` clamp against each other
   (`Math.min(day, end - 1)` / `Math.max(day, start + 1)`) — this is the
-  only validation; there's no lower/upper bound against `TOTAL_DAYS`
-  itself, so a user can technically pick dates further out than any item
-  data (the views just render more empty space).
+  only validation; there's no upper bound, so a user can pick dates
+  further out than any item data (the views just render more empty space).
+- **Plan end**: with no end date, the views end at `planEnd()`
+  (`roadmapUtils.ts`): the last item end, sprint end, today or
+  `filterStartDay`, whichever is latest, plus `PLAN_BUFFER_DAYS` (180). It
+  grows with the plan, so there's no fixed last year. `usePlanEnd()`
+  (`src/lib/usePlanEnd.ts`) returns `filterEndDay ?? planEnd(...)` and is
+  what every view reads.
 - **Consumers**: `TimelineView`, `CrossView`, and `ResourcesView` all read
   `filterStartDay`/`filterEndDay` independently to compute their own
   `baseDay`/`lastDay`/`totalWidth`, and each has its own `useEffect` that

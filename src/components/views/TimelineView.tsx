@@ -3,11 +3,12 @@
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react'
 import { useRoadmapStore, didDrag } from '@/store/useRoadmapStore'
 import { deriveScale, pack, buildHeader, isWorkingDay, fmtDate, addDays, initials, workingDaysInRange, itemEnd, dependencyIssues } from '@/lib/roadmapUtils'
-import { STATUS_CONFIG, getTodayDay, TOTAL_DAYS } from '@/data/initialData'
+import { STATUS_CONFIG, getTodayDay } from '@/data/initialData'
 import { roleIconDef } from '@/data/roleIcons'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useFilterContext } from '@/lib/useFilterContext'
 import { useTodayDay } from '@/lib/useTodayDay'
+import { usePlanEnd } from '@/lib/usePlanEnd'
 import ContextMenu from '@/components/ContextMenu'
 import { itemMatch, hidesItems, DIM_OPACITY } from '@/lib/filters'
 import FilterEmptyState from '@/components/filters/FilterEmptyState'
@@ -59,7 +60,7 @@ export default function TimelineView() {
 
   // Filter window: clamp to data range
   const baseDay   = Math.max(0, filterStartDay ?? 0)
-  const lastDay   = Math.min(TOTAL_DAYS, filterEndDay ?? TOTAL_DAYS)
+  const lastDay   = usePlanEnd()
   const visibleDays = Math.max(1, lastDay - baseDay)
   const totalWidth = visibleDays * ppd
 
