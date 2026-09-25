@@ -1,0 +1,12 @@
+# Only what `next build` needs goes into the build context.
+node_modules
+.next
+.git
+storage
+*.tsbuildinfo
+.env*
+.DS_Store
+npm-debug.log*
+Dockerfile
+docker-compose.yml
+.dockerignore
