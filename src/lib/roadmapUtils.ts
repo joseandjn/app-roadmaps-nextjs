@@ -1,5 +1,5 @@
 import { START_DATE, TOTAL_DAYS, MONTHS, WEEKDAYS, DEFAULT_PROJECT_TASKS } from '@/data/initialData'
-import type { Item, Resource, Dependency, ScaleIndex, Settings, ScenarioMetrics, TimeOff } from '@/types'
+import type { Item, Resource, Dependency, ScaleIndex, Settings, ScenarioMetrics, TimeOff, Sprint } from '@/types'
 
 export const DAY_MS = 86400000
 
@@ -20,6 +20,19 @@ export function itemEnd(it: Item): number {
 // The task titles a new project starts with (Settings → General), blanks dropped.
 export function projectTaskTemplate(settings: Settings): string[] {
   return (settings.defaultProjectTasks ?? DEFAULT_PROJECT_TASKS).map(t => t.trim()).filter(Boolean)
+}
+
+// Room past the last planned day, so there's always space to add future work.
+export const PLAN_BUFFER_DAYS = 180
+
+// Where the views end when no end date is set: past the last item, sprint,
+// today and `startDay` (a jump to a later date), plus the buffer. Grows with
+// the plan, so planning further ahead just means adding the work there.
+export function planEnd(items: Item[], sprints: Sprint[], todayDay: number | null, startDay: number | null): number {
+  let last = Math.max(0, todayDay ?? 0, startDay ?? 0)
+  for (const it of items) last = Math.max(last, it.startDay + it.dur)
+  for (const sp of sprints) last = Math.max(last, sp.startDay + sp.dur)
+  return last + PLAN_BUFFER_DAYS
 }
 
 export function deriveScale(ppd: number): ScaleIndex {

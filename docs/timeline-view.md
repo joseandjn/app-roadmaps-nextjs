@@ -55,7 +55,7 @@ sub-rows so overlapping work never overlaps visually.
 | `src/components/views/TimelineView.tsx` | Renders the Gantt grid |
 | `src/lib/roadmapUtils.ts` | `pack` (row packing), `buildHeader` (date header), `deriveScale` |
 | `src/store/useRoadmapStore.ts` | `openItem`, `editProject`, `startDrag`, `showDeps`, `draft` (selection), `_tr` (transition flag) |
-| `src/data/initialData.ts` | `STATUS_CONFIG`, `TODAY_DAY`, `TOTAL_DAYS` |
+| `src/data/initialData.ts` | `STATUS_CONFIG`, `TODAY_DAY` |
 
 ### Layout
 
@@ -130,7 +130,7 @@ instead of jumping.
 
 Only projects in the store's `visible` Set get a lane at all (fully
 excluded, unlike the sidebar where hidden projects just dim). The visible
-date window is `[filterStartDay ?? 0, filterEndDay ?? TOTAL_DAYS)`; items
+date window is `[filterStartDay ?? 0, usePlanEnd())`; items
 entirely outside it are skipped from rendering (but still contribute to
 `pack()`'s row layout for the lane).
 
