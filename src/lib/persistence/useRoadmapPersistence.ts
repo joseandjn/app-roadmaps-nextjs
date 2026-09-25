@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import type { ScenarioData, ScenarioMeta, Filters, PersistedFilters, SavedView } from '@/types'
+import type { ScenarioMeta, Filters, PersistedFilters, SavedView } from '@/types'
 import { viewPayload } from './viewPayload'
+import { loadScenario, scheduleSave, isApplyingScenario, startScenarioSync } from './scenarioSync'
 import { MOMENTARY_FILTER_KEYS } from '@/lib/filters'
 
 const SAVE_DEBOUNCE_MS = 600
@@ -17,12 +18,10 @@ function persistedFiltersChanged(a: Filters, b: Filters): boolean {
 }
 
 export function useRoadmapPersistence() {
-  const hydrateScenario = useRoadmapStore(s => s.hydrateScenario)
   const hydrateView = useRoadmapStore(s => s.hydrateView)
   const setScenarioList = useRoadmapStore(s => s.setScenarioList)
   const setActiveScenarioId = useRoadmapStore(s => s.setActiveScenarioId)
   const hydrated = useRef(false)
-  const scenarioSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const viewSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Boot sequence: view state (which scenario) → scenario list → that
@@ -44,10 +43,7 @@ export function useRoadmapPersistence() {
         const { scenarios, officialId } = await listRes.json() as { scenarios: ScenarioMeta[]; officialId: string }
         setScenarioList(scenarios, officialId)
 
-        const scenarioRes = await fetch(`/api/scenarios/${view.activeScenarioId}`)
-        if (cancelled || !scenarioRes.ok) return
-        const data = await scenarioRes.json() as ScenarioData
-        hydrateScenario(data)
+        if (cancelled || !(await loadScenario(view.activeScenarioId)) || cancelled) return
         hydrateView(view)
       } catch {
         // offline/unreachable — keep whatever's in the store (seed data)
@@ -56,18 +52,9 @@ export function useRoadmapPersistence() {
       }
     })()
     return () => { cancelled = true }
-  }, [hydrateScenario, hydrateView, setScenarioList, setActiveScenarioId])
+  }, [hydrateView, setScenarioList, setActiveScenarioId])
 
   useEffect(() => {
-    const saveScenario = () => {
-      const { activeScenarioId, projects, items, resources, deps, sprints, settings, roles } = useRoadmapStore.getState()
-      if (!activeScenarioId) return
-      fetch(`/api/scenarios/${activeScenarioId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projects, items, resources, deps, sprints, settings, roles }),
-      }).catch(() => {})
-    }
     const saveView = () => {
       const { activeScenarioId } = useRoadmapStore.getState()
       if (!activeScenarioId) return
@@ -78,8 +65,11 @@ export function useRoadmapPersistence() {
       }).catch(() => {})
     }
 
-    return useRoadmapStore.subscribe((state, prevState) => {
-      if (!hydrated.current) return
+    const stopSync = startScenarioSync()
+    const unsubscribe = useRoadmapStore.subscribe((state, prevState) => {
+      // A load replacing the data (another tab's save, a scenario switch)
+      // isn't an edit: saving it back would only echo it.
+      if (!hydrated.current || isApplyingScenario()) return
 
       if (
         state.projects !== prevState.projects ||
@@ -90,8 +80,7 @@ export function useRoadmapPersistence() {
         state.settings !== prevState.settings ||
         state.roles !== prevState.roles
       ) {
-        if (scenarioSaveTimer.current) clearTimeout(scenarioSaveTimer.current)
-        scenarioSaveTimer.current = setTimeout(saveScenario, SAVE_DEBOUNCE_MS)
+        scheduleSave()
       }
 
       if (
@@ -103,5 +92,6 @@ export function useRoadmapPersistence() {
         viewSaveTimer.current = setTimeout(saveView, SAVE_DEBOUNCE_MS)
       }
     })
+    return () => { unsubscribe(); stopSync() }
   }, [])
 }

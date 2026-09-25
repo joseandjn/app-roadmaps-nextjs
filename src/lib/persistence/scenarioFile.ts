@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
+import { createHash } from 'crypto'
 import { INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS } from '@/data/initialData'
 import { iconForRoleName } from '@/data/roleIcons'
 import type { ScenarioData, ScenarioMeta } from '@/types'
@@ -84,24 +85,58 @@ export async function listScenarios(): Promise<ScenarioIndex> {
   return readIndex()
 }
 
-export async function readScenario(id: string): Promise<ScenarioData | null> {
+// A scenario's version: a hash of its file. Any write changes it — a save
+// from another tab, a checkpoint restore, a hand edit — so a client can tell
+// whether the data it loaded is still what's on disk.
+function revisionOf(raw: string): string {
+  return createHash('sha1').update(raw).digest('hex').slice(0, 16)
+}
+
+export async function readScenarioWithRevision(id: string): Promise<{ data: ScenarioData; rev: string } | null> {
   await ensureMigrated()
   try {
     const raw = await fs.readFile(scenarioFile(id), 'utf-8')
-    return ensureRoles(JSON.parse(raw) as ScenarioData)
+    return { data: ensureRoles(JSON.parse(raw) as ScenarioData), rev: revisionOf(raw) }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
     throw err
   }
 }
 
-export async function writeScenario(id: string, data: ScenarioData): Promise<void> {
-  const index = await readIndex()
-  if (!index.scenarios.some(s => s.id === id)) throw new Error('Unknown scenario')
-  data = ensureRoles(data)
-  const tmp = `${scenarioFile(id)}.tmp`
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf-8')
-  await fs.rename(tmp, scenarioFile(id))
+export async function readScenario(id: string): Promise<ScenarioData | null> {
+  return (await readScenarioWithRevision(id))?.data ?? null
+}
+
+// Writes to one scenario run one at a time, so two saves can't both pass the
+// revision check before either has written.
+const writeQueues = new Map<string, Promise<unknown>>()
+function queued<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  const run = (writeQueues.get(id) ?? Promise.resolve()).then(fn, fn)
+  writeQueues.set(id, run.catch(() => {}))
+  return run
+}
+
+export class StaleRevisionError extends Error {
+  constructor(public current: { data: ScenarioData; rev: string }) { super('Stale revision') }
+}
+
+// Saves a scenario and returns its new revision. With `baseRev`, the save only
+// goes through if the file is still at that revision; otherwise it throws
+// StaleRevisionError carrying what's on disk now.
+export async function writeScenario(id: string, data: ScenarioData, baseRev?: string): Promise<string> {
+  return queued(id, async () => {
+    const index = await readIndex()
+    if (!index.scenarios.some(s => s.id === id)) throw new Error('Unknown scenario')
+    if (baseRev !== undefined) {
+      const current = await readScenarioWithRevision(id)
+      if (current && current.rev !== baseRev) throw new StaleRevisionError(current)
+    }
+    const raw = JSON.stringify(ensureRoles(data), null, 2)
+    const tmp = `${scenarioFile(id)}.tmp`
+    await fs.writeFile(tmp, raw, 'utf-8')
+    await fs.rename(tmp, scenarioFile(id))
+    return revisionOf(raw)
+  })
 }
 
 export async function createScenario(opts: { name: string; note: string; basedOn: string }): Promise<ScenarioMeta> {
