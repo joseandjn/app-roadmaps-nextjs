@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { dateStr, offFromStr } from '@/lib/roadmapUtils'
-import { TOTAL_DAYS } from '@/data/initialData'
+import { usePlanEnd } from '@/lib/usePlanEnd'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { activeFilterCount } from '@/lib/filters'
 import ProjectsFilter from '@/components/filters/ProjectsFilter'
@@ -31,6 +31,7 @@ const subscribeResize = (cb: () => void) => {
 
 export default function FilterBar() {
   const { filterStartDay, filterEndDay, filters, visible, projects, setFilter, clearFilter } = useRoadmapStore()
+  const planEnd = usePlanEnd()
   const { t } = useTranslation()
   const activeCount = activeFilterCount({ filters, visible, projects, filterStartDay, filterEndDay })
   const isActive = activeCount > 0
@@ -45,12 +46,12 @@ export default function FilterBar() {
     - (filters.finding ? 1 : 0)
 
   const startVal = dateStr(filterStartDay ?? 0)
-  const endVal   = dateStr(filterEndDay   ?? TOTAL_DAYS)
+  const endVal   = dateStr(planEnd)
 
   const handleStart = (v: string) => {
     if (!v) return
     const day = offFromStr(v)
-    const end = filterEndDay ?? TOTAL_DAYS
+    const end = planEnd
     setFilter(Math.min(day, end - 1), end)
   }
 

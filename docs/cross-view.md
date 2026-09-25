@@ -45,7 +45,7 @@ without the per-item detail `TimelineView` shows by default.
 | `src/components/views/CrossView.tsx` | Renders the overlay grid |
 | `src/lib/roadmapUtils.ts` | `pack` (shared with `TimelineView`), `buildHeader`, `deriveScale` |
 | `src/store/useRoadmapStore.ts` | `expanded` Set, `toggleExpand`, `openItem`, `visible` |
-| `src/data/initialData.ts` | `STATUS_CONFIG`, `TODAY_DAY`, `TOTAL_DAYS` |
+| `src/data/initialData.ts` | `STATUS_CONFIG`, `TODAY_DAY` |
 
 ### Layout
 
@@ -107,7 +107,7 @@ background stripes/gridlines — so the visual read is "these columns have
 Identical mechanics to `TimelineView`: `pxPerDay` set via the Toolbar's
 scale presets or zoom buttons, `deriveScale(pxPerDay)` picks the header
 granularity for `buildHeader()`, and the visible window is clamped to
-`[filterStartDay ?? 0, filterEndDay ?? TOTAL_DAYS)`. The `_tr` transition
+`[filterStartDay ?? 0, usePlanEnd())`. The `_tr` transition
 flag is read here too, so expand/collapse and zoom changes animate bar
 position/width the same way they do in `TimelineView`.
 

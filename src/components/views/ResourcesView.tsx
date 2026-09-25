@@ -3,10 +3,11 @@
 import React, { useRef, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { deriveScale, buckets, buildHeader, initials, allocColor, utilizationPct, assignedDuringTimeOff } from '@/lib/roadmapUtils'
-import { getTodayDay, TOTAL_DAYS } from '@/data/initialData'
+import { getTodayDay } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useFilterContext } from '@/lib/useFilterContext'
 import { useTodayDay } from '@/lib/useTodayDay'
+import { usePlanEnd } from '@/lib/usePlanEnd'
 import { itemsForMetrics, colorLoad, resourceMatches } from '@/lib/filters'
 import FilterEmptyState from '@/components/filters/FilterEmptyState'
 import UncoveredDemand from '@/components/UncoveredDemand'
@@ -25,7 +26,7 @@ export default function ResourcesView() {
   const si = deriveScale(pxPerDay)
   const ppd = pxPerDay
   const baseDay   = Math.max(0, filterStartDay ?? 0)
-  const lastDay   = Math.min(TOTAL_DAYS, filterEndDay ?? TOTAL_DAYS)
+  const lastDay   = usePlanEnd()
   const visibleDays = Math.max(1, lastDay - baseDay)
   const totalWidth = visibleDays * ppd
   const rows = useMemo(() => resources.filter(r => resourceMatches(r, filters)), [resources, filters])

@@ -3,10 +3,11 @@
 import React, { useRef, useCallback, useEffect, useMemo } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { deriveScale, pack, buildHeader } from '@/lib/roadmapUtils'
-import { STATUS_CONFIG, getTodayDay, TOTAL_DAYS } from '@/data/initialData'
+import { STATUS_CONFIG, getTodayDay } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useFilterContext } from '@/lib/useFilterContext'
 import { useTodayDay } from '@/lib/useTodayDay'
+import { usePlanEnd } from '@/lib/usePlanEnd'
 import { itemMatch, hidesItems, DIM_OPACITY } from '@/lib/filters'
 import FilterEmptyState from '@/components/filters/FilterEmptyState'
 const ROW = 32, BAR_H = 22, RH = 58
@@ -22,7 +23,7 @@ export default function CrossView() {
   const si = deriveScale(pxPerDay)
   const ppd = pxPerDay
   const baseDay  = Math.max(0, filterStartDay ?? 0)
-  const lastDay  = Math.min(TOTAL_DAYS, filterEndDay ?? TOTAL_DAYS)
+  const lastDay  = usePlanEnd()
   const visibleDays = Math.max(1, lastDay - baseDay)
   const totalWidth = visibleDays * ppd
   const tr = _tr ? 'left .42s cubic-bezier(.4,0,.2,1),top .42s cubic-bezier(.4,0,.2,1),width .42s cubic-bezier(.4,0,.2,1)' : 'none'
