@@ -97,6 +97,23 @@ asignada encima marca la celda.
 **Criterios:** asignar a alguien en sus vacaciones hace aparecer la tarea en "Solo
 problemas" al instante; quitar la ausencia la saca.
 
+## V3a · Cargar arrastrando sobre Resources `[x]`
+
+> **Hecho.** Arrastrar sobre la fila de una persona muestra la selección en azul con los días, y al soltar
+> abre `TimeOffPopover` con las fechas cargadas: nota con foco, Enter guarda, Esc cancela. Clic en una
+> franja existente abre el mismo formulario para editarla o quitarla. Un clic sin arrastrar (menos de 5 px)
+> sigue abriendo el panel de la celda. Acciones nuevas en el store: `saveTimeOff`, `deleteTimeOff` e
+> `importTimeOff` (esta, para V3b). Cada una es un solo paso de deshacer. Verificado: crear, editar,
+> quitar, Cmd+Z y el clic normal.
+
+## V3b · Importar desde una planilla `[ ]`
+
+- Botón "Importar ausencias" en Resources. Se pega desde Excel o Google Sheets o se sube un CSV con
+  columnas `persona, desde, hasta, nota`. Acepta tab, coma o punto y coma, fechas `AAAA-MM-DD` o
+  `DD/MM/AAAA`, y salta el encabezado.
+- Vista previa antes de guardar: persona reconocida por nombre (sin mayúsculas ni acentos), días hábiles,
+  errores en rojo y duplicados marcados. Importa todo en un solo paso de deshacer.
+
 ## V4 · Costo configurable `[ ]`
 
 - `Settings.timeOffReducesCost?: boolean` (falta = `false`). Casilla en

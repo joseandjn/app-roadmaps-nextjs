@@ -77,6 +77,10 @@ type Store = RoadmapState & {
   patchRF: (p: Partial<NonNullable<RoadmapState['rform']>>) => void
   onRSave: () => void
   onRCancel: () => void
+  // time off outside the resource form (Resources grid drag, bulk import)
+  saveTimeOff: (rid: string, entry: TimeOff) => void
+  deleteTimeOff: (rid: string, id: string) => void
+  importTimeOff: (entries: { rid: string; entry: TimeOff }[]) => void
   onRDelete: () => void
   // sprints
   onNewSprint: () => void
@@ -617,6 +621,22 @@ export const useRoadmapStore = create<Store>((set, get) => {
       }
     },
     onRCancel: () => set({ rform: null }),
+    // Adds the entry, or replaces the one with the same id.
+    saveTimeOff: (rid, entry) => set(s => ({
+      resources: s.resources.map(r => r.id !== rid ? r : {
+        ...r, timeOff: cleanTimeOff([...(r.timeOff ?? []).filter(o => o.id !== entry.id), entry]),
+      }),
+    })),
+    deleteTimeOff: (rid, id) => set(s => ({
+      resources: s.resources.map(r => r.id !== rid ? r : { ...r, timeOff: cleanTimeOff((r.timeOff ?? []).filter(o => o.id !== id)) }),
+    })),
+    // One update for the whole import, so a single undo reverts it.
+    importTimeOff: entries => set(s => ({
+      resources: s.resources.map(r => {
+        const mine = entries.filter(e => e.rid === r.id).map(e => e.entry)
+        return mine.length ? { ...r, timeOff: cleanTimeOff([...(r.timeOff ?? []), ...mine]) } : r
+      }),
+    })),
     onRDelete: () => {
       const id = get().rform!.id!
       const closePanel = get().panel === 'res' && get().resSel === id

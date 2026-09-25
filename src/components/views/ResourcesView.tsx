@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useCallback, useEffect, useMemo } from 'react'
+import React, { useRef, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { deriveScale, buckets, buildHeader, initials, allocColor, utilizationPct, assignedDuringTimeOff } from '@/lib/roadmapUtils'
 import { getTodayDay, TOTAL_DAYS } from '@/data/initialData'
@@ -10,6 +10,7 @@ import { useTodayDay } from '@/lib/useTodayDay'
 import { itemsForMetrics, colorLoad, resourceMatches } from '@/lib/filters'
 import FilterEmptyState from '@/components/filters/FilterEmptyState'
 import UncoveredDemand from '@/components/UncoveredDemand'
+import TimeOffPopover, { type TimeOffPopoverState } from '@/components/TimeOffPopover'
 
 const RH = 46
 const LABEL_W = 264
@@ -32,6 +33,45 @@ export default function ResourcesView() {
   const counted = useMemo(() => new Set(countedItems.map(i => i.id)), [countedItems])
   // Nobody left, or every item filtered out (the rows would all read 0%).
   const filteredEmpty = (resources.length > 0 && rows.length === 0) || (items.length > 0 && counted.size === 0)
+
+  // Drag over a row to add time off: `sel` is the live selection (inclusive
+  // days), `popover` the quick form opened on release or by clicking a band.
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const [sel, setSel] = useState<{ rid: string; row: number; a: number; b: number } | null>(null)
+  const [popover, setPopover] = useState<TimeOffPopoverState | null>(null)
+  const suppressClick = useRef(false)
+
+  const onCanvasPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const row = Math.floor((e.clientY - rect.top) / RH)
+    const r = rows[row]
+    if (!r) return
+    const dayAt = (clientX: number) => Math.min(lastDay - 1, Math.max(baseDay, baseDay + Math.floor((clientX - rect.left) / ppd)))
+    const startX = e.clientX
+    const a = dayAt(startX)
+    let dragging = false
+    let b = a
+    const move = (ev: PointerEvent) => {
+      if (!dragging && Math.abs(ev.clientX - startX) < 5) return
+      dragging = true
+      b = dayAt(ev.clientX)
+      setSel({ rid: r.id, row, a, b })
+    }
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      setSel(null)
+      if (!dragging) return // a plain click: the cell opens its panel as before
+      suppressClick.current = true
+      setTimeout(() => { suppressClick.current = false }, 0)
+      const s = Math.min(a, b), en = Math.max(a, b)
+      setPopover({ rid: r.id, entry: { id: 'o' + Date.now(), startDay: s, dur: en - s + 1, note: '' }, isNew: true, x: ev.clientX, y: ev.clientY })
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
 
   const syncViewport = useCallback(() => {
     const el = scrollRef.current
@@ -129,8 +169,8 @@ export default function ResourcesView() {
       )
     }
 
-    // Time off: a striped band over the exact days, on top of the cells but
-    // letting clicks through to them.
+    // Time off: a striped band over the exact days, on top of the cells.
+    // Clicking it edits that entry.
     for (const o of r.timeOff ?? []) {
       const s = Math.max(o.startDay, baseDay), e = Math.min(o.startDay + o.dur, lastDay)
       if (e <= s) continue
@@ -138,7 +178,10 @@ export default function ResourcesView() {
       cells.push(
         <div
           key={`${r.id}-off-${o.id}`}
-          style={{ position: 'absolute', left: (s - baseDay) * ppd, top: y + 2, width: w, height: RH - 4, borderRadius: 6, pointerEvents: 'none', zIndex: 2, background: 'repeating-linear-gradient(135deg, rgba(113,113,122,0.16) 0 4px, rgba(113,113,122,0) 4px 9px)', border: '1px solid rgba(113,113,122,0.25)', boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', padding: '2px 5px', overflow: 'hidden' }}
+          title={t('Click to edit this time off')}
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); setPopover({ rid: r.id, entry: o, isNew: false, x: e.clientX, y: e.clientY }) }}
+          style={{ position: 'absolute', left: (s - baseDay) * ppd, top: y + 2, width: w, height: RH - 4, borderRadius: 6, cursor: 'pointer', zIndex: 2, background: 'repeating-linear-gradient(135deg, rgba(113,113,122,0.16) 0 4px, rgba(113,113,122,0) 4px 9px)', border: '1px solid rgba(113,113,122,0.25)', boxSizing: 'border-box', display: 'flex', alignItems: 'flex-start', padding: '2px 5px', overflow: 'hidden' }}
         >
           {w > 70 && <span style={{ fontSize: 9, fontWeight: 600, color: '#52525b', background: 'rgba(255,255,255,0.85)', borderRadius: 3, padding: '0 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.note || t('Time off')}</span>}
         </div>
@@ -176,16 +219,31 @@ export default function ResourcesView() {
           <div style={{ position: 'relative', height: canvasHeight }}>{rowLabels}</div>
         </div>
         {/* Bottom-right: allocation canvas */}
-        <div style={{ position: 'relative', width: totalWidth, height: canvasHeight, overflow: 'hidden' }}>
+        <div
+          ref={canvasRef}
+          onPointerDown={onCanvasPointerDown}
+          onClickCapture={e => { if (suppressClick.current) e.stopPropagation() }}
+          title={t('Drag across a row to add time off')}
+          style={{ position: 'relative', width: totalWidth, height: canvasHeight, overflow: 'hidden', userSelect: 'none' }}
+        >
           {rows.map((r, i) => (
             <div key={r.id} style={{ position: 'absolute', left: 0, top: i * RH, width: totalWidth, height: RH, background: i % 2 ? '#fcfcfd' : '#fff', borderBottom: '1px solid #f4f4f5' }} />
           ))}
           {gridLines.map((g, i) => <div key={i} style={g.style} />)}
           {todayX !== null && <div style={{ position: 'absolute', left: todayX, top: 0, width: 1, height: canvasHeight, background: '#ef4444', opacity: 0.5, zIndex: 2 }} />}
           {cells}
+          {sel && (() => {
+            const s = Math.min(sel.a, sel.b), e = Math.max(sel.a, sel.b) + 1
+            return (
+              <div style={{ position: 'absolute', left: (s - baseDay) * ppd, top: sel.row * RH + 2, width: (e - s) * ppd, height: RH - 4, borderRadius: 6, zIndex: 3, pointerEvents: 'none', background: 'repeating-linear-gradient(135deg, rgba(59,110,245,0.22) 0 4px, rgba(59,110,245,0.06) 4px 9px)', border: '1.5px solid #3b6ef5', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#1d4ed8', background: '#fff', borderRadius: 3, padding: '0 4px', whiteSpace: 'nowrap' }}>{t('{n} days', { n: e - s })}</span>
+              </div>
+            )
+          })()}
         </div>
       </div>
     </div>
+    {popover && <TimeOffPopover key={popover.entry.id} state={popover} onClose={() => setPopover(null)} />}
     </>
   )
 }
