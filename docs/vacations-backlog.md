@@ -182,7 +182,14 @@ exactamente el costo diario × % × días de ausencia dentro de la tarea.
 - Tool `add_time_off { resourceId, startDate, endDate, note? }` ("Ana está de vacaciones
   del 1 al 15 de agosto"). Confirma con un toast.
 
-## V7 · Documentación `[ ]`
+## V7 · Documentación `[x]`
+
+> **Hecho.** `docs/time-off.md` (nuevo) reúne las cuatro formas de cargar ausencias, el formato de
+> importación, qué cambia en cada vista y la parte técnica. También se actualizaron `resources-view.md`,
+> `filters.md` ("Solo problemas"), `components.md` (botón de importar), `persistence.md`, `ARCHITECTURE.md`,
+> `voice-agent.md` (en V6) y `engine/README.md` (en V5). Traducciones revisadas: no falta ninguna. Se separó
+> "Ausencia" (una) de "Ausencias" (la lista), porque antes una sola ausencia aparecía en plural en el badge,
+> la franja y el formulario rápido. Verificación final: `tsc` y `lint` sin errores y 90 tests del motor.
 
 - `docs/resources-view.md`, `docs/filters.md` (problemas), `docs/voice-agent.md`,
   `engine/README.md`, `ARCHITECTURE.md`. Revisar las traducciones nuevas.

@@ -91,7 +91,9 @@ component with two entirely different render modes, switched on
   colored everywhere else (`allocColor()`).
 - Clicking a person opens their summary panel in `RightPanel`
   (`openRes`) — the currently-selected person is highlighted.
-- A small Available/Full legend plus a "+ Add" button (opens
+- A small Available/Full legend, a calendar button that opens
+  `ImportTimeOffModal` (bulk time off from a spreadsheet, see
+  [`docs/time-off.md`](time-off.md)) and a "+ Add" button (opens
   `ResourceModal`) replace the status legend from project mode.
 
 **Both modes**: the whole sidebar collapses to a thin 28px vertical strip

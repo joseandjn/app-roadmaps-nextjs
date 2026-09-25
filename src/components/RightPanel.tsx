@@ -260,7 +260,7 @@ export default function RightPanel() {
 
               {upcomingOff.length > 0 && (
                 <div className="mb-5">
-                  <div className={labelCls}>{t('Time off')}</div>
+                  <div className={labelCls}>{t('Absences')}</div>
                   <div className="flex flex-col gap-1.5">
                     {upcomingOff.map(o => (
                       <div key={o.id} className="flex items-center gap-2 text-[12px] text-[#52525b] px-2.5 py-1.5 rounded-lg border border-[#f1f1f1]"

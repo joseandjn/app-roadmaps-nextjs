@@ -107,7 +107,7 @@ export default function ResourceModal() {
             <p className="text-[11px] text-[#a1a1aa] mt-1.5">{t('Share of their time available for this roadmap. Assignments above it count as overload.')}</p>
           </div>
           <div>
-            <div className={labelCls}>{t('Time off')}</div>
+            <div className={labelCls}>{t('Absences')}</div>
             <div className="flex flex-col gap-2">
               {rform.timeOff.map(o => (
                 <div key={o.id} className="flex flex-col gap-1.5 rounded-lg border border-[#f1f1f1] p-2">

@@ -227,6 +227,18 @@ The cell panel maps the bucket back to absolute days with the same
 `baseDay` (`filterStartDay`) offset the grid uses, so its items match the
 clicked cell when a date range is set.
 
+### Time off
+
+Each person's absences (`Resource.timeOff`) are drawn as a striped band over
+the exact days of their row, with the note. A cell with work assigned on a
+working day the person is away is colored amber like an overload, with the
+working days in its tooltip (computed from every item, so filters never hide
+it). Dragging across a row creates an absence (`TimeOffPopover`); clicking a
+band edits or removes it; a plain click still opens the cell panel. The
+calendar button at the bottom of the people list imports absences in bulk.
+The person and cell panels list the absences and the tasks that land on
+them. Full behaviour: [`docs/time-off.md`](time-off.md).
+
 ### Coloring
 
 `allocColor(pct)` (in `roadmapUtils.ts`) is the single source of truth for

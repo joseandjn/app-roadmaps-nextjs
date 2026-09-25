@@ -232,7 +232,8 @@ const es: Record<string, string> = {
 
   // Availability
   'Availability (%)': 'Disponibilidad (%)',
-  'Time off': 'Ausencias',
+  'Time off': 'Ausencia',
+  'Absences': 'Ausencias',
   'From': 'Desde',
   'To': 'Hasta',
   'Remove time off': 'Quitar ausencia',

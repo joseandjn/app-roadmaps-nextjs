@@ -12,7 +12,7 @@ separate `view.json`.
 
 | What | Where | Scope |
 |---|---|---|
-| Planning data: projects, items, resources, dependencies, sprints, settings, roles | `storage/scenarios/<id>.json` | Per scenario |
+| Planning data: projects, items, resources (including their time off), dependencies, sprints, settings, roles | `storage/scenarios/<id>.json` | Per scenario |
 | Scenario list and which one is official | `storage/scenarios/index.json` | Global |
 | Checkpoints (named snapshots + metrics) | `storage/scenarios/<id>.checkpoints.json` | Per scenario |
 | Active scenario, date range, filters, hidden projects, saved views | `storage/view.json` | Global |
