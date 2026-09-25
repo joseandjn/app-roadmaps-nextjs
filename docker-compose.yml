@@ -1,0 +1,24 @@
+# Roadmap app on Docker (see docs/docker.md).
+#   docker compose up -d --build     build and start
+#   docker compose logs -f           follow the logs
+#   docker compose down              stop
+# Settings come from a .env file next to this one (see docs/docker.md);
+# everything has a default, so it runs without one.
+services:
+  roadmap:
+    build: .
+    image: roadmap-app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      # The data folder on this Mac. Back it up or move it to another Mac by
+      # copying the folder.
+      - "${DATA_DIR:-./storage}:/app/storage"
+    environment:
+      # Ollama (default) runs on the Mac itself, outside Docker.
+      LLM_PROVIDER: "${LLM_PROVIDER:-ollama}"
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://host.docker.internal:11434}"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-qwen2.5:latest}"
+      # For Claude: LLM_PROVIDER=anthropic and ANTHROPIC_API_KEY in .env.
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
