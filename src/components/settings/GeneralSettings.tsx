@@ -58,6 +58,19 @@ export default function GeneralSettings() {
         />
         <span className="text-[13px] text-[#27272a]">{t('Count weekends as working days')}</span>
       </label>
+
+      <label className="flex items-start gap-2.5 cursor-pointer">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={settings.timeOffReducesCost ?? false}
+          onChange={e => patchSettings({ timeOffReducesCost: e.target.checked })}
+        />
+        <span>
+          <span className="block text-[13px] text-[#27272a]">{t('Time off reduces cost')}</span>
+          <span className="block text-[11px] text-[#a1a1aa] mt-0.5">{t("Off: time off is paid and costs don't change. On: a person's time-off days don't add cost to their assignments.")}</span>
+        </span>
+      </label>
     </div>
   )
 }

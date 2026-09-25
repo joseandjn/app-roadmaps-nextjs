@@ -249,6 +249,8 @@ const es: Record<string, string> = {
   'Click to edit this time off': 'Clic para editar esta ausencia',
   'Drag across a row to add time off': 'Arrastra sobre una fila para agregar una ausencia',
   'Import time off': 'Importar ausencias',
+  'Time off reduces cost': 'Las ausencias descuentan costo',
+  "Off: time off is paid and costs don't change. On: a person's time-off days don't add cost to their assignments.": 'Apagado: las ausencias son pagadas y el costo no cambia. Encendido: los días de ausencia de una persona no suman costo a sus asignaciones.',
   'Paste rows from a spreadsheet or load a CSV. Columns: person, from, to, note (optional). Dates as YYYY-MM-DD or DD/MM/YYYY.': 'Pega filas desde una planilla o carga un CSV. Columnas: persona, desde, hasta, nota (opcional). Fechas como AAAA-MM-DD o DD/MM/AAAA.',
   'Load a CSV file…': 'Cargar un archivo CSV…',
   '{n} to import': '{n} para importar',

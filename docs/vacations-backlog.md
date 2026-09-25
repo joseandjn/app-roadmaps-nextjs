@@ -125,7 +125,15 @@ problemas" al instante; quitar la ausencia la saca.
 - Vista previa antes de guardar: persona reconocida por nombre (sin mayúsculas ni acentos), días hábiles,
   errores en rojo y duplicados marcados. Importa todo en un solo paso de deshacer.
 
-## V4 · Costo configurable `[ ]`
+## V4 · Costo configurable `[x]`
+
+> **Hecho.** `Settings.timeOffReducesCost?` (falta = `false`) con su casilla en Configuración → General,
+> "Las ausencias descuentan costo", y una explicación de los dos modos. `assignmentCostsInRange` descuenta,
+> por persona, los días hábiles de ausencia dentro del tramo de la tarea. Costs, KPIs, checkpoints, Compare y
+> el comparador de escenarios usan esa función, así que todos lo respetan. El ajuste se guarda en el
+> escenario, como el resto de la configuración. Verificado: con la casilla encendida, el total baja 3.331,
+> y el cálculo esperado era 3.330,4 (Fredy: 83,26/h × 8 h × 100 % × 5 días hábiles). Al apagarla, vuelve
+> al total original.
 
 - `Settings.timeOffReducesCost?: boolean` (falta = `false`). Casilla en
   Configuración → General: "Las ausencias descuentan costo".

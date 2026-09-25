@@ -85,6 +85,7 @@ export function resourceDailyRate(r: Resource, settings: Settings): number {
 // Cost of one item's assignments, prorated to the working days (per
 // settings.countWeekends/holidays) of its duration that overlap
 // [rangeStart, rangeEnd). Milestones/releases (dur 0) never carry cost.
+// With settings.timeOffReducesCost, each person's time-off days are left out.
 export function itemCostInRange(it: Item, resources: Resource[], rangeStart: number, rangeEnd: number, settings: Settings): number {
   return assignmentCostsInRange(it, resources, rangeStart, rangeEnd, settings).reduce((sum, c) => sum + c.cost, 0)
 }
@@ -101,7 +102,8 @@ export function assignmentCostsInRange(it: Item, resources: Resource[], rangeSta
   for (const a of it.assignments) {
     const r = resources.find(rr => rr.id === a.r)
     if (!r) continue
-    out.push({ rid: r.id, cost: resourceDailyRate(r, settings) * (a.pct / 100) * days })
+    const paid = settings.timeOffReducesCost ? days - timeOffWorkingDays(r, s, e, settings) : days
+    out.push({ rid: r.id, cost: resourceDailyRate(r, settings) * (a.pct / 100) * paid })
   }
   return out
 }

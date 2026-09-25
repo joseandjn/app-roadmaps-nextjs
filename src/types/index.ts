@@ -80,6 +80,9 @@ export interface Settings {
   currencySymbol: string
   countWeekends: boolean
   holidays: string[] // 'YYYY-MM-DD'
+  // Whether a person's time off lowers the cost of their assignments (unpaid).
+  // Missing means false: time off is paid, cost is unchanged.
+  timeOffReducesCost?: boolean
 }
 
 // A scenario is a full, independent copy of the planning data below — a
