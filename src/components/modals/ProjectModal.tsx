@@ -3,13 +3,15 @@
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { STATUS_ORDER, CATEGORIES } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { projectTaskTemplate } from '@/lib/roadmapUtils'
 
 const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'
 const inputCls = 'w-full text-[13px] text-[#27272a] bg-white border border-[#ececec] rounded-lg px-2.5 py-2 font-inherit'
 
 export default function ProjectModal() {
-  const { pform, resources, patchPF, onPSave, onPCancel, onPDelete } = useRoadmapStore()
+  const { pform, resources, settings, patchPF, onPSave, onPCancel, onPDelete } = useRoadmapStore()
   const { t } = useTranslation()
+  const tasks = projectTaskTemplate(settings)
 
   if (!pform?.show) return null
 
@@ -59,7 +61,7 @@ export default function ProjectModal() {
               <input type="date" className={inputCls} value={pform.endStr} onChange={e => patchPF({ endStr: e.target.value })} />
             </div>
           </div>
-          {!pform.id && (
+          {!pform.id && tasks.length > 0 && (
             <label className="flex items-start gap-2.5 cursor-pointer">
               <input
                 type="checkbox"
@@ -70,7 +72,7 @@ export default function ProjectModal() {
               <span className="text-[13px] text-[#27272a]">
                 {t('Add default tasks')}
                 <span className="block text-[11px] text-[#a1a1aa] mt-0.5">
-                  {t('Desarrollo, Certificación, Gestión de pase, Pase a PRD — spread evenly across the Start–End range above')}
+                  {t('{tasks} — spread evenly across the Start–End range above. Edit them in Settings → General.', { tasks: tasks.join(', ') })}
                 </span>
               </span>
             </label>

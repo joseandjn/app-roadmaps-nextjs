@@ -83,6 +83,9 @@ export interface Settings {
   // Whether a person's time off lowers the cost of their assignments (unpaid).
   // Missing means false: time off is paid, cost is unchanged.
   timeOffReducesCost?: boolean
+  // Task titles a new project can start with, in order. Missing means the
+  // built-in list (DEFAULT_PROJECT_TASKS); an empty list means none.
+  defaultProjectTasks?: string[]
 }
 
 // A scenario is a full, independent copy of the planning data below — a
