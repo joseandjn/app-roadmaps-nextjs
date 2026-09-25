@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { offFromStr } from '@/lib/roadmapUtils'
+import { offFromStr, fmtDate, addDays, workingDaysInRange, assignedDuringTimeOff } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
 import { getSpeechRecognitionCtor, type SpeechRecognition } from './speechRecognition'
 import type { VoiceCommandResult } from '@/lib/agent/roadmapAgent'
@@ -13,6 +13,32 @@ import type { Filters, Item } from '@/types'
 const DEFAULT_ITEM_SPAN_DAYS = 21 // matches the store's own newItem() default
 
 export type VoiceStatus = 'idle' | 'listening' | 'thinking'
+
+// Lowercase, accents stripped, letters and digits only.
+const words = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 3)
+
+function editDistance(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0]
+    row[0] = i
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = row[j]
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1))
+      prev = tmp
+    }
+  }
+  return row[b.length]
+}
+
+// Whether the person the model picked was actually named in what was said.
+// The tool only accepts existing ids, so for someone not on the team the
+// model picks *somebody* — this catches that before writing anything.
+// Allows small speech-recognition slips ("Jhonly" heard as "Johnly").
+function nameMentioned(name: string, transcript: string): boolean {
+  const said = words(transcript)
+  return words(name).some(n => said.some(w => editDistance(n, w) <= (n.length >= 6 ? 2 : 1)))
+}
 
 // Browser support never changes after mount, so subscribe is a no-op —
 // this just reads a browser-only value (window.SpeechRecognition) without
@@ -54,6 +80,8 @@ export function useVoiceCommand() {
   const setVisibleProjects = useRoadmapStore(s => s.setVisibleProjects)
   const clearFilter = useRoadmapStore(s => s.clearFilter)
   const roles = useRoadmapStore(s => s.roles)
+  const settings = useRoadmapStore(s => s.settings)
+  const saveTimeOff = useRoadmapStore(s => s.saveTimeOff)
 
   const runCommand = useCallback(async (transcript: string) => {
     setStatus('thinking')
@@ -180,6 +208,25 @@ export function useVoiceCommand() {
           showToast(t('Confirm deleting {name} — click Delete in the panel, or Cancel', { name: it.title }))
           break
         }
+        case 'add_time_off': {
+          const r = resources.find(x => x.id === input.resourceId)
+          if (!r || !nameMentioned(r.name, transcript)) { showToast(t("Couldn't find that person")); break }
+          const isDate = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
+          if (!isDate(input.startDate) || !isDate(input.endDate)) { showToast(t("Couldn't understand those dates")); break }
+          // Dates are inclusive; a reversed range is read the right way round.
+          const a = offFromStr(input.startDate), b = offFromStr(input.endDate)
+          const startDay = Math.min(a, b), dur = Math.abs(b - a) + 1
+          const note = typeof input.note === 'string' ? input.note : ''
+          const entry = { id: 'o' + Date.now(), startDay, dur, note }
+          saveTimeOff(r.id, entry)
+          // Say right away if work lands on it, since that's what the user needs to act on.
+          const hit = items.filter(it => assignedDuringTimeOff(it, { id: r.id, timeOff: [entry] }, settings) > 0).length
+          const base = t('Time off for {name}: {from} – {to} ({n} working days)', {
+            name: r.name, from: fmtDate(addDays(startDay)), to: fmtDate(addDays(startDay + dur - 1)), n: workingDaysInRange(startDay, dur, settings),
+          })
+          showToast(hit ? `${base} · ${hit === 1 ? t('1 task assigned then') : t('{n} tasks assigned then', { n: hit })}` : base)
+          break
+        }
         case 'set_filters': {
           if (input.clear) { clearFilter(); showToast(t('Filters cleared')); break }
           // Keep only values that exist — the model can still return a stale
@@ -239,6 +286,7 @@ export function useVoiceCommand() {
     showToast, agentCreateResource, agentUpdateResource, agentCreateProject, agentUpdateProject,
     agentCreateItem, agentUpdateItem, resources, projects, items,
     openRes, openItem, editResource, editProject, setFilter, setFilters, setVisibleProjects, clearFilter, roles,
+    settings, saveTimeOff,
   ])
 
   const start = useCallback(() => {

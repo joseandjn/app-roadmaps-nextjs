@@ -164,7 +164,20 @@ exactamente el costo diario × % × días de ausencia dentro de la tarea.
 - "Ver en el Cronograma" (`findingItemIds`) soporta el tipo nuevo.
 - Tests en `engine/test`.
 
-## V6 · Voz `[ ]`
+## V6 · Voz `[x]`
+
+> **Hecho.** Tool `add_time_off { resourceId, startDate, endDate, note? }` en `shared.ts` (la comparten los dos
+> proveedores). El hook guarda con `saveTimeOff`, corrige un rango invertido, rechaza fechas mal formadas y
+> muestra un toast con las fechas, los días hábiles y cuántas tareas quedan encima. Dos protecciones:
+> - **Nombre:** como el id es un enum, el modelo elige a alguien aunque la persona no exista ("Persona
+>   Inventada" llegó como Diego Alcala). El hook exige que el nombre aparezca en lo dicho, con tolerancia a
+>   errores del reconocimiento ("Johnly" = Jhonly).
+> - **Fechas relativas:** el prompt incluye el día de la semana y las fechas exactas de esta semana y la
+>   próxima. Con eso "la próxima semana" sale bien; "esta semana" a veces trae un día de más (el toast lo
+>   muestra y Cmd+Z lo deshace).
+>
+> Verificado con Ollama (`qwen2.5`) y en el navegador con voz simulada: válido, persona inventada, fechas
+> inválidas y rango invertido.
 
 - Tool `add_time_off { resourceId, startDate, endDate, note? }` ("Ana está de vacaciones
   del 1 al 15 de agosto"). Confirma con un toast.

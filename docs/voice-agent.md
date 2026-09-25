@@ -4,7 +4,7 @@ Lets you speak a command ("add a new resource named Alex, mobile developer,
 twelve thousand a month") and have it turned into an actual action on
 resources, projects, or Timeline tasks — no typing, no forms, no clicking.
 An LLM (local Ollama by default, Claude optionally) interprets the
-transcript and picks one of fourteen supported actions; the app applies it
+transcript and picks one of fifteen supported actions; the app applies it
 through the same store the UI already uses.
 
 ## Functional description
@@ -48,6 +48,11 @@ through the same store the UI already uses.
   ("Filtered: Modulo de seguridad · At Risk"). A new request replaces the
   current filters; "also…" / "además…" refines them instead.
 
+- **Record time off**: "Jhonly is on vacation from October 19th to the
+  25th" / "Elvis is on sick leave on November 3rd" → adds the absence to
+  that person and confirms with the dates, working days and how many
+  tasks are assigned on those days.
+
 That's the full action surface — **not** covered: dependencies between
 tasks, assigning resources/percentages to a task, or any other app setting.
 A command outside this scope (or one that's just unclear) gets a short
@@ -83,7 +88,7 @@ alive and how commands in flight don't fight over the button's state.
 
 | File | Role |
 |---|---|
-| `src/lib/agent/shared.ts` | The 14 tool definitions (JSON Schema), context types, system-prompt builder — the single source of truth both providers read from |
+| `src/lib/agent/shared.ts` | The 15 tool definitions (JSON Schema), context types, system-prompt builder — the single source of truth both providers read from |
 | `src/lib/agent/providers/ollama.ts` | Calls local Ollama's `/api/chat` with tools |
 | `src/lib/agent/providers/anthropic.ts` | Calls Claude's Messages API with tools (optional alternative) |
 | `src/lib/agent/roadmapAgent.ts` | Picks the active provider, loads current resources/projects/items as context, dispatches |
@@ -114,7 +119,7 @@ shape (`VoiceCommandResult`, defined in `shared.ts`), so nothing downstream
 (plain JSON Schema); each provider file adapts that into its own wire
 format — Anthropic's `{name, description, input_schema}` vs. Ollama's
 OpenAI-style `{type:'function', function:{name, description, parameters}}`
-— rather than maintaining two parallel copies of the same 14 schemas.
+— rather than maintaining two parallel copies of the same 15 schemas.
 
 ### Ollama provider
 
@@ -231,6 +236,29 @@ resourceIds, projectIds)`).
 With `qwen2.5:latest`, "what's at risk" usually comes back as
 `onlyIssues` instead of `statuses: ['At Risk']`. That filter is a superset
 (it includes At Risk items), so the answer is broader, not wrong.
+
+### Time off (`add_time_off`)
+
+`add_time_off { resourceId, startDate, endDate, note? }` — dates inclusive,
+`resourceId` an enum of the real ids. The hook converts the dates to a
+`startDay`/`dur` entry and calls `saveTimeOff` (one undo step). A reversed
+range is read the right way round; anything that isn't `YYYY-MM-DD` is
+refused. The toast gives the dates and working days, and how many tasks
+are assigned on those days, since that's what needs attention.
+
+**Name check.** Because `resourceId` is an enum, a model asked about
+someone who isn't on the team still has to return *some* real id — with
+`qwen2.5` "Persona Inventada está de vacaciones" came back as Diego
+Alcala. Unlike deletes, this action writes directly, so the hook checks
+that a word of the chosen person's name appears in the transcript
+(accents ignored, edit distance ≤ 1, or ≤ 2 for words of 6+ letters, so
+"Johnly" still matches Jhonly). If not, nothing is saved: "Couldn't find
+that person".
+
+**Relative dates.** The prompt gives today's weekday and the exact dates
+of this week and next week (Monday–Sunday). Without them `qwen2.5` read
+"la próxima semana" as Friday–Tuesday. "Esta semana" can still come back
+a day long; the toast shows the dates and Cmd+Z undoes it.
 
 ### Item actions (`create_item`, `update_item`)
 
@@ -483,7 +511,7 @@ first time rather than rediscovering the pattern.
 
 ## Known limitations
 
-- **Scope is intentionally narrow**: the 14 actions above and nothing
+- **Scope is intentionally narrow**: the 15 actions above and nothing
   else — no dependencies between items, no assigning resources/percentages
   to a task, no other app settings. Those have a meaningfully larger field
   surface (and, for dependencies, a clash/cycle-preview UX the item-edit

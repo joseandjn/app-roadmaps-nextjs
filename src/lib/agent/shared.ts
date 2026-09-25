@@ -1,5 +1,5 @@
 import { CATEGORIES, STATUS_ORDER, ITEM_TYPES, getTodayDay } from '@/data/initialData'
-import { dateStr } from '@/lib/roadmapUtils'
+import { dateStr, addDays } from '@/lib/roadmapUtils'
 
 export type VoiceCommandResult =
   | { type: 'action'; name: string; input: Record<string, unknown> }
@@ -218,6 +218,20 @@ export function buildAgentTools(roleNames: string[], resourceIds: string[], proj
       },
     },
     {
+      name: 'add_time_off',
+      description: 'Record that a person will be away (vacation, leave, sick days…) between two dates, e.g. "Ana is on vacation from August 1st to the 15th". Both dates are inclusive. Work assigned to them on those days gets flagged; nothing is moved.',
+      parameters: {
+        type: 'object',
+        properties: {
+          resourceId: { ...idEnum(resourceIds), description: 'id of the person, from the existing resources list' },
+          startDate: { type: 'string', description: 'First day away, YYYY-MM-DD' },
+          endDate: { type: 'string', description: 'Last day away (inclusive), YYYY-MM-DD. Same as startDate for a single day.' },
+          note: { type: 'string', description: 'Short reason in the user\'s words, e.g. "vacaciones" or "licencia". Omit if not said.' },
+        },
+        required: ['resourceId', 'startDate', 'endDate'],
+      },
+    },
+    {
       name: 'set_filters',
       description: 'Filter what the roadmap shows, e.g. "show me only Ana\'s work", "what is at risk in project X", "only milestones", "clear the filters". By default this replaces the current filters with the ones given; set refine to true only when the user says to add to or narrow the current filters ("also", "and only"). Only include the fields the user mentions.',
       parameters: {
@@ -239,6 +253,16 @@ export function buildAgentTools(roleNames: string[], resourceIds: string[], proj
   ]
 }
 
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+// "YYYY-MM-DD to YYYY-MM-DD" for the Monday–Sunday week `offset` weeks from
+// today's. Small local models get "next week" wrong when left to compute it.
+function weekRange(offset: number): string {
+  const today = getTodayDay()
+  const monday = today - ((addDays(today).getDay() + 6) % 7) + offset * 7
+  return `${dateStr(monday)} to ${dateStr(monday + 6)}`
+}
+
 export function buildSystemPrompt(
   resources: ResourceContext[],
   projects: ProjectContext[],
@@ -253,6 +277,8 @@ names a person/project/item that isn't in the lists below, do NOT call a tool an
 an id — respond with one short plain-text sentence instead, saying what you can help with or \
 that you couldn't find that person/project/item.
 
+Saying that someone will be away, on vacation, on leave or off on some dates uses add_time_off.
+
 Requests to narrow down what's shown use set_filters — including questions about a group of items,
 like "what's at risk in project X" (projectIds + statuses), "which tasks have nobody assigned"
 (unassigned), "what does Ana have" (resourceIds) or "remove the filters" (clear). show_project and
@@ -262,7 +288,7 @@ delete_resource, delete_project, and delete_item only open a confirmation panel 
 has to click "Remove"/"Delete" themselves, so it's safe to call them whenever the user clearly
 asks to delete/remove something; you are never directly destroying data.
 
-Today's date, for resolving relative dates like "next month" or "in two weeks": ${dateStr(getTodayDay())}
+Today's date, for resolving relative dates like "next month" or "in two weeks": ${dateStr(getTodayDay())} (${WEEKDAYS[addDays(getTodayDay()).getDay()]}). Weeks run Monday to Sunday: this week is ${weekRange(0)}, next week is ${weekRange(1)}.
 
 Existing resources: ${JSON.stringify(resources)}
 Existing projects: ${JSON.stringify(projects)}
