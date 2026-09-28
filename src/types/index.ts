@@ -30,6 +30,23 @@ export interface Item {
   assignments: Assignment[]
   // Roles a person can take this on with (any one of them counts as a fit). Missing/empty means any role can.
   requiredRoles?: string[]
+  // Free text (scope, complexity, assumptions, closing notes). Missing means none.
+  description?: string
+  // Duration estimates, oldest first: the first is the one the item was created
+  // with, later ones are explicit re-estimates. Moving or resizing the bar
+  // doesn't add one. Missing on milestones/releases and on items created
+  // before estimates were recorded.
+  estimates?: Estimate[]
+  // Day the item was marked Done (same day math as startDay). Set on entering
+  // Done, dropped on leaving it; missing on items that were Done before this
+  // was recorded.
+  completedDay?: number
+}
+
+export interface Estimate {
+  dur: number // calendar days, like Item.dur
+  at: string // ISO timestamp
+  reason?: string
 }
 
 // A role in the roles catalog (Settings → Roles): the name is what

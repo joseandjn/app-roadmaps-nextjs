@@ -8,15 +8,19 @@ import { roleIconDef } from '@/data/roleIcons'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { useFilterContext } from '@/lib/useFilterContext'
 import { itemsForMetrics, colorLoad } from '@/lib/filters'
+import ItemEstimates from './ItemEstimates'
 
 const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'
 const inputCls = 'w-full text-[13px] text-[#27272a] bg-white border border-[#ececec] rounded-lg px-2.5 py-2 font-inherit'
+// Suggested structure for an item's description (docs/estimation-knowledge-backlog.md).
+// Dependencies aren't part of it: they're linked items ("Depends on").
+const DESCRIPTION_TEMPLATE = 'Scope:\n\nComplexity / uncertainty:\n\nTechnical assumptions and risks:\n\nClosing notes:\n'
 
 export default function RightPanel() {
   const {
     panel, draft, draftOrig, resSel, cell,
     resources, items, projects, deps, settings, roles, filterStartDay,
-    clearPanel, onDraftTitle, onDraftStatus, onDraftType, onAddDraftRequiredRole, onRemoveDraftRequiredRole, onDraftStart, onDraftEnd,
+    clearPanel, onDraftTitle, onDraftDescription, onDraftStatus, onDraftType, onAddDraftRequiredRole, onRemoveDraftRequiredRole, onDraftStart, onDraftEnd,
     onAddAssignee, setAssignPct, removeAssign, onAddDep, removeDep,
     onSaveItem, onDeleteItem, editResource, setFilters,
   } = useRoadmapStore()
@@ -47,6 +51,19 @@ export default function RightPanel() {
             <div>
               <div className={labelCls}>{t('Title')}</div>
               <input className={inputCls} value={draft.title} onChange={e => onDraftTitle(e.target.value)} />
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <div className={labelCls}>{t('Description')}</div>
+                {!draft.description?.trim() && (
+                  <button onClick={() => onDraftDescription(t(DESCRIPTION_TEMPLATE))} className="text-[11px] font-semibold text-[#3b6ef5] bg-transparent border-none cursor-pointer font-inherit p-0 mb-1.5 hover:underline">
+                    {t('Use template')}
+                  </button>
+                )}
+              </div>
+              <textarea className={`${inputCls} resize-y min-h-[88px] leading-snug`} rows={4} value={draft.description ?? ''}
+                placeholder={t('Scope, complexity, technical assumptions and risks, closing notes…')}
+                onChange={e => onDraftDescription(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -104,6 +121,7 @@ export default function RightPanel() {
                 {draft.assignments.length > 0 && ` · ${t('{n}h total', { n: Math.round(draft.assignments.reduce((sum, a) => sum + workDays * settings.workHoursPerDay * a.pct / 100, 0)) })}`}
               </div>
             )}
+            <ItemEstimates key={draft.id} />
 
             {/* Assignees */}
             <div>

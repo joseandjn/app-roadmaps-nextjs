@@ -9,6 +9,7 @@ import {
 import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded, projectTaskTemplate } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
 import { EMPTY_FILTERS, pruneFilters, currentViewSnapshot, persistedFilters, BUILTIN_VIEWS } from '@/lib/filters'
+import { withInitialEstimate, withCompletion, cleanDescription } from '@/lib/estimates'
 
 type Store = RoadmapState & {
   // persistence
@@ -47,7 +48,14 @@ type Store = RoadmapState & {
   clearPanel: () => void
   patchDraft: (p: Partial<Draft>) => void
   onDraftTitle: (v: string) => void
+  onDraftDescription: (v: string) => void
   onDraftStatus: (v: string) => void
+  // Completion day of a Done item as YYYY-MM-DD ('' clears it).
+  onDraftCompleted: (v: string) => void
+  // Moves the bar's end to the completion day.
+  fitDraftToCompletion: () => void
+  // Adds an estimate to the draft's history; `apply` also resizes the bar to it.
+  reestimateDraft: (dur: number, reason: string, apply: boolean) => void
   onDraftType: (v: string) => void
   onAddDraftRequiredRole: (role: string) => void
   onRemoveDraftRequiredRole: (role: string) => void
@@ -119,8 +127,8 @@ type Store = RoadmapState & {
   agentUpdateResource: (id: string, patch: Partial<{ name: string; role: string; cost: number; costUnit: 'month' | 'hour' }>) => void
   agentCreateProject: (data: { name: string; desc?: string; owner: string; category?: string; status?: Project['status'] }) => void
   agentUpdateProject: (id: string, patch: Partial<{ name: string; desc: string; owner: string; category: string; status: Project['status'] }>) => void
-  agentCreateItem: (data: { projectId: string; title: string; type: Item['type']; startDay: number; dur: number; status?: Item['status']; requiredRoles?: string[] }) => void
-  agentUpdateItem: (id: string, patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number; requiredRoles: string[] | undefined }>) => void
+  agentCreateItem: (data: { projectId: string; title: string; type: Item['type']; startDay: number; dur: number; status?: Item['status']; requiredRoles?: string[]; description?: string }) => void
+  agentUpdateItem: (id: string, patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number; requiredRoles: string[] | undefined; description: string }>) => void
 }
 
 // Store fields a view snapshot sets: dates, filters (minus momentary ones,
@@ -411,8 +419,11 @@ export const useRoadmapStore = create<Store>((set, get) => {
     duplicateItem: id => {
       const it = get().items.find(i => i.id === id)
       if (!it) return
+      // A copy is a new item: it starts its own estimate history and isn't completed.
       const copy: Item = { ...it, id: 'i' + Date.now(), title: `${it.title} (${t('copy')})`, startDay: it.startDay + it.dur + 3, assignments: it.assignments.map(a => ({ ...a })) }
-      set(s => ({ items: [...s.items, copy] }))
+      delete copy.estimates
+      delete copy.completedDay
+      set(s => ({ items: [...s.items, withInitialEstimate(copy, new Date().toISOString())] }))
       showToast(t('Item duplicated'))
     },
     deleteItemById: id => {
@@ -431,7 +442,30 @@ export const useRoadmapStore = create<Store>((set, get) => {
     patchDraft: p => set(s => ({ draft: s.draft ? { ...s.draft, ...p } : null })),
 
     onDraftTitle: v => get().patchDraft({ title: v }),
-    onDraftStatus: v => get().patchDraft({ status: v as Item['status'] }),
+    onDraftDescription: v => get().patchDraft({ description: v }),
+    // Entering Done picks today as the completion day (or the saved one, when
+    // switching back to Done before saving); leaving Done clears it.
+    onDraftStatus: v => {
+      const status = v as Item['status']
+      const orig = get().draftOrig
+      const completedDay = status !== 'Done' ? undefined
+        : orig?.status === 'Done' ? orig.completedDay
+        : getTodayDay()
+      get().patchDraft({ status, completedDay })
+    },
+    onDraftCompleted: v => get().patchDraft({ completedDay: v ? offFromStr(v) : undefined }),
+    fitDraftToCompletion: () => {
+      const d = get().draft!
+      if (d.completedDay === undefined || d.type === 'milestone' || d.type === 'release') return
+      get().patchDraft({ dur: Math.max(1, d.completedDay - d.startDay) })
+    },
+    reestimateDraft: (dur, reason, apply) => {
+      const d = get().draft!
+      const n = Math.max(1, Math.round(dur))
+      const r = reason.trim()
+      const estimates = [...(d.estimates ?? []), { dur: n, at: new Date().toISOString(), ...(r && { reason: r }) }]
+      get().patchDraft(apply ? { estimates, dur: n } : { estimates })
+    },
     // Empty option means "any role" — stored as undefined, not ''.
     onAddDraftRequiredRole: role => {
       const d = get().draft!
@@ -494,7 +528,15 @@ export const useRoadmapStore = create<Store>((set, get) => {
     commitItem: () => {
       const impact = get().impact!
       const { draft, orig } = impact
-      const clean = (d: Draft): Item => { const c = { ...d } as Partial<Draft>; delete c._deps; delete c._new; return c as Item }
+      const clean = (d: Draft): Item => {
+        const c = { ...d } as Partial<Draft>
+        delete c._deps; delete c._new
+        const description = cleanDescription(c.description)
+        if (description) c.description = description; else delete c.description
+        if (c.completedDay === undefined) delete c.completedDay
+        const it = withCompletion(orig, c as Item, getTodayDay())
+        return orig ? it : withInitialEstimate(it, new Date().toISOString())
+      }
       const items = orig ? get().items.map(i => i.id === draft.id ? clean(draft) : i) : [...get().items, clean(draft)]
       let deps = get().deps.filter(e => e.from !== draft.id)
       let de = Date.now()
@@ -577,7 +619,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
             const dur = Math.max(1, isLast ? end - cursor : share)
             const it: Item = { id: `i${Date.now()}_${i}`, projectId: id, title, startDay: cursor, dur, status: 'Planned', type: 'task', assignments: [] }
             cursor += dur
-            return it
+            return withInitialEstimate(it, new Date().toISOString())
           })
         }
 
@@ -806,12 +848,25 @@ export const useRoadmapStore = create<Store>((set, get) => {
         status: data.status ?? 'Planned', assignments: [],
         ...(data.requiredRoles && data.requiredRoles.length > 0 && { requiredRoles: data.requiredRoles }),
       }
-      set(s => ({ items: [...s.items, item] }))
+      const description = cleanDescription(data.description)
+      if (description) item.description = description
+      const created = withInitialEstimate(withCompletion(null, item, getTodayDay()), new Date().toISOString())
+      set(s => ({ items: [...s.items, created] }))
       showToast(t('Added "{title}"', { title: data.title }))
     },
     agentUpdateItem: (id, patch) => {
       if (!get().items.some(i => i.id === id)) { showToast(t("Couldn't find that item")); return }
-      set(s => ({ items: s.items.map(i => i.id === id ? { ...i, ...patch } : i) }))
+      set(s => ({
+        items: s.items.map(i => {
+          if (i.id !== id) return i
+          const next: Item = { ...i, ...patch }
+          if ('description' in patch) {
+            const description = cleanDescription(patch.description)
+            if (description) next.description = description; else delete next.description
+          }
+          return withCompletion(i, next, getTodayDay())
+        }),
+      }))
       showToast(t('Item updated'))
     },
   }

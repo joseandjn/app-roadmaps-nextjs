@@ -174,13 +174,14 @@ export function buildAgentTools(roleNames: string[], resourceIds: string[], proj
           endDate: { type: 'string', description: 'End date in YYYY-MM-DD format. Omit for milestone/release, or if not mentioned (defaults to a 3-week span).' },
           status: { type: 'string', enum: [...STATUS_ORDER], description: 'Defaults to Planned if not mentioned' },
           requiredRoles: { type: 'array', items: roleEnum, description: 'Roles a person can take this on with — any one of them counts as a fit. Only set it if the user names one or more roles or kinds of specialist; otherwise omit it (any role can take it).' },
+          description: { type: 'string', description: "What the task is about (scope, complexity, assumptions), in the user's words. Only set it if the user describes the task; otherwise omit it." },
         },
         required: ['projectId', 'title', 'type', 'startDate'],
       },
     },
     {
       name: 'update_item',
-      description: 'Update an existing task/epic/milestone/release — rename, change status/type, or move/resize its dates. Only include fields the user actually wants changed. To move an item, give only startDate (keeps its current duration); to resize, give endDate; give both to reposition entirely.',
+      description: 'Update an existing task/epic/milestone/release — rename, change status/type/description, or move/resize its dates. Only include fields the user actually wants changed. To move an item, give only startDate (keeps its current duration); to resize, give endDate; give both to reposition entirely.',
       parameters: {
         type: 'object',
         properties: {
@@ -191,6 +192,7 @@ export function buildAgentTools(roleNames: string[], resourceIds: string[], proj
           startDate: { type: 'string', description: 'New start date in YYYY-MM-DD format' },
           endDate: { type: 'string', description: 'New end date in YYYY-MM-DD format' },
           requiredRoles: { type: 'array', items: roleEnum, description: 'Roles a person can take this on with — any one of them counts as a fit. Use an empty array to clear it (any role can take it).' },
+          description: { type: 'string', description: 'New description, replacing the current one. Use an empty string to clear it.' },
         },
         required: ['id'],
       },
