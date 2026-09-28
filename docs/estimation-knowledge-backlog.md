@@ -8,7 +8,8 @@ volver a investigar.
 
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 >
-> **Estado general:** sin empezar. Plan armado el 2026-09-28 sobre `main` en `7c5d4fa`.
+> **Estado general:** fase A hecha (K1–K5) el 2026-09-28; sigue D1. Plan armado el 2026-09-28 sobre `main` en `7c5d4fa`.
+> Las decisiones 1–9 se tomaron con la recomendación de cada una.
 
 ---
 
@@ -151,7 +152,14 @@ Cada una tiene una recomendación; confirmarlas o cambiarlas antes de K1.
 
 ## Fase A · Capturar los datos
 
-### K1 · Descripción de la tarea `[ ]`
+**Cómo quedó:** la lógica está en `src/lib/estimates.ts` (con tests en
+`src/lib/estimates.test.ts`, `npm run lib:test`), la sección del panel en
+`src/components/ItemEstimates.tsx` y los cambios del store en `commitItem`,
+`duplicateItem`, las tareas por defecto de un proyecto y `agentCreateItem` /
+`agentUpdateItem`. Campos nuevos de `Item`: `description`, `estimates`
+(`{ dur, at, reason? }[]`) y `completedDay`.
+
+### K1 · Descripción de la tarea `[x]`
 
 - `description?: string` en `Item`.
 - Textarea en el panel de la tarea, debajo del título, con la plantilla de la
@@ -166,7 +174,7 @@ escenarios viejos cargan igual; un texto largo con saltos de línea se ve y edit
 bien.
 **Estimado:** 0,5 día.
 
-### K2 · Estimación original `[ ]`
+### K2 · Estimación original `[x]`
 
 - `estimates?: { dur: number; at: string; reason?: string }[]` en `Item` (`at` =
   fecha ISO). El primero es la estimación original.
@@ -179,7 +187,7 @@ bien.
 estimación en 14; las tareas existentes no reciben estimación (decisión 7).
 **Estimado:** 0,5 día.
 
-### K3 · Re-estimar con motivo `[ ]`
+### K3 · Re-estimar con motivo `[x]`
 
 Depende de la decisión 2.
 
@@ -192,7 +200,7 @@ Depende de la decisión 2.
 (Cmd+Z) revierte la re-estimación como cualquier otro cambio.
 **Estimado:** 0,5 día.
 
-### K4 · Cierre real `[ ]`
+### K4 · Cierre real `[x]`
 
 - `completedDay?: number` en `Item` (mismo sistema de días que `startDay`).
 - Al pasar a Done desde el editor (`commitItem`) o por voz (`agentUpdateItem`):
@@ -207,7 +215,7 @@ Depende de la decisión 2.
 se comportan igual; duplicar una tarea terminada no copia el cierre.
 **Estimado:** 1 día.
 
-### K5 · Estimado vs. real en el panel `[ ]`
+### K5 · Estimado vs. real en el panel `[x]`
 
 - En el panel de la tarea: estimación original, re-estimaciones, real (si está
   cerrada) y desviación en % respecto de la original y de la última estimación.

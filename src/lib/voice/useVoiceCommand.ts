@@ -167,14 +167,17 @@ export function useVoiceCommand() {
             dur,
             status: input.status as Item['status'] | undefined,
             requiredRoles: Array.isArray(input.requiredRoles) ? input.requiredRoles as string[] : undefined,
+            description: typeof input.description === 'string' ? input.description : undefined,
           })
           break
         }
         case 'update_item': {
           const it = items.find(x => x.id === input.id)
           if (!it) { showToast(t("Couldn't find that task")); break }
-          const patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number; requiredRoles: string[] | undefined }> = {}
+          const patch: Partial<{ title: string; type: Item['type']; status: Item['status']; startDay: number; dur: number; requiredRoles: string[] | undefined; description: string }> = {}
           if (input.title) patch.title = input.title as string
+          // '' clears it, like requiredRoles' [].
+          if (typeof input.description === 'string') patch.description = input.description
           if (input.status) patch.status = input.status as Item['status']
           if (input.type) patch.type = input.type as Item['type']
           // The tool uses [] to mean "clear it" (undefined means "not mentioned, leave as is").
