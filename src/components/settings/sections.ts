@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import GeneralSettings from './GeneralSettings'
 import HolidaysSettings from './HolidaysSettings'
 import RolesSettings from './RolesSettings'
+import KnowledgeSettings from './KnowledgeSettings'
 
 export interface SettingsSectionDef {
   id: string
@@ -17,4 +18,5 @@ export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
   { id: 'general', Component: GeneralSettings },
   { id: 'holidays', Component: HolidaysSettings },
   { id: 'roles', Component: RolesSettings },
+  { id: 'knowledge', Component: KnowledgeSettings },
 ]

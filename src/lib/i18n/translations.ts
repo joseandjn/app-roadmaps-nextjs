@@ -194,6 +194,13 @@ const es: Record<string, string> = {
   'Move the bar end to this date': 'Mover el fin de la barra a esta fecha',
   'The completion date is before the start.': 'La fecha de cierre es anterior al inicio.',
   'Add closing notes to the description: what went differently than planned.': 'Agrega notas al cerrar en la descripción: qué salió distinto de lo planeado.',
+  // KnowledgeSettings — estimation knowledge base export
+  'Estimation knowledge base': 'Base de conocimiento de estimaciones',
+  'Finished tasks of the official scenario with their description, estimates, actual duration and dependencies.': 'Tareas terminadas del escenario oficial con su descripción, estimaciones, duración real y dependencias.',
+  '{n} tasks right now.': 'Hoy hay {n} tareas.',
+  'Include tasks without an estimate': 'Incluir tareas sin estimación',
+  'Download JSONL': 'Descargar JSONL',
+  'Download Markdown': 'Descargar Markdown',
   // RightPanel — resource summary / cell detail
   'Resource': 'Recurso',
   'Edit': 'Editar',
