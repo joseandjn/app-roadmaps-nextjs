@@ -17,6 +17,20 @@ services:
       # The data folder on this Mac. Back it up or move it to another Mac by
       # copying the folder.
       - "${DATA_DIR:-./storage}:/app/storage"
+    # Hardening: the only writable places are the data folder and two
+    # in-memory folders; no Linux capabilities, no privilege escalation, and
+    # bounded memory, CPU and processes (see docs/docker.md).
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache:uid=1001,gid=1001
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: "${MEM_LIMIT:-512m}"
+    cpus: "${CPU_LIMIT:-1}"
+    pids_limit: 200
     environment:
       # Ollama (default) runs on the Mac itself, outside Docker.
       LLM_PROVIDER: "${LLM_PROVIDER:-ollama}"
@@ -24,3 +38,6 @@ services:
       OLLAMA_MODEL: "${OLLAMA_MODEL:-qwen2.5:latest}"
       # For Claude: LLM_PROVIDER=anthropic and ANTHROPIC_API_KEY in .env.
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      # Extra host names the app answers to (it always accepts localhost).
+      # Needed with BIND_ADDRESS=0.0.0.0, e.g. ALLOWED_HOSTS=my-mac.local,192.168.1.48
+      ALLOWED_HOSTS: "${ALLOWED_HOSTS:-}"
