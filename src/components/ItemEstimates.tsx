@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { dateStr, fmtDate, addDays } from '@/lib/roadmapUtils'
 import { useTodayDay } from '@/lib/useTodayDay'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { estimateSummary, deviationTone, isInstant, type DeviationTone } from '@/lib/estimates'
+import type { EstimateSuggestion } from '@/lib/estimator'
+import { requestEstimate, EstimateRequestError } from '@/lib/requestEstimate'
 
 const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'
 const inputCls = 'w-full text-[13px] text-[#27272a] bg-white border border-[#ececec] rounded-lg px-2.5 py-2 font-inherit'
@@ -24,6 +26,77 @@ function Deviation({ value, label }: { value: number; label: string }) {
     <span className="text-[11px] font-semibold rounded-md px-1.5 py-0.5 tabular-nums" style={{ color: tone.fg, background: tone.bg }}>
       {pct > 0 ? '+' : ''}{pct}% {label}
     </span>
+  )
+}
+
+const ERROR_TEXT: Record<string, string> = {
+  no_history: 'No finished tasks with an actual duration yet: close a few tasks first.',
+  no_llm: 'No LLM is configured (see LLM_PROVIDER in .env).',
+}
+
+// "Suggest duration": asks the assistant for a range grounded on finished
+// tasks, and lets the user take the likely value.
+function SuggestDuration() {
+  const { draft, applySuggestedDuration } = useRoadmapStore()
+  const { t } = useTranslation()
+  const [state, setState] = useState<{ loading: boolean; result: EstimateSuggestion | null; error: string | null }>({ loading: false, result: null, error: null })
+  const abort = useRef<AbortController | null>(null)
+  useEffect(() => () => abort.current?.abort(), [])
+  if (!draft) return null
+
+  const ask = async () => {
+    abort.current?.abort()
+    const ctrl = new AbortController()
+    abort.current = ctrl
+    setState({ loading: true, result: null, error: null })
+    try {
+      setState({ loading: false, result: await requestEstimate(draft, ctrl.signal), error: null })
+    } catch (err) {
+      if (ctrl.signal.aborted) return
+      const code = err instanceof EstimateRequestError ? err.code : 'failed'
+      setState({ loading: false, result: null, error: ERROR_TEXT[code] ? t(ERROR_TEXT[code]) : `${t('Could not get a suggestion')}: ${(err as Error).message}` })
+    }
+  }
+  const r = state.result
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {!r && (
+        <button onClick={ask} disabled={state.loading || !draft.title.trim()} className={`${linkCls} self-start disabled:opacity-50 disabled:cursor-default disabled:no-underline`}>
+          {state.loading ? t('Thinking…') : t('Suggest duration')}
+        </button>
+      )}
+      {state.error && <div className="text-[11px] text-[#9a5b00]">{state.error}</div>}
+      {r && (
+        <div className="flex flex-col gap-2 p-2.5 border border-[#dfe6fb] rounded-lg bg-[#f6f8fe]">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-[13px] text-[#18181b] font-semibold tabular-nums">{t('{n} d', { n: r.likely })}</span>
+            <span className="text-[11px] text-[#71717a] tabular-nums">{t('range {a}–{b} d', { a: r.optimistic, b: r.pessimistic })}</span>
+          </div>
+          {r.rationale && <p className="text-[12px] text-[#3f3f46] leading-snug m-0">{r.rationale}</p>}
+          {r.references.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-[#a1a1aa]">{t('Based on')}</div>
+              {r.references.map(ref => (
+                <div key={ref.id} className="text-[11px] text-[#52525b] leading-snug">
+                  <span className="font-semibold text-[#27272a]">{ref.title}</span> · {t('{n} d', { n: ref.actualDays })}{ref.why && ` — ${ref.why}`}
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="text-[10px] text-[#a1a1aa]">{t('{n} finished tasks considered · {model}', { n: r.basedOn, model: r.model })}</div>
+          <div className="flex gap-2">
+            <button onClick={() => setState({ loading: false, result: null, error: null })} className="flex-1 border border-[#ececec] text-[#52525b] bg-white rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer font-inherit">{t('Dismiss')}</button>
+            <button
+              onClick={() => { applySuggestedDuration(r.likely, t('Suggested by the assistant')); setState({ loading: false, result: null, error: null }) }}
+              className="flex-1 bg-[#18181b] text-white border-none rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer font-inherit"
+            >
+              {t('Use {n} d', { n: r.likely })}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -58,7 +131,10 @@ export default function ItemEstimates() {
         <div>
           <div className={labelCls}>{t('Estimate')}</div>
           {draft._new ? (
-            <div className="text-[12px] text-[#a1a1aa]">{t('The initial estimate is the duration the item is created with ({n}).', { n: days(draft.dur) })}</div>
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[12px] text-[#a1a1aa]">{t('The initial estimate is the duration the item is created with ({n}).', { n: days(draft.dur) })}</div>
+              <SuggestDuration />
+            </div>
           ) : (
             <div className="flex flex-col gap-1.5">
               {est.length === 0 && <div className="text-[12px] text-[#a1a1aa]">{t('No estimate recorded')}</div>}
@@ -68,6 +144,7 @@ export default function ItemEstimates() {
                   <span className="text-[#27272a] font-semibold tabular-nums whitespace-nowrap">{days(e.dur)}</span>
                   <span className="text-[#a1a1aa] text-[11px] whitespace-nowrap">{when(e.at)}</span>
                   {e.reason && <span className="text-[#52525b] text-[11px] truncate min-w-0 flex-1" title={e.reason}>· {e.reason}</span>}
+                  {e.source === 'assistant' && !e.reason && <span className="text-[#52525b] text-[11px] truncate min-w-0 flex-1">· {t('Suggested by the assistant')}</span>}
                 </div>
               ))}
               {sum.actual !== null && (
@@ -103,6 +180,7 @@ export default function ItemEstimates() {
                   {est.length ? t('Re-estimate') : t('Add estimate')}
                 </button>
               )}
+              {!form && !done && <SuggestDuration />}
             </div>
           )}
         </div>

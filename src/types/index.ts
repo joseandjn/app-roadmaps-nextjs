@@ -47,6 +47,9 @@ export interface Estimate {
   dur: number // calendar days, like Item.dur
   at: string // ISO timestamp
   reason?: string
+  // Set when the duration came from the "Suggest duration" assistant, so its
+  // accuracy can be compared with manual estimates.
+  source?: 'assistant'
 }
 
 // A role in the roles catalog (Settings → Roles): the name is what
@@ -153,6 +156,9 @@ export interface Checkpoint extends CheckpointMeta {
 export interface Draft extends Item {
   _deps: string[]
   _new?: boolean
+  // Duration the assistant suggested for a new item; if it's still the
+  // duration on create, the initial estimate is marked as the assistant's.
+  _suggested?: number
 }
 
 // View filters beyond the date range and per-project visibility (which stays
