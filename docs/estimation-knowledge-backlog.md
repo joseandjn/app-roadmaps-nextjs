@@ -8,7 +8,7 @@ volver a investigar.
 
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 >
-> **Estado general:** fase A hecha (K1–K5) el 2026-09-28; sigue D1. Plan armado el 2026-09-28 sobre `main` en `7c5d4fa`.
+> **Estado general:** fase A (K1–K5) y fase B (K6) hechas el 2026-09-28; sigue D1 antes de la fase C. Plan armado el 2026-09-28 sobre `main` en `7c5d4fa`.
 > Las decisiones 1–9 se tomaron con la recomendación de cada una.
 
 ---
@@ -242,7 +242,16 @@ La fase B (exportar) se puede hacer antes si sirve para revisar los datos.
 
 ## Fase B · Base de conocimiento
 
-### K6 · Exportar las tareas terminadas `[ ]`
+### K6 · Exportar las tareas terminadas `[x]`
+
+**Cómo quedó:** `src/lib/knowledge.ts` (tests en `src/lib/knowledge.test.ts`),
+`src/app/api/knowledge/route.ts` y la sección "Base de conocimiento de
+estimaciones" en Configuración (`src/components/settings/KnowledgeSettings.tsx`).
+Diferencias con lo planeado: las tareas Done **sin día de cierre** (las de antes
+de K4) quedan siempre afuera porque no tienen duración real; los días-persona son
+días hábiles × % asignado (no descuentan las ausencias); en el Markdown los
+asignados iguales se agrupan ("QA 50% ×4") y las etiquetas salen en el idioma de
+la app (`?lang=es`). El total va en el encabezado `X-Record-Count`.
 
 - `GET /api/knowledge` lee el escenario **oficial** (decisión 6) y devuelve una
   línea JSON (JSONL) por tarea terminada:
