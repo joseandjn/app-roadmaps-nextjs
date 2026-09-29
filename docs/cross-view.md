@@ -32,7 +32,7 @@ without the per-item detail `TimelineView` shows by default.
 - **Click a lane's header or its envelope bar** → toggles that project
   between collapsed and expanded (`toggleExpand`). Clicking one of the
   collapsed ticks does the same — it isn't a per-item click yet.
-- **Click an item bar/milestone while expanded** → opens the item editor
+- **Double-click an item bar/milestone while expanded** → opens the item editor
   in `RightPanel` (`openItem`), same as `TimelineView`. There's no drag
   support here, though — items aren't reschedulable from this view.
 
