@@ -207,6 +207,7 @@ const es: Record<string, string> = {
   'No finished tasks with an actual duration yet: close a few tasks first.': 'Todavía no hay tareas terminadas con duración real: primero cierra algunas.',
   'No LLM is configured (see LLM_PROVIDER in .env).': 'No hay un LLM configurado (ver LLM_PROVIDER en .env).',
   // Timeline — manual row order (ProjectModal)
+  'Double-click to edit': 'Doble clic para editar',
   'Task order': 'Orden de las tareas',
   'Tasks stay in the rows you dragged them to in the Timeline.': 'Las tareas quedan en las filas donde las arrastraste en el Cronograma.',
   'Automatic order': 'Orden automático',
