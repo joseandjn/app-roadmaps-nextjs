@@ -32,8 +32,11 @@ La parte 1 va primero: es más chica y se nota al instante.
 1. **Fila guardada en la tarea.** `Item.lane?: number` (fila dentro de su
    proyecto, desde 0). Opcional: los datos actuales no cambian y siguen con el
    orden automático hasta que se mueva algo en vertical.
-2. **Soltar sobre una fila ocupada inserta:** la tarea queda donde la soltaste y
-   la que ocupaba esas fechas en esa fila baja una fila.
+2. **Soltar sobre una fila ocupada intercambia:** la tarea queda donde la soltaste
+   y la que ocupaba esas fechas en esa fila pasa a la fila que dejaste.
+   *(Cambiado el 2026-09-29. La regla original, "la que estaba baja una fila", al
+   bajar una tarea solo corría todo el bloque hacia abajo: el orden no cambiaba y
+   quedaba una fila vacía.)*
 3. **Congelar al primer movimiento vertical.** La primera vez que mueves una tarea
    en vertical dentro de un proyecto, todas las tareas visibles de ese proyecto
    guardan la fila en la que se ven. Si no, al fijar una las demás se
@@ -107,7 +110,7 @@ queda en su fila o, si choca, en la siguiente libre; los filtros no dejan huecos
   proyecto (desde `TimelineView`). Mover medio alto de fila o más cambia de fila;
   se puede mover en horizontal y vertical a la vez.
 - Al primer cambio de fila, congela las filas del proyecto (decisión 3); la tarea
-  toma la fila destino y las que chocan en esa fila bajan una (decisión 2). Se
+  toma la fila destino y las que chocan en esa fila pasan a la que dejó (decisión 2). Se
   calcula desde el estado al empezar el arrastre, así ir y volver no acumula
   cambios.
 - Se puede soltar una fila por debajo de la última (fila nueva); no por encima de

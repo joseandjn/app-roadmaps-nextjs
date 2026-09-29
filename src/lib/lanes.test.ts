@@ -71,17 +71,33 @@ describe('moveToLane', () => {
   const list = [item('a', 0, 10), item('b', 0, 10), item('c', 30, 5), item('x', 0, 10, { projectId: 'p2' })]
   const frozen = { a: 0, b: 1, c: 0 }
 
-  it('freezes the project and bumps the item it lands on', () => {
+  it('freezes the project and swaps with the item it lands on', () => {
     const out = Object.fromEntries(moveToLane(list, 'b', 0, frozen).map(i => [i.id, i.lane]))
     assert.deepEqual(out, { a: 1, b: 0, c: 0, x: undefined })
     assert.deepEqual(rows(moveToLane(list, 'b', 0, frozen).filter(i => i.projectId === 'p1')), { b: 0, c: 0, a: 1 })
   })
 
-  it('does not bump items at other dates', () => {
+  it('swaps only items at overlapping dates', () => {
     const out = moveToLane(list, 'a', 1, frozen)
     assert.equal(out.find(i => i.id === 'a')!.lane, 1)
-    assert.equal(out.find(i => i.id === 'b')!.lane, 2) // same dates as a
-    assert.equal(out.find(i => i.id === 'c')!.lane, 0)
+    assert.equal(out.find(i => i.id === 'b')!.lane, 0) // same dates as a: takes a's lane
+    assert.equal(out.find(i => i.id === 'c')!.lane, 0) // other dates: stays
+  })
+
+  // The reported case: moving "tarea 1" down one row onto "Desarrollo Android"
+  // used to push Android (and Backend below it) down, keeping the same order.
+  it('moving down past an item puts that item above, with no gap or cascade', () => {
+    const rows = [item('ios', 0, 9), item('t1', 0, 12), item('android', 0, 9), item('backend', 3, 5)]
+    const shown = { ios: 1, t1: 2, android: 6, backend: 7 }
+    const out = Object.fromEntries(moveToLane(rows, 't1', 6, shown).map(i => [i.id, i.lane]))
+    assert.deepEqual(out, { ios: 1, android: 2, t1: 6, backend: 7 })
+    const order = layoutLanes(moveToLane(rows, 't1', 6, shown), PPD).placed.sort((a, b) => a.row - b.row).map(p => p.it.id)
+    assert.deepEqual(order, ['ios', 'android', 't1', 'backend'])
+  })
+
+  it('dropping back on its own lane changes nothing', () => {
+    const out = moveToLane(list, 'a', 0, frozen)
+    assert.deepEqual(out.map(i => i.lane), [0, 1, 0, undefined])
   })
 
   it('leaves unfrozen, lane-less items alone (hidden by a filter)', () => {
