@@ -53,7 +53,11 @@ sub-rows so overlapping work never overlaps visually.
   item only.
 - **Drag a bar** (grab anywhere on its body) → reschedules the item live
   as you drag, snapped to whole days. **Drag the bar's right edge** →
-  resizes its duration instead. On release, a toast reports how many
+  resizes its duration instead. While dragging, a small chip above the bar
+  shows the change and where it lands ("+3 d · Oct 2 – Oct 25"; with several
+  items, "3 items · +3 d"; when resizing, the new length), and the hover card
+  closes as soon as you press so it doesn't cover the way (it shows again on
+  the next hover). On release, a toast reports how many
   dependency clashes / resource over-allocations the change introduced
   (or "Rescheduled — no conflicts"). Unlike the panel-based edit flow,
   drag changes commit immediately — there's no confirmation step.

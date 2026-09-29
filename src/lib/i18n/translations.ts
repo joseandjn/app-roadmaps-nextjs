@@ -215,6 +215,7 @@ const es: Record<string, string> = {
   // Selection + "Copy to…" (SelectionBar, ContextMenu, CopyToScenarioModal)
   '{n} selected': '{n} seleccionadas',
   'Select with dependents': 'Seleccionar con dependientes',
+  '{n} items · {d}': '{n} tareas · {d}',
   'Everything that depends on this task, down the chain. Tip: ⌥-drag moves them together.': 'Todo lo que depende de esta tarea, en cadena. Atajo: ⌥ + arrastrar las mueve juntas.',
   '{n} items rescheduled · {c} conflicts': '{n} tareas reprogramadas · {c} conflictos',
   '{n} items rescheduled · {c} conflict': '{n} tareas reprogramadas · {c} conflicto',

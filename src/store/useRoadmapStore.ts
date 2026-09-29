@@ -321,6 +321,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     contextMenu: null,
     selectedIds: [],
     copyOpen: false,
+    dragInfo: null,
     showDeps: false,
     filterStartDay: null,
     filterEndDay: null,
@@ -639,6 +640,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
           return {
             items: next,
             draft: d && !d._new && moving.has(d.id) ? { ...d, ...patch(d) } : d,
+            dragInfo: { id, count: moving.size, days: dd, mode },
           }
         })
       }
@@ -646,6 +648,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
         window.removeEventListener('pointermove', move)
         window.removeEventListener('pointerup', up)
         window.removeEventListener('pointercancel', up)
+        if (get().dragInfo) set({ dragInfo: null })
         endGesture(takeSnapshot(get()))
         // Only moved up/down: nothing was rescheduled.
         if (!dragMoved || !daysMoved) return
