@@ -9,11 +9,13 @@ const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'
 const inputCls = 'w-full text-[13px] text-[#27272a] bg-white border border-[#ececec] rounded-lg px-2.5 py-2 font-inherit'
 
 export default function ProjectModal() {
-  const { pform, resources, settings, patchPF, onPSave, onPCancel, onPDelete } = useRoadmapStore()
+  const { pform, resources, settings, items, patchPF, onPSave, onPCancel, onPDelete, resetProjectLanes } = useRoadmapStore()
   const { t } = useTranslation()
   const tasks = projectTaskTemplate(settings)
 
   if (!pform?.show) return null
+  // Rows set by dragging tasks up/down in the Timeline.
+  const manualOrder = !!pform.id && items.some(i => i.projectId === pform.id && i.lane !== undefined)
 
   return (
     <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
@@ -76,6 +78,17 @@ export default function ProjectModal() {
                 </span>
               </span>
             </label>
+          )}
+          {manualOrder && (
+            <div>
+              <div className={labelCls}>{t('Task order')}</div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[12px] text-[#71717a] leading-snug">{t('Tasks stay in the rows you dragged them to in the Timeline.')}</span>
+                <button onClick={() => resetProjectLanes(pform.id!)} className="flex-none border border-[#ececec] text-[#52525b] bg-white rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer font-inherit">
+                  {t('Automatic order')}
+                </button>
+              </div>
+            </div>
           )}
         </div>
 

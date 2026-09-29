@@ -170,7 +170,10 @@ export default function TimelineView() {
   for (const p of visProjects) {
     const list = shown.filter(i => i.projectId === p.id)
     if (dropEmptyLanes && !list.length) continue
-    const { placed, rowCount } = pack(list, ppd)
+    const { placed, rowCount, rowLanes } = pack(list, ppd)
+    // Where each visible item of this project is shown: dragging one up or
+    // down pins them all there (see moveToLane).
+    const shownLanes = Object.fromEntries(placed.map(pl => [pl.it.id, pl.lane]))
     const h = rowCount * ROW + LP * 2
     const owner = resources.find(r => r.id === p.owner)
 
@@ -197,6 +200,7 @@ export default function TimelineView() {
     laneRanges.push({ id: p.id, top: y, height: h })
 
     for (const { it, row } of placed) {
+      const dragRows = (clientY: number) => ({ clientY, rowPx: ROW, row, rowLanes, lanes: shownLanes })
       // skip items fully outside the visible window
       if (it.startDay + it.dur < baseDay || it.startDay > lastDay) continue
       const c = STATUS_CONFIG[it.status]
@@ -216,7 +220,7 @@ export default function TimelineView() {
             data-item-id={it.id}
             style={{ position: 'absolute', left: left - 7, top: topPx, height: BAR_H, display: 'flex', alignItems: 'center', gap: 6, cursor: 'grab', zIndex: sel ? 5 : 2, whiteSpace: 'nowrap', transition: tr, touchAction: 'none', opacity: fade }}
             onClick={() => { if (!didDrag()) openItem(it.id) }}
-            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'move', e.clientX) }}
+            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'move', e.clientX, dragRows(e.clientY)) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}
             onMouseEnter={startHover('item', it.id)}
             onMouseMove={moveHover}
@@ -248,7 +252,7 @@ export default function TimelineView() {
             data-item-id={it.id}
             style={{ position: 'absolute', left, top: topPx, width: w, height: BAR_H, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRadius: 6, background: c.bg, border: `1px solid ${inConflict ? '#d08a8a' : c.bd}`, color: c.fg, fontSize: isEpic ? 12 : 11, fontWeight: isEpic ? 600 : 500, cursor: 'grab', overflow: 'visible', whiteSpace: 'nowrap', boxShadow: sel ? '0 0 0 2px #18181b' : inConflict ? '0 0 0 1.5px #d08a8a' : 'none', zIndex: sel ? 5 : inConflict ? 2 : 1, transition: tr, touchAction: 'none', opacity: fade }}
             onClick={() => { if (!didDrag()) openItem(it.id) }}
-            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'move', e.clientX) }}
+            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'move', e.clientX, dragRows(e.clientY)) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}
             onMouseEnter={startHover('item', it.id)}
             onMouseMove={moveHover}

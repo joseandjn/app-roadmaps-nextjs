@@ -10,6 +10,15 @@ import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapac
 import { t } from '@/lib/i18n/translations'
 import { EMPTY_FILTERS, pruneFilters, currentViewSnapshot, persistedFilters, BUILTIN_VIEWS } from '@/lib/filters'
 import { withInitialEstimate, withCompletion, cleanDescription } from '@/lib/estimates'
+import { laneForRow, moveToLane, clearLanes } from '@/lib/lanes'
+
+export interface DragRows {
+  clientY: number
+  rowPx: number
+  row: number
+  rowLanes: number[]
+  lanes: Record<string, number>
+}
 
 type Store = RoadmapState & {
   // persistence
@@ -72,7 +81,12 @@ type Store = RoadmapState & {
   onSaveItem: () => void
   commitItem: () => void
   onDeleteItem: () => void
-  startDrag: (id: string, mode: 'move' | 'resize', clientX: number) => () => void
+  // `rows` enables moving up/down too (Timeline): where the pointer started,
+  // the row height, the item's visible row, the project's visible row → lane
+  // map and the lane every visible item of the project is shown in.
+  startDrag: (id: string, mode: 'move' | 'resize', clientX: number, rows?: DragRows) => () => void
+  // Back to the automatic row layout for a project's items.
+  resetProjectLanes: (projectId: string) => void
   // projects
   onNewProject: () => void
   editProject: (id: string) => void
@@ -541,6 +555,10 @@ export const useRoadmapStore = create<Store>((set, get) => {
         const c = { ...d } as Partial<Draft>
         const suggested = c._suggested === c.dur
         delete c._deps; delete c._new; delete c._suggested
+        // The panel doesn't edit the row: keep the one the item has now (a
+        // drag while the panel was open may have changed it).
+        const lane = orig ? get().items.find(i => i.id === d.id)?.lane : undefined
+        if (lane !== undefined) c.lane = lane; else delete c.lane
         const description = cleanDescription(c.description)
         if (description) c.description = description; else delete c.description
         if (c.completedDay === undefined) delete c.completedDay
@@ -565,29 +583,40 @@ export const useRoadmapStore = create<Store>((set, get) => {
       }))
       showToast(t('Item deleted'))
     },
-    startDrag: (id, mode, clientX) => {
+    startDrag: (id, mode, clientX, rows) => {
       const { items, deps, pxPerDay } = get()
       const it = items.find(i => i.id === id)!
       const sx = clientX
       const s0 = it.startDay, d0 = it.dur
       const ppd = pxPerDay
+      // The project's items as they were, so each pointer move starts over
+      // from them: going down a row and back up leaves no trace.
+      const before = new Map(items.filter(x => x.projectId === it.projectId).map(x => [x.id, x]))
+      let daysMoved = false
       beginGesture(takeSnapshot(get()))
 
       const move = (ev: PointerEvent) => {
         const dd = Math.round((ev.clientX - sx) / ppd)
-        if (dd !== 0) dragMoved = true
+        const dr = rows && mode === 'move' ? Math.round((ev.clientY - rows.clientY) / rows.rowPx) : 0
+        if (dd !== 0 || dr !== 0) dragMoved = true
+        daysMoved = dd !== 0
         const patch = (x: Item): Item => mode === 'move' ? { ...x, startDay: s0 + dd } : { ...x, dur: Math.max(1, d0 + dd) }
-        set(s => ({
-          items: s.items.map(x => x.id === id ? patch(x) : x),
-          draft: s.draft?.id === id && !s.draft._new ? { ...s.draft, ...patch(s.draft) } : s.draft,
-        }))
+        set(s => {
+          let next = s.items.map(x => x.id === id ? patch(before.get(x.id) ?? x) : before.get(x.id) ?? x)
+          if (rows && dr !== 0) next = moveToLane(next, id, laneForRow(rows.rowLanes, rows.row + dr), rows.lanes)
+          return {
+            items: next,
+            draft: s.draft?.id === id && !s.draft._new ? { ...s.draft, ...patch(s.draft) } : s.draft,
+          }
+        })
       }
       const up = () => {
         window.removeEventListener('pointermove', move)
         window.removeEventListener('pointerup', up)
         window.removeEventListener('pointercancel', up)
         endGesture(takeSnapshot(get()))
-        if (!dragMoved) return
+        // Only moved up/down: nothing was rescheduled.
+        if (!dragMoved || !daysMoved) return
         const it2 = get().items.find(i => i.id === id)!
         const imp = computeImpact({ ...it2, _deps: deps.filter(e => e.from === id).map(e => e.to) }, it2, get().items, deps, get().resources)
         const n = imp.deps.filter(d => d.clash).length + imp.resources.filter(r => r.over).length
@@ -598,6 +627,11 @@ export const useRoadmapStore = create<Store>((set, get) => {
       window.addEventListener('pointerup', up)
       window.addEventListener('pointercancel', up)
       return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up) }
+    },
+
+    resetProjectLanes: projectId => {
+      set(s => ({ items: clearLanes(s.items, projectId) }))
+      showToast(t('Automatic order restored'))
     },
 
     onNewProject: () => set(s => ({
