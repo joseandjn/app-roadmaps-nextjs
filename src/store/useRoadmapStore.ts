@@ -6,7 +6,7 @@ import {
   INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS,
   getTodayDay, SCALE_PRESETS, PROJECT_COLORS,
 } from '@/data/initialData'
-import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded, projectTaskTemplate } from '@/lib/roadmapUtils'
+import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded, projectTaskTemplate, dependencyIssues } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
 import { EMPTY_FILTERS, pruneFilters, currentViewSnapshot, persistedFilters, BUILTIN_VIEWS } from '@/lib/filters'
 import { withInitialEstimate, withCompletion, cleanDescription } from '@/lib/estimates'
@@ -90,7 +90,11 @@ type Store = RoadmapState & {
   // `rows` enables moving up/down too (Timeline): where the pointer started,
   // the row height, the item's visible row, the project's visible row → lane
   // map and the lane every visible item of the project is shown in.
-  startDrag: (id: string, mode: 'move' | 'resize', clientX: number, rows?: DragRows) => () => void
+  // `group` (2+ ids, including `id`): a move shifts all of them by the same
+  // days (selection, or an item with its dependents); rows are left alone.
+  startDrag: (id: string, mode: 'move' | 'resize', clientX: number, rows?: DragRows, group?: string[]) => () => void
+  // Shifts items by `days` (arrow keys on a selection), one undo step each.
+  nudgeItems: (ids: string[], days: number) => void
   // Back to the automatic row layout for a project's items.
   resetProjectLanes: (projectId: string) => void
   // projects
@@ -203,6 +207,15 @@ function computeImpact(draft: Draft, orig: Item | null, items: Item[], deps: Roa
   const pset = new Set<string>([draft.projectId])
   for (const d of depResults) pset.add(d.item.projectId)
   return { deps: depResults, resources, projects: [...pset] }
+}
+
+// Conflicts a multi-item move introduced: dependencies that now clash and
+// people now over their availability, that weren't before.
+function newConflicts(before: Item[], after: Item[], deps: RoadmapState['deps'], people: Resource[]): number {
+  const clashBefore = dependencyIssues(before, deps).conflicted
+  let n = [...dependencyIssues(after, deps).conflicted].filter(id => !clashBefore.has(id)).length
+  for (const p of people) if (isOverloaded(resPeak(p.id, after), p) && !isOverloaded(resPeak(p.id, before), p)) n++
+  return n
 }
 
 // Undo/redo history over the persisted planning data only — UI state (panels,
@@ -596,30 +609,36 @@ export const useRoadmapStore = create<Store>((set, get) => {
       }))
       showToast(t('Item deleted'))
     },
-    startDrag: (id, mode, clientX, rows) => {
+    startDrag: (id, mode, clientX, rows, group) => {
       const { items, deps, pxPerDay } = get()
       const it = items.find(i => i.id === id)!
       const sx = clientX
       const s0 = it.startDay, d0 = it.dur
       const ppd = pxPerDay
-      // The project's items as they were, so each pointer move starts over
-      // from them: going down a row and back up leaves no trace.
-      const before = new Map(items.filter(x => x.projectId === it.projectId).map(x => [x.id, x]))
+      const moving = new Set(mode === 'move' && group && group.length > 1 ? group : [id])
+      const multi = moving.size > 1
+      // The items as they were (the project's, plus any in the group), so
+      // each pointer move starts over from them: going down a row and back
+      // up, or right and back left, leaves no trace.
+      const before = new Map(items.filter(x => x.projectId === it.projectId || moving.has(x.id)).map(x => [x.id, x]))
+      const itemsBefore = items
       let daysMoved = false
       beginGesture(takeSnapshot(get()))
 
       const move = (ev: PointerEvent) => {
         const dd = Math.round((ev.clientX - sx) / ppd)
-        const dr = rows && mode === 'move' ? Math.round((ev.clientY - rows.clientY) / rows.rowPx) : 0
+        // Several items move by date only: rows belong to each project.
+        const dr = rows && mode === 'move' && !multi ? Math.round((ev.clientY - rows.clientY) / rows.rowPx) : 0
         if (dd !== 0 || dr !== 0) dragMoved = true
         daysMoved = dd !== 0
-        const patch = (x: Item): Item => mode === 'move' ? { ...x, startDay: s0 + dd } : { ...x, dur: Math.max(1, d0 + dd) }
+        const patch = (x: Item): Item => mode === 'move' ? { ...x, startDay: (before.get(x.id)?.startDay ?? s0) + dd } : { ...x, dur: Math.max(1, d0 + dd) }
         set(s => {
-          let next = s.items.map(x => x.id === id ? patch(before.get(x.id) ?? x) : before.get(x.id) ?? x)
+          let next = s.items.map(x => moving.has(x.id) ? patch(before.get(x.id) ?? x) : before.get(x.id) ?? x)
           if (rows && dr !== 0) next = moveToLane(next, id, laneForRow(rows.rowLanes, rows.row + dr), rows.lanes)
+          const d = s.draft
           return {
             items: next,
-            draft: s.draft?.id === id && !s.draft._new ? { ...s.draft, ...patch(s.draft) } : s.draft,
+            draft: d && !d._new && moving.has(d.id) ? { ...d, ...patch(d) } : d,
           }
         })
       }
@@ -630,6 +649,13 @@ export const useRoadmapStore = create<Store>((set, get) => {
         endGesture(takeSnapshot(get()))
         // Only moved up/down: nothing was rescheduled.
         if (!dragMoved || !daysMoved) return
+        if (multi) {
+          const c = newConflicts(itemsBefore, get().items, deps, get().resources)
+          showToast(c
+            ? t(c > 1 ? '{n} items rescheduled · {c} conflicts' : '{n} items rescheduled · {c} conflict', { n: moving.size, c })
+            : t('{n} items rescheduled — no conflicts', { n: moving.size }))
+          return
+        }
         const it2 = get().items.find(i => i.id === id)!
         const imp = computeImpact({ ...it2, _deps: deps.filter(e => e.from === id).map(e => e.to) }, it2, get().items, deps, get().resources)
         const n = imp.deps.filter(d => d.clash).length + imp.resources.filter(r => r.over).length
@@ -640,6 +666,15 @@ export const useRoadmapStore = create<Store>((set, get) => {
       window.addEventListener('pointerup', up)
       window.addEventListener('pointercancel', up)
       return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up) }
+    },
+
+    nudgeItems: (ids, days) => {
+      if (!ids.length || !days) return
+      const moving = new Set(ids)
+      set(s => ({
+        items: s.items.map(x => moving.has(x.id) ? { ...x, startDay: x.startDay + days } : x),
+        draft: s.draft && !s.draft._new && moving.has(s.draft.id) ? { ...s.draft, startDay: s.draft.startDay + days } : s.draft,
+      }))
     },
 
     resetProjectLanes: projectId => {

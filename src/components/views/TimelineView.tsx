@@ -12,6 +12,7 @@ import { usePlanEnd } from '@/lib/usePlanEnd'
 import ContextMenu from '@/components/ContextMenu'
 import { itemMatch, hidesItems, DIM_OPACITY } from '@/lib/filters'
 import FilterEmptyState from '@/components/filters/FilterEmptyState'
+import { dependentsOf } from '@/lib/dependents'
 
 const ROW = 32, BAR_H = 22, LP = 14
 const issueBadge: React.CSSProperties = { fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 5, background: '#fdf1e3', color: '#9a5b00', border: '1px solid #f1d3a8' }
@@ -85,6 +86,19 @@ export default function TimelineView() {
   const dropEmptyLanes = hidesItems(filters)
   // Dimmed items (people filter) stay drawn and clickable, just faded.
   const dimmed = useMemo(() => new Set(shown.filter(i => itemMatch(i, fctx) === 'dim').map(i => i.id)), [shown, fctx])
+  // What a drag of `id` moves along with it: with ⌥ (Option), everything
+  // that depends on it down the chain; if it's in a selection of two or more
+  // shown items, those. Otherwise nothing: it moves alone.
+  const shownIds = useMemo(() => new Set(shown.map(i => i.id)), [shown])
+  const dragGroup = (e: React.PointerEvent, id: string): string[] | undefined => {
+    if (e.altKey) {
+      const chain = dependentsOf(deps, id)
+      return chain.length ? [id, ...chain] : undefined
+    }
+    if (!picked.has(id)) return undefined
+    const visibleSel = selectedIds.filter(x => shownIds.has(x))
+    return visibleSel.length > 1 ? visibleSel : undefined
+  }
   const tr = _tr ? 'left .42s cubic-bezier(.4,0,.2,1),top .42s cubic-bezier(.4,0,.2,1),width .42s cubic-bezier(.4,0,.2,1)' : 'none'
 
   const syncViewport = useCallback(() => {
@@ -237,7 +251,7 @@ export default function TimelineView() {
             style={{ position: 'absolute', left: left - 7, top: topPx, height: BAR_H, display: 'flex', alignItems: 'center', gap: 6, cursor: 'grab', zIndex: sel ? 5 : 2, whiteSpace: 'nowrap', transition: tr, touchAction: 'none', opacity: fade }}
             onClick={onBarClick(it.id)}
             onDoubleClick={onBarDoubleClick(it.id)}
-            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); if (!multi(e)) startDrag(it.id, 'move', e.clientX, dragRows(e.clientY)) }}
+            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); if (!multi(e)) startDrag(it.id, 'move', e.clientX, dragRows(e.clientY), dragGroup(e, it.id)) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}
             onMouseEnter={startHover('item', it.id)}
             onMouseMove={moveHover}
@@ -270,7 +284,7 @@ export default function TimelineView() {
             style={{ position: 'absolute', left, top: topPx, width: w, height: BAR_H, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRadius: 6, background: c.bg, border: `1px solid ${inConflict ? '#d08a8a' : c.bd}`, color: c.fg, fontSize: isEpic ? 12 : 11, fontWeight: isEpic ? 600 : 500, cursor: 'grab', overflow: 'visible', whiteSpace: 'nowrap', boxShadow: ring ?? (inConflict ? '0 0 0 1.5px #d08a8a' : 'none'), zIndex: sel ? 5 : isPicked ? 3 : inConflict ? 2 : 1, transition: tr, touchAction: 'none', opacity: fade }}
             onClick={onBarClick(it.id)}
             onDoubleClick={onBarDoubleClick(it.id)}
-            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); if (!multi(e)) startDrag(it.id, 'move', e.clientX, dragRows(e.clientY)) }}
+            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); if (!multi(e)) startDrag(it.id, 'move', e.clientX, dragRows(e.clientY), dragGroup(e, it.id)) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}
             onMouseEnter={startHover('item', it.id)}
             onMouseMove={moveHover}

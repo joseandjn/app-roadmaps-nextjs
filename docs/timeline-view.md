@@ -41,6 +41,16 @@ sub-rows so overlapping work never overlaps visually.
   (see `docs/persistence.md`); a single item can be copied from its
   right-click menu. The hover card still shows an item's details without
   opening anything.
+- **Moving several items** (`docs/multi-move-backlog.md`): dragging an item
+  that's in a selection of two or more moves all the selected items the
+  filters show by the same days (dates only, even across projects).
+  **⌥ (Option)-drag** moves an item with everything that depends on it down
+  the chain; its right-click menu also has "Select with dependents". With a
+  selection, **← / →** move it a day and **Shift + ← / →** a week. Each drag
+  or key press is one undo step; the toast counts the items moved and the new
+  conflicts (clashing dependencies, people now over their availability).
+  Dragging an item outside the selection, or resizing, still affects that
+  item only.
 - **Drag a bar** (grab anywhere on its body) → reschedules the item live
   as you drag, snapped to whole days. **Drag the bar's right edge** →
   resizes its duration instead. On release, a toast reports how many

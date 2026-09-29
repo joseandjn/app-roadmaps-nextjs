@@ -214,6 +214,11 @@ const es: Record<string, string> = {
   'Automatic order restored': 'Se restableció el orden automático',
   // Selection + "Copy to…" (SelectionBar, ContextMenu, CopyToScenarioModal)
   '{n} selected': '{n} seleccionadas',
+  'Select with dependents': 'Seleccionar con dependientes',
+  'Everything that depends on this task, down the chain. Tip: ⌥-drag moves them together.': 'Todo lo que depende de esta tarea, en cadena. Atajo: ⌥ + arrastrar las mueve juntas.',
+  '{n} items rescheduled · {c} conflicts': '{n} tareas reprogramadas · {c} conflictos',
+  '{n} items rescheduled · {c} conflict': '{n} tareas reprogramadas · {c} conflicto',
+  '{n} items rescheduled — no conflicts': '{n} tareas reprogramadas, sin conflictos',
   '1 task selected': '1 seleccionada',
   'Copy 1 task to…': 'Copiar 1 tarea a…',
   '1 new task': '1 tarea nueva',

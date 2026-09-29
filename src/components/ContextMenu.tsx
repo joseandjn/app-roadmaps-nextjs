@@ -6,6 +6,7 @@ import { useTranslation } from '@/lib/i18n/useTranslation'
 import { fmtDate, addDays } from '@/lib/roadmapUtils'
 import { useFilterContext } from '@/lib/useFilterContext'
 import { itemMatch } from '@/lib/filters'
+import { dependentsOf } from '@/lib/dependents'
 import type { ItemType } from '@/types'
 
 const CREATE_OPTIONS: { type: ItemType; label: string }[] = [
@@ -18,7 +19,7 @@ const CREATE_OPTIONS: { type: ItemType; label: string }[] = [
 const MENU_W = 210
 
 export default function ContextMenu() {
-  const { contextMenu, closeContextMenu, openItem, newItemAt, duplicateItem, deleteItemById, setFilters, items, selectedIds, toggleSelected, setSelected, openCopy } = useRoadmapStore()
+  const { contextMenu, closeContextMenu, openItem, newItemAt, duplicateItem, deleteItemById, setFilters, items, deps, selectedIds, toggleSelected, setSelected, openCopy } = useRoadmapStore()
   const fctx = useFilterContext()
   const ref = useRef<HTMLDivElement>(null)
   const { t } = useTranslation()
@@ -64,6 +65,12 @@ export default function ContextMenu() {
           <button className={itemBtn} onClick={() => { toggleSelected(itemId); closeContextMenu() }}>
             {selectedIds.includes(itemId) ? t('Remove from selection') : t('Add to selection')}
           </button>
+          {dependentsOf(deps, itemId).length > 0 && (
+            <button className={itemBtn} title={t('Everything that depends on this task, down the chain. Tip: ⌥-drag moves them together.')}
+              onClick={() => { setSelected([itemId, ...dependentsOf(deps, itemId)]); closeContextMenu() }}>
+              {t('Select with dependents')}
+            </button>
+          )}
           {selectedIds.includes(itemId)
             ? <button className={itemBtn} onClick={openCopy}>{selectedIds.length > 1 ? t('Copy selection to…') : t('Copy to…')}</button>
             : <button className={itemBtn} onClick={() => { setSelected([itemId]); openCopy() }}>{t('Copy to…')}</button>}
