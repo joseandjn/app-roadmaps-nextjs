@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { fmtDate, addDays } from '@/lib/roadmapUtils'
+import { useFilterContext } from '@/lib/useFilterContext'
+import { itemMatch } from '@/lib/filters'
 import type { ItemType } from '@/types'
 
 const CREATE_OPTIONS: { type: ItemType; label: string }[] = [
@@ -16,7 +18,8 @@ const CREATE_OPTIONS: { type: ItemType; label: string }[] = [
 const MENU_W = 210
 
 export default function ContextMenu() {
-  const { contextMenu, closeContextMenu, openItem, newItemAt, duplicateItem, deleteItemById, setFilters } = useRoadmapStore()
+  const { contextMenu, closeContextMenu, openItem, newItemAt, duplicateItem, deleteItemById, setFilters, items, selectedIds, toggleSelected, setSelected, openCopy } = useRoadmapStore()
+  const fctx = useFilterContext()
   const ref = useRef<HTMLDivElement>(null)
   const { t } = useTranslation()
 
@@ -58,6 +61,11 @@ export default function ContextMenu() {
           <button className={itemBtn} onClick={() => { duplicateItem(itemId); closeContextMenu() }}>{t('Duplicate')}</button>
           <button className={itemBtn} onClick={() => { setFilters({ focusItemId: itemId }); closeContextMenu() }}>{t('Show dependency path')}</button>
           <div className="h-px bg-[#f1f1f1] my-1.5 mx-2" />
+          <button className={itemBtn} onClick={() => { toggleSelected(itemId); closeContextMenu() }}>
+            {selectedIds.includes(itemId) ? t('Remove from selection') : t('Add to selection')}
+          </button>
+          {selectedIds.length > 0 && <button className={itemBtn} onClick={openCopy}>{t('Copy selection to…')}</button>}
+          <div className="h-px bg-[#f1f1f1] my-1.5 mx-2" />
           <button className={dangerBtn} onClick={() => { deleteItemById(itemId); closeContextMenu() }}>{t('Delete')}</button>
         </>
       ) : (
@@ -68,6 +76,14 @@ export default function ContextMenu() {
               {t(label)}
             </button>
           ))}
+          <div className="h-px bg-[#f1f1f1] my-1.5 mx-2" />
+          <button className={itemBtn} onClick={() => {
+            // The project's items the filters show, added to the selection.
+            const ids = items.filter(i => i.projectId === projectId && itemMatch(i, fctx) !== 'hide').map(i => i.id)
+            setSelected([...selectedIds, ...ids])
+            closeContextMenu()
+          }}>{t('Select project tasks')}</button>
+          {selectedIds.length > 0 && <button className={itemBtn} onClick={openCopy}>{t('Copy selection to…')}</button>}
         </>
       )}
     </div>

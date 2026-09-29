@@ -268,6 +268,10 @@ export interface RoadmapState {
   resSel: string | null
   cell: { rid: string; bIdx: number; bucket: { s: number; d: number; label: string } } | null
   contextMenu: { x: number; y: number; projectId: string; day: number; itemId: string | null } | null
+  // Items picked with Cmd/Ctrl/Shift-click in the Timeline, for "Copy to…".
+  // UI only: not saved, not in undo, cleared on scenario switch.
+  selectedIds: string[]
+  copyOpen: boolean
   showDeps: boolean
   filterStartDay: number | null
   filterEndDay: number | null

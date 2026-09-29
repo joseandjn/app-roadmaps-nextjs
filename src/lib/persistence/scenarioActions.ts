@@ -25,6 +25,8 @@ export async function refreshScenarioList(): Promise<void> {
 export async function switchScenario(id: string): Promise<void> {
   await flushSave()
   if (!(await loadScenario(id))) return
+  // A selection belongs to the scenario it was made in.
+  if (useRoadmapStore.getState().activeScenarioId !== id) useRoadmapStore.getState().clearSelected()
   useRoadmapStore.getState().setActiveScenarioId(id)
   saveView(id)
 }

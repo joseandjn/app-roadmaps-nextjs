@@ -12,7 +12,7 @@ sin volver a investigar.
 
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 >
-> **Estado general:** parte 1 (O1–O4) hecha el 2026-09-29; sigue la parte 2. Plan armado el 2026-09-29 sobre `main` en `6dcbbed`.
+> **Estado general:** parte 1 (O1–O4) y parte 2 (S1–S5) hechas el 2026-09-29. Plan armado el 2026-09-29 sobre `main` en `6dcbbed`.
 
 ---
 
@@ -147,7 +147,7 @@ de al lado); queda guardada en su fila y se ve una más abajo mientras choque.
 
 ## Parte 2 · Copiar a otro roadmap
 
-### S1 · Selección múltiple `[ ]`
+### S1 · Selección múltiple `[x]`
 
 - Cmd/Ctrl + clic o Shift + clic en una barra la agrega o quita de la selección
   (sin abrir el panel). "Seleccionar tareas" en el menú contextual del proyecto
@@ -159,7 +159,7 @@ de al lado); queda guardada en su fila y se ve una más abajo mientras choque.
 abriendo el panel.
 **Estimado:** 1 día.
 
-### S2 · Copia en el servidor `[ ]`
+### S2 · Copia en el servidor `[x]`
 
 - `POST /api/scenarios/[id]/import` con `{ items, deps, projects, resources, roles, sourceName }`,
   dentro de la cola de escritura del destino:
@@ -175,7 +175,7 @@ abriendo el panel.
 checkpoint permite volver atrás; una escritura concurrente no se pierde.
 **Estimado:** 1 día.
 
-### S3 · Diálogo "Copiar a…" `[ ]`
+### S3 · Diálogo "Copiar a…" `[x]`
 
 - Lista de escenarios (sin el actual). Al elegir uno, un resumen calculado con el
   mismo módulo de S2: "3 nuevas, 1 se reemplaza, 1 proyecto y 2 personas se
@@ -185,7 +185,7 @@ checkpoint permite volver atrás; una escritura concurrente no se pierde.
 **Criterios:** el resumen coincide con lo que se aplica; errores con aviso claro.
 **Estimado:** 1 día.
 
-### S4 · Recibir la copia en otra pestaña `[ ]`
+### S4 · Recibir la copia en otra pestaña `[x]`
 
 - Si el destino está abierto en otra pestaña, recibe los cambios con el mecanismo
   de siempre (revisión al enfocar / aviso). Verificar que no se pierde nada si esa
@@ -193,7 +193,7 @@ checkpoint permite volver atrás; una escritura concurrente no se pierde.
 
 **Estimado:** 0,25 día.
 
-### S5 · Pruebas y documentación `[ ]`
+### S5 · Pruebas y documentación `[x]`
 
 - Probar sobre una copia de los datos: tareas nuevas, existentes, con proyecto
   nuevo, con personas nuevas, con dependencias hacia afuera; restaurar el
@@ -201,6 +201,20 @@ checkpoint permite volver atrás; una escritura concurrente no se pierde.
 - Actualizar `docs/persistence.md` y este backlog.
 
 **Estimado:** 0,5 día.
+
+**Cómo quedó (parte 2):** `src/lib/scenarioCopy.ts` (tests en `scenarioCopy.test.ts`),
+`src/app/api/scenarios/[id]/import/route.ts`, `src/lib/persistence/copyActions.ts`,
+`src/components/SelectionBar.tsx`, `src/components/modals/CopyToScenarioModal.tsx`,
+la selección en el store y en el menú contextual. Diferencias con lo planeado:
+- Las dependencias que viajan son el "Depende de" de cada tarea copiada (no las
+  de otras tareas hacia ella); en el destino reemplazan las de esa tarea.
+- La fila guardada (`lane`) viaja con la tarea.
+- S4: la pestaña que copia avisa por `BroadcastChannel` la nueva revisión del
+  destino; no se probó a mano con dos pestañas (el mecanismo es el mismo que el
+  de los guardados normales).
+- Probado sobre una copia de los datos: seleccionar con Cmd+clic y desde el menú,
+  vista previa con destinos distintos (con y sin el proyecto), copia con una tarea
+  nueva y una reemplazada, checkpoint creado, "Ir a…" y Esc.
 
 ---
 
