@@ -32,9 +32,15 @@ sub-rows so overlapping work never overlaps visually.
 
 ### How you interact with it
 
-- **Click a bar or milestone** → opens the item editor in `RightPanel`
-  (`openItem`). The selected item's bar gets a highlighted outline for as
-  long as the panel is open.
+- **Click a bar or milestone** → selects it (blue outline); nothing opens.
+  **Double-click** it, or press **Enter** with one item selected, → opens the
+  item editor in `RightPanel` (`openItem`); the edited item's bar gets a dark
+  outline for as long as the panel is open. **Cmd/Ctrl/Shift-click** adds an
+  item to or removes it from the selection; clicking empty canvas or **Esc**
+  clears it. With two or more selected, a floating bar offers "Copy to…"
+  (see `docs/persistence.md`); a single item can be copied from its
+  right-click menu. The hover card still shows an item's details without
+  opening anything.
 - **Drag a bar** (grab anywhere on its body) → reschedules the item live
   as you drag, snapped to whole days. **Drag the bar's right edge** →
   resizes its duration instead. On release, a toast reports how many

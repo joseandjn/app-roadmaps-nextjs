@@ -40,10 +40,11 @@ path focus and the text search.
 
 ### Copying tasks to another scenario
 
-- In the Timeline, **Cmd/Ctrl/Shift-click** bars to select them (they get a
-  blue outline), or right-click a lane → "Select project tasks" (the ones
-  the filters show). A floating bar shows "N selected · Copy to… · Clear";
-  Esc clears. The selection isn't saved, isn't part of undo, and is cleared
+- In the Timeline, a click selects a bar and **Cmd/Ctrl/Shift-click** adds
+  more (they get a blue outline), or right-click a lane → "Select project
+  tasks" (the ones the filters show). With two or more selected, a floating
+  bar shows "N selected · Copy to… · Clear"; a single item has "Copy to…" in
+  its right-click menu. Esc or a click on empty canvas clears. The selection isn't saved, isn't part of undo, and is cleared
   when switching scenarios.
 - **Copy to…** lists the other scenarios. Picking one shows what the copy
   will do there, computed from that scenario's saved data: new tasks, tasks

@@ -64,7 +64,9 @@ export default function ContextMenu() {
           <button className={itemBtn} onClick={() => { toggleSelected(itemId); closeContextMenu() }}>
             {selectedIds.includes(itemId) ? t('Remove from selection') : t('Add to selection')}
           </button>
-          {selectedIds.length > 0 && <button className={itemBtn} onClick={openCopy}>{t('Copy selection to…')}</button>}
+          {selectedIds.includes(itemId)
+            ? <button className={itemBtn} onClick={openCopy}>{selectedIds.length > 1 ? t('Copy selection to…') : t('Copy to…')}</button>
+            : <button className={itemBtn} onClick={() => { setSelected([itemId]); openCopy() }}>{t('Copy to…')}</button>}
           <div className="h-px bg-[#f1f1f1] my-1.5 mx-2" />
           <button className={dangerBtn} onClick={() => { deleteItemById(itemId); closeContextMenu() }}>{t('Delete')}</button>
         </>
