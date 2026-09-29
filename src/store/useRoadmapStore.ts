@@ -55,7 +55,10 @@ type Store = RoadmapState & {
   // Moves the bar's end to the completion day.
   fitDraftToCompletion: () => void
   // Adds an estimate to the draft's history; `apply` also resizes the bar to it.
-  reestimateDraft: (dur: number, reason: string, apply: boolean) => void
+  reestimateDraft: (dur: number, reason: string, apply: boolean, source?: 'assistant') => void
+  // Takes the assistant's suggested duration: a new item is resized to it (its
+  // initial estimate is recorded on create), an existing one is re-estimated.
+  applySuggestedDuration: (dur: number, reason: string) => void
   onDraftType: (v: string) => void
   onAddDraftRequiredRole: (role: string) => void
   onRemoveDraftRequiredRole: (role: string) => void
@@ -459,12 +462,18 @@ export const useRoadmapStore = create<Store>((set, get) => {
       if (d.completedDay === undefined || d.type === 'milestone' || d.type === 'release') return
       get().patchDraft({ dur: Math.max(1, d.completedDay - d.startDay) })
     },
-    reestimateDraft: (dur, reason, apply) => {
+    reestimateDraft: (dur, reason, apply, source) => {
       const d = get().draft!
       const n = Math.max(1, Math.round(dur))
       const r = reason.trim()
-      const estimates = [...(d.estimates ?? []), { dur: n, at: new Date().toISOString(), ...(r && { reason: r }) }]
+      const estimates = [...(d.estimates ?? []), { dur: n, at: new Date().toISOString(), ...(r && { reason: r }), ...(source && { source }) }]
       get().patchDraft(apply ? { estimates, dur: n } : { estimates })
+    },
+    applySuggestedDuration: (dur, reason) => {
+      const d = get().draft!
+      const n = Math.max(1, Math.round(dur))
+      if (d._new) get().patchDraft({ dur: n, _suggested: n })
+      else get().reestimateDraft(n, reason, true, 'assistant')
     },
     // Empty option means "any role" — stored as undefined, not ''.
     onAddDraftRequiredRole: role => {
@@ -530,12 +539,15 @@ export const useRoadmapStore = create<Store>((set, get) => {
       const { draft, orig } = impact
       const clean = (d: Draft): Item => {
         const c = { ...d } as Partial<Draft>
-        delete c._deps; delete c._new
+        const suggested = c._suggested === c.dur
+        delete c._deps; delete c._new; delete c._suggested
         const description = cleanDescription(c.description)
         if (description) c.description = description; else delete c.description
         if (c.completedDay === undefined) delete c.completedDay
         const it = withCompletion(orig, c as Item, getTodayDay())
-        return orig ? it : withInitialEstimate(it, new Date().toISOString())
+        if (orig) return it
+        const created = withInitialEstimate(it, new Date().toISOString())
+        return suggested && created.estimates ? { ...created, estimates: [{ ...created.estimates[0], source: 'assistant' as const }] } : created
       }
       const items = orig ? get().items.map(i => i.id === draft.id ? clean(draft) : i) : [...get().items, clean(draft)]
       let deps = get().deps.filter(e => e.from !== draft.id)

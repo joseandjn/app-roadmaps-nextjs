@@ -194,6 +194,18 @@ const es: Record<string, string> = {
   'Move the bar end to this date': 'Mover el fin de la barra a esta fecha',
   'The completion date is before the start.': 'La fecha de cierre es anterior al inicio.',
   'Add closing notes to the description: what went differently than planned.': 'Agrega notas al cerrar en la descripción: qué salió distinto de lo planeado.',
+  // ItemEstimates — "Suggest duration" assistant
+  'Suggest duration': 'Sugerir duración',
+  'Thinking…': 'Pensando…',
+  'range {a}–{b} d': 'rango {a}–{b} d',
+  'Based on': 'Basado en',
+  '{n} finished tasks considered · {model}': '{n} tareas terminadas consideradas · {model}',
+  'Dismiss': 'Descartar',
+  'Use {n} d': 'Usar {n} d',
+  'Suggested by the assistant': 'Sugerido por el asistente',
+  'Could not get a suggestion': 'No se pudo obtener una sugerencia',
+  'No finished tasks with an actual duration yet: close a few tasks first.': 'Todavía no hay tareas terminadas con duración real: primero cierra algunas.',
+  'No LLM is configured (see LLM_PROVIDER in .env).': 'No hay un LLM configurado (ver LLM_PROVIDER en .env).',
   // KnowledgeSettings — estimation knowledge base export
   'Estimation knowledge base': 'Base de conocimiento de estimaciones',
   'Finished tasks of the official scenario with their description, estimates, actual duration and dependencies.': 'Tareas terminadas del escenario oficial con su descripción, estimaciones, duración real y dependencias.',

@@ -8,7 +8,8 @@ volver a investigar.
 
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 >
-> **Estado general:** fase A (K1–K5) y fase B (K6) hechas el 2026-09-28; sigue D1 antes de la fase C. Plan armado el 2026-09-28 sobre `main` en `7c5d4fa`.
+> **Estado general:** K1–K7 hechas el 2026-09-28. D1 se saltó a pedido (el asistente se construyó con datos
+> simulados); K8 espera a que haya tareas terminadas reales para medir. Plan armado el 2026-09-28 sobre `main` en `7c5d4fa`.
 > Las decisiones 1–9 se tomaron con la recomendación de cada una.
 
 ---
@@ -280,7 +281,23 @@ feriados y `countWeekends`.
 
 ## Fase C · Asistente de estimación
 
-### K7 · Sugerir duración `[ ]`
+### K7 · Sugerir duración `[x]`
+
+**Cómo quedó:** `src/lib/estimator.ts` (ranking de similares + prompt + validación
+de la respuesta; tests con un LLM falso en `src/lib/estimator.test.ts`),
+`src/app/api/estimate/route.ts` (errores con `code`: `bad_request`, `no_history`,
+`no_llm`, `llm_failed`), `src/lib/requestEstimate.ts` y el bloque "Sugerir
+duración" en `src/components/ItemEstimates.tsx`. Diferencias con lo planeado:
+- La historia incluye también las tareas terminadas **sin** estimación: para
+  sugerir importa su duración real. Se mandan las 25 más parecidas.
+- Las referencias no abren la tarea: abrirla descartaría lo que se está editando.
+- `Estimate.source = 'assistant'` marca las estimaciones que vienen del
+  asistente (en una tarea nueva, solo si al crearla la duración sigue siendo la
+  sugerida), para que K8 pueda comparar asistente contra estimación a mano. El
+  export (K6) lo incluye.
+- Probado de punta a punta con Ollama `qwen2.5` (7B, ~10 s): rango y referencias
+  correctas, pero los "por qué" son repetitivos. Con Claude (`LLM_PROVIDER=anthropic`)
+  deberían ser mejores.
 
 - `POST /api/estimate` con la tarea en edición (título, descripción, tipo, roles,
   proyecto). El servidor:
@@ -305,6 +322,9 @@ muestra un aviso sin romper el editor.
 **Estimado:** 2–3 días.
 
 ### K8 · Medir si el asistente ayuda `[ ]`
+
+Espera datos reales (ver D1). `suggestEstimate` ya acepta `id` para dejar afuera la
+tarea que se está evaluando.
 
 - Prueba "dejando una afuera": para cada tarea terminada, pedir la sugerencia
   usando solo las demás y comparar contra su duración real. Comparar el error con

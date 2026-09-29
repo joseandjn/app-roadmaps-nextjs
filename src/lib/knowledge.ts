@@ -27,7 +27,7 @@ export interface KnowledgeRecord {
   description: string | null
   requiredRoles: string[]
   assignees: { role: string; pct: number }[]
-  estimates: { days: number; date: string; reason?: string }[] // calendar days, oldest first
+  estimates: { days: number; date: string; reason?: string; source?: 'assistant' }[] // calendar days, oldest first
   start: string
   completed: string
   actual: { calendarDays: number; workingDays: number; personDays: number }
@@ -89,7 +89,7 @@ export function buildKnowledge(data: ScenarioData, originIso: string, opts: Know
       description: it.description ?? null,
       requiredRoles: it.requiredRoles ?? [],
       assignees: it.assignments.map(a => ({ role: roleOf.get(a.r) ?? '', pct: a.pct })),
-      estimates: (it.estimates ?? []).map(e => ({ days: e.dur, date: e.at.slice(0, 10), ...(e.reason && { reason: e.reason }) })),
+      estimates: (it.estimates ?? []).map(e => ({ days: e.dur, date: e.at.slice(0, 10), ...(e.reason && { reason: e.reason }), ...(e.source && { source: e.source }) })),
       start: cal.toIso(it.startDay),
       completed: cal.toIso(it.completedDay),
       actual: {
