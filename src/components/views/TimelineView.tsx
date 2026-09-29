@@ -23,7 +23,7 @@ const HEADER_H = 54 + SPRINT_ROW_H
 export default function TimelineView() {
   const {
     pxPerDay, projects, items, deps, sprints, visible, filters, draft, settings, resources, roles,
-    showDeps, _tr, filterStartDay, filterEndDay, setViewport, openItem, editProject, startDrag, addDependency, selectedIds, toggleSelected, setSelected, clearSelected,
+    showDeps, _tr, filterStartDay, filterEndDay, setViewport, openItem, editProject, startDrag, addDependency, selectedIds, toggleSelected, setSelected, clearSelected, dragInfo,
     openContextMenu, editSprint, onNewSprint, startSprintDrag,
   } = useRoadmapStore()
   const { t } = useTranslation()
@@ -44,7 +44,13 @@ export default function TimelineView() {
   const [hoverCard, setHoverCard] = useState<{ x: number; y: number; kind: 'item' | 'project'; id: string } | null>(null)
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current) }, [])
+  // Pressing on a bar closes the card and keeps it closed until the button
+  // is released: during a drag the pointer stays on the bar, so the card would
+  // follow it and cover where the bar is going. It shows again on the next
+  // hover.
+  const hoverBlockedRef = useRef(false)
   const startHover = useCallback((kind: 'item' | 'project', id: string) => (e: React.MouseEvent) => {
+    if (hoverBlockedRef.current) return
     const x = e.clientX, y = e.clientY
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
     hoverTimerRef.current = setTimeout(() => setHoverCard({ x, y, kind, id }), 350)
@@ -56,6 +62,13 @@ export default function TimelineView() {
     if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null }
     setHoverCard(null)
   }, [])
+  const blockHoverUntilRelease = useCallback(() => {
+    endHover()
+    hoverBlockedRef.current = true
+    const release = () => { hoverBlockedRef.current = false; window.removeEventListener('pointerup', release); window.removeEventListener('pointercancel', release) }
+    window.addEventListener('pointerup', release)
+    window.addEventListener('pointercancel', release)
+  }, [endHover])
   const si = deriveScale(pxPerDay)
   const ppd = pxPerDay
 
@@ -251,7 +264,7 @@ export default function TimelineView() {
             style={{ position: 'absolute', left: left - 7, top: topPx, height: BAR_H, display: 'flex', alignItems: 'center', gap: 6, cursor: 'grab', zIndex: sel ? 5 : 2, whiteSpace: 'nowrap', transition: tr, touchAction: 'none', opacity: fade }}
             onClick={onBarClick(it.id)}
             onDoubleClick={onBarDoubleClick(it.id)}
-            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); if (!multi(e)) startDrag(it.id, 'move', e.clientX, dragRows(e.clientY), dragGroup(e, it.id)) }}
+            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); blockHoverUntilRelease(); if (!multi(e)) startDrag(it.id, 'move', e.clientX, dragRows(e.clientY), dragGroup(e, it.id)) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}
             onMouseEnter={startHover('item', it.id)}
             onMouseMove={moveHover}
@@ -284,7 +297,7 @@ export default function TimelineView() {
             style={{ position: 'absolute', left, top: topPx, width: w, height: BAR_H, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRadius: 6, background: c.bg, border: `1px solid ${inConflict ? '#d08a8a' : c.bd}`, color: c.fg, fontSize: isEpic ? 12 : 11, fontWeight: isEpic ? 600 : 500, cursor: 'grab', overflow: 'visible', whiteSpace: 'nowrap', boxShadow: ring ?? (inConflict ? '0 0 0 1.5px #d08a8a' : 'none'), zIndex: sel ? 5 : isPicked ? 3 : inConflict ? 2 : 1, transition: tr, touchAction: 'none', opacity: fade }}
             onClick={onBarClick(it.id)}
             onDoubleClick={onBarDoubleClick(it.id)}
-            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); if (!multi(e)) startDrag(it.id, 'move', e.clientX, dragRows(e.clientY), dragGroup(e, it.id)) }}
+            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); blockHoverUntilRelease(); if (!multi(e)) startDrag(it.id, 'move', e.clientX, dragRows(e.clientY), dragGroup(e, it.id)) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}
             onMouseEnter={startHover('item', it.id)}
             onMouseMove={moveHover}
@@ -306,7 +319,7 @@ export default function TimelineView() {
             )}
             <div
               style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 7, cursor: 'ew-resize', zIndex: 3, touchAction: 'none' }}
-              onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'resize', e.clientX) }}
+              onPointerDown={e => { e.stopPropagation(); e.preventDefault(); blockHoverUntilRelease(); startDrag(it.id, 'resize', e.clientX) }}
             />
             {showDeps && (
               <div
@@ -322,6 +335,26 @@ export default function TimelineView() {
 
     y += h
     gi++
+  }
+
+  // Live chip above the bar being dragged: the change in days and where it
+  // lands (with several items, how many move). Nothing for an up/down-only move.
+  let dragChip: React.ReactElement | null = null
+  const dragged = dragInfo ? items.find(i => i.id === dragInfo.id) : null
+  const at = dragInfo ? pos[dragInfo.id] : null
+  if (dragInfo && dragged && at && (dragInfo.days !== 0 || dragInfo.mode === 'resize')) {
+    const signed = t('{n} d', { n: `${dragInfo.days > 0 ? '+' : ''}${dragInfo.days}` })
+    const instant = dragged.type === 'milestone' || dragged.type === 'release'
+    const dates = instant ? fmtDate(addDays(dragged.startDay)) : `${fmtDate(addDays(dragged.startDay))} – ${fmtDate(addDays(dragged.startDay + dragged.dur))}`
+    const text = dragInfo.count > 1 ? t('{n} items · {d}', { n: dragInfo.count, d: signed })
+      : dragInfo.mode === 'resize' ? `${t('{n} d', { n: dragged.dur })} · ${dates}`
+      : `${signed} · ${dates}`
+    const above = at.y - BAR_H / 2 - 26
+    dragChip = (
+      <div style={{ position: 'absolute', left: Math.max(0, at.x), top: above >= 2 ? above : at.y + BAR_H / 2 + 4, zIndex: 20, pointerEvents: 'none', background: '#18181b', color: '#fff', fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.18)', fontVariantNumeric: 'tabular-nums' }}>
+        {text}
+      </div>
+    )
   }
 
   const canvasHeight = Math.max(y, 240)
@@ -578,6 +611,7 @@ export default function TimelineView() {
           {/* Today line */}
           {todayX !== null && <div style={{ position: 'absolute', left: todayX, top: 0, width: 1, height: canvasHeight, background: '#ef4444', opacity: 0.5, zIndex: 2 }} />}
           {bars}
+          {dragChip}
           {drawDeps && (
             <svg style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', zIndex: 1, overflow: 'visible' }} width={totalWidth} height={canvasHeight}>
               <defs>
