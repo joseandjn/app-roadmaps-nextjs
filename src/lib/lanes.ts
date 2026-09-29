@@ -79,18 +79,22 @@ const daysOverlap = (a: Item, b: Item) => a.startDay < b.startDay + Math.max(1, 
 // Moves item `id` to `lane` within its project. `frozen` is the lane every
 // visible item of that project is shown in: they all keep it, so pinning one
 // item doesn't reshuffle the rest. Items already in that lane at overlapping
-// dates move one lane down; the moved item keeps the spot it was dropped on.
+// dates swap places with it: they take the lane the moved item left, so
+// moving down past an item puts that item above it (and moving up, below),
+// with no gap left behind and nothing else pushed around.
 export function moveToLane(items: Item[], id: string, lane: number, frozen: Record<string, number>): Item[] {
   const moved = items.find(i => i.id === id)
   if (!moved) return items
   const target = { ...moved, lane: Math.max(0, lane) }
+  const origin = frozen[id] ?? moved.lane
   return items.map(it => {
     if (it.id === id) return target
     if (it.projectId !== moved.projectId) return it
     const current = frozen[it.id] ?? it.lane
     if (current === undefined) return it
-    const bumped = current === target.lane && daysOverlap(it, target)
-    const next = bumped ? current + 1 : current
+    const displaced = current === target.lane && current !== origin && daysOverlap(it, target)
+    // Without a known origin (not shown when the drag began), fall back to the next lane down.
+    const next = displaced ? origin ?? current + 1 : current
     return next === it.lane ? it : { ...it, lane: next }
   })
 }

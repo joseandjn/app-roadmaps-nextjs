@@ -50,8 +50,9 @@ sub-rows so overlapping work never overlaps visually.
 - **Drag a bar or milestone up or down** → moves it to another row of its
   project (half a row of movement or more; it can move sideways in the same
   gesture). The row is saved and survives reloads. Dropping on a row that
-  already has something at those dates puts your item there and moves that
-  one down a row. The first time you do this in a project, every visible item
+  already has something at those dates swaps them: that item takes the row
+  yours left, so moving a task down past another puts that one above it (and
+  moving up, below), with no gap and nothing else pushed around. The first time you do this in a project, every visible item
   of that project keeps the row it's shown in, so nothing else jumps. You can
   drop one row below the last to open a new row. Moving only up/down shows no
   "rescheduled" toast. Undo reverts the whole gesture.
@@ -126,8 +127,8 @@ height, the item's visible row, the project's `rowLanes` and the lane every
 visible item of the project is shown in. Each pointer move starts over from
 the project's items as they were when the drag began: if the pointer is a row
 or more away, `moveToLane` pins every visible item to its shown lane, puts the
-dragged one in the target lane (`laneForRow`) and moves overlapping items in
-that lane one down. The item editor doesn't edit `lane`: `commitItem` keeps
+dragged one in the target lane (`laneForRow`) and gives overlapping items in
+that lane the lane it left (a swap). The item editor doesn't edit `lane`: `commitItem` keeps
 the item's current one, so saving the panel after a drag doesn't undo it.
 
 ### Dependency arrows
