@@ -41,6 +41,17 @@ sub-rows so overlapping work never overlaps visually.
   dependency clashes / resource over-allocations the change introduced
   (or "Rescheduled — no conflicts"). Unlike the panel-based edit flow,
   drag changes commit immediately — there's no confirmation step.
+- **Drag a bar or milestone up or down** → moves it to another row of its
+  project (half a row of movement or more; it can move sideways in the same
+  gesture). The row is saved and survives reloads. Dropping on a row that
+  already has something at those dates puts your item there and moves that
+  one down a row. The first time you do this in a project, every visible item
+  of that project keeps the row it's shown in, so nothing else jumps. You can
+  drop one row below the last to open a new row. Moving only up/down shows no
+  "rescheduled" toast. Undo reverts the whole gesture.
+- **Automatic order**: in `ProjectModal`, "Automatic order" (shown only when
+  some item of the project has a saved row) forgets the saved rows and goes
+  back to the automatic layout.
 - **Click a lane header** → opens `ProjectModal` to edit that project.
 - Zoom (Toolbar `−`/`+` buttons or the Day/Week/Month/Quarter scale
   presets) and the active date-range filter (FilterBar) both apply here,
@@ -53,8 +64,9 @@ sub-rows so overlapping work never overlaps visually.
 | File | Role |
 |---|---|
 | `src/components/views/TimelineView.tsx` | Renders the Gantt grid |
-| `src/lib/roadmapUtils.ts` | `pack` (row packing), `buildHeader` (date header), `deriveScale` |
-| `src/store/useRoadmapStore.ts` | `openItem`, `editProject`, `startDrag`, `showDeps`, `draft` (selection), `_tr` (transition flag) |
+| `src/lib/roadmapUtils.ts` | `pack` (row packing, delegates to `lanes.ts`), `buildHeader` (date header), `deriveScale` |
+| `src/lib/lanes.ts` | Row layout with saved rows (`layoutLanes`), vertical moves (`moveToLane`), `clearLanes`; tests in `lanes.test.ts` |
+| `src/store/useRoadmapStore.ts` | `openItem`, `editProject`, `startDrag`, `resetProjectLanes`, `showDeps`, `draft` (selection), `_tr` (transition flag) |
 | `src/data/initialData.ts` | `STATUS_CONFIG`, `TODAY_DAY` |
 
 ### Layout
@@ -65,16 +77,23 @@ chip, sticky top), a left lane-label column (sticky left,
 `LABEL_W = 264px`), and the scrollable canvas. One `<div>` handles both
 scroll axes; sticky positioning pins the header/label independently.
 
-### Row packing (`pack()` in `roadmapUtils.ts`)
+### Row packing (`pack()` → `layoutLanes()` in `lanes.ts`)
 
-Each project's items are laid out with a greedy interval-scheduling
-algorithm: sort items by `startDay`, track each existing sub-row's
-current right edge (`rows: number[]`), and place each item in the first
-row whose right edge is `<=` the item's left edge; otherwise open a new
-row. This is what allows two items in the same project to sit
-side-by-side only when their date ranges don't overlap, and determines
-each lane's height (`rowCount * ROW + padding`). `CrossView`'s expanded
-lanes reuse the exact same function.
+Occupancy is measured in pixels: a bar takes `dur * ppd` (at least 7px), a
+milestone/release 132px for its label, plus an 8px gap, so what fits in a
+row depends on the zoom.
+
+1. Items with a saved row (`Item.lane`) are placed first, by lane and then by
+   start: each goes to its lane, or the next free one below if something
+   there overlaps it.
+2. Items without one are placed by start (stable, so same-day items keep
+   their list order) in the first free row. With no saved rows at all this is
+   exactly the old greedy layout.
+3. Rows nobody uses are dropped (`rowLanes` maps visible row → stored lane),
+   so filters never leave gaps.
+
+This decides each lane's height (`rowCount * ROW + padding`). `CrossView`'s
+expanded lanes reuse the exact same function.
 
 ### Bar/milestone geometry
 
@@ -86,7 +105,7 @@ rather than recomputed independently.
 
 ### Drag / resize (`startDrag` in the store)
 
-`onMouseDown` on a bar calls `store.startDrag(id, mode, clientX)`, which
+`onPointerDown` on a bar calls `store.startDrag(id, mode, clientX, rows)`, which
 attaches `mousemove`/`mouseup` listeners directly to `window` (outside
 React's synthetic event system) and mutates `items` in the store on every
 mouse move, computing the day delta from pixel delta ÷ `pxPerDay`. On
@@ -95,6 +114,15 @@ mouse move, computing the day delta from pixel delta ÷ `pxPerDay`. On
 resource peak-allocation deltas), and shows a toast with the conflict
 count. The change is already committed to `items` by this point — the
 toast is purely informational, not a confirmation gate.
+
+For a move, the Timeline also passes `rows`: the pointer's Y, the row
+height, the item's visible row, the project's `rowLanes` and the lane every
+visible item of the project is shown in. Each pointer move starts over from
+the project's items as they were when the drag began: if the pointer is a row
+or more away, `moveToLane` pins every visible item to its shown lane, puts the
+dragged one in the target lane (`laneForRow`) and moves overlapping items in
+that lane one down. The item editor doesn't edit `lane`: `commitItem` keeps
+the item's current one, so saving the panel after a drag doesn't undo it.
 
 ### Dependency arrows
 

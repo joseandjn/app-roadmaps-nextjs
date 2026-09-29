@@ -1,4 +1,5 @@
 import { START_DATE, TOTAL_DAYS, MONTHS, WEEKDAYS, DEFAULT_PROJECT_TASKS } from '@/data/initialData'
+import { layoutLanes, type LaneLayout } from '@/lib/lanes'
 import type { Item, Resource, Dependency, ScaleIndex, Settings, ScenarioMetrics, TimeOff, Sprint } from '@/types'
 
 export const DAY_MS = 86400000
@@ -134,23 +135,11 @@ export function fmtMoney(n: number, symbol = '$'): string {
   return symbol + Math.round(n).toLocaleString('en-US')
 }
 
-export interface PackedItem { it: Item; row: number }
+export type { LanePlacement as PackedItem } from '@/lib/lanes'
 
-export function pack(list: Item[], ppd: number): { placed: PackedItem[]; rowCount: number } {
-  const sorted = [...list].sort((a, b) => a.startDay - b.startDay)
-  const rows: number[] = []
-  const placed: PackedItem[] = []
-  for (const it of sorted) {
-    const left = it.startDay * ppd
-    const w = it.dur === 0 ? 132 : Math.max(7, it.dur * ppd)
-    const right = left + w + 8
-    let r = 0
-    for (; r < rows.length; r++) { if (rows[r] <= left) break }
-    if (r === rows.length) rows.push(right)
-    else rows[r] = right
-    placed.push({ it, row: r })
-  }
-  return { placed, rowCount: Math.max(1, rows.length) }
+// Rows of one project's items: saved lanes first, then the first free row.
+export function pack(list: Item[], ppd: number): LaneLayout {
+  return layoutLanes(list, ppd)
 }
 
 // How much of a person's time is available for this roadmap (100 unless set lower).

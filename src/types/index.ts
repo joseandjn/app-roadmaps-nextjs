@@ -41,6 +41,9 @@ export interface Item {
   // Done, dropped on leaving it; missing on items that were Done before this
   // was recorded.
   completedDay?: number
+  // Timeline row within its project, set by dragging the bar up or down.
+  // Missing means the automatic layout (first free row). See src/lib/lanes.ts.
+  lane?: number
 }
 
 export interface Estimate {

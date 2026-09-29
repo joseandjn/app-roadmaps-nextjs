@@ -206,6 +206,11 @@ const es: Record<string, string> = {
   'Could not get a suggestion': 'No se pudo obtener una sugerencia',
   'No finished tasks with an actual duration yet: close a few tasks first.': 'Todavía no hay tareas terminadas con duración real: primero cierra algunas.',
   'No LLM is configured (see LLM_PROVIDER in .env).': 'No hay un LLM configurado (ver LLM_PROVIDER en .env).',
+  // Timeline — manual row order (ProjectModal)
+  'Task order': 'Orden de las tareas',
+  'Tasks stay in the rows you dragged them to in the Timeline.': 'Las tareas quedan en las filas donde las arrastraste en el Cronograma.',
+  'Automatic order': 'Orden automático',
+  'Automatic order restored': 'Se restableció el orden automático',
   // KnowledgeSettings — estimation knowledge base export
   'Estimation knowledge base': 'Base de conocimiento de estimaciones',
   'Finished tasks of the official scenario with their description, estimates, actual duration and dependencies.': 'Tareas terminadas del escenario oficial con su descripción, estimaciones, duración real y dependencias.',
