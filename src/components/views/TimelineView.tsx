@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react'
+import React, { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react'
 import { useRoadmapStore, didDrag } from '@/store/useRoadmapStore'
 import { deriveScale, pack, buildHeader, isWorkingDay, fmtDate, addDays, initials, workingDaysInRange, itemEnd, dependencyIssues } from '@/lib/roadmapUtils'
 import { STATUS_CONFIG, getTodayDay } from '@/data/initialData'
@@ -43,6 +43,25 @@ export default function TimelineView() {
   // Hover card — shows item/project detail on hover, no click needed.
   const [hoverCard, setHoverCard] = useState<{ x: number; y: number; kind: 'item' | 'project'; id: string } | null>(null)
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Places the card by its real size once it renders: below-right of the
+  // pointer, or above / to the left when it wouldn't fit (a card with many
+  // badges or people is much taller than a simple one). Written to the DOM
+  // directly so following the pointer doesn't re-render the timeline twice.
+  const hoverCardRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = hoverCardRef.current
+    if (!el || !hoverCard) return
+    const GAP = 14, EDGE = 8
+    const w = el.offsetWidth, h = el.offsetHeight
+    const vw = window.innerWidth, vh = window.innerHeight
+    const below = hoverCard.y + GAP
+    const top = below + h <= vh - EDGE ? below : Math.max(EDGE, hoverCard.y - GAP - h)
+    const right = hoverCard.x + GAP
+    const left = right + w <= vw - EDGE ? right : Math.max(EDGE, hoverCard.x - GAP - w)
+    el.style.top = `${top}px`
+    el.style.left = `${left}px`
+    el.style.visibility = 'visible'
+  }, [hoverCard])
   useEffect(() => () => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current) }, [])
   // Pressing on a bar closes the card and keeps it closed until the button
   // is released: during a drag the pointer stays on the bar, so the card would
@@ -647,10 +666,15 @@ export default function TimelineView() {
     {/* Hover card — item/project detail on hover, no click needed */}
     {hoverCard && hoverContent && (
       <div
+        ref={hoverCardRef}
         style={{
           position: 'fixed',
-          left: Math.min(hoverCard.x + 14, window.innerWidth - 280),
-          top: Math.min(hoverCard.y + 14, window.innerHeight - 220),
+          // Final position is set by the layout effect above, once measured.
+          left: 0,
+          top: 0,
+          visibility: 'hidden',
+          maxHeight: 'calc(100vh - 16px)',
+          overflow: 'hidden',
           width: 260,
           background: '#fff',
           border: '1px solid #ececec',
