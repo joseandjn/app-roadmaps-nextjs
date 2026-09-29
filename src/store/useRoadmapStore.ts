@@ -54,6 +54,12 @@ type Store = RoadmapState & {
   deleteItemById: (id: string) => void
   openContextMenu: (x: number, y: number, projectId: string, day: number, itemId?: string | null) => void
   closeContextMenu: () => void
+  // selection for "Copy to…"
+  toggleSelected: (id: string) => void
+  setSelected: (ids: string[]) => void
+  clearSelected: () => void
+  openCopy: () => void
+  closeCopy: () => void
   clearPanel: () => void
   patchDraft: (p: Partial<Draft>) => void
   onDraftTitle: (v: string) => void
@@ -300,6 +306,8 @@ export const useRoadmapStore = create<Store>((set, get) => {
     resSel: null,
     cell: null,
     contextMenu: null,
+    selectedIds: [],
+    copyOpen: false,
     showDeps: false,
     filterStartDay: null,
     filterEndDay: null,
@@ -455,6 +463,11 @@ export const useRoadmapStore = create<Store>((set, get) => {
     },
     openContextMenu: (x, y, projectId, day, itemId = null) => set({ contextMenu: { x, y, projectId, day, itemId } }),
     closeContextMenu: () => set(s => (s.contextMenu ? { contextMenu: null } : s)),
+    toggleSelected: id => set(s => ({ selectedIds: s.selectedIds.includes(id) ? s.selectedIds.filter(x => x !== id) : [...s.selectedIds, id] })),
+    setSelected: ids => set({ selectedIds: [...new Set(ids)] }),
+    clearSelected: () => set(s => (s.selectedIds.length || s.copyOpen ? { selectedIds: [], copyOpen: false } : s)),
+    openCopy: () => set(s => (s.selectedIds.length ? { copyOpen: true, contextMenu: null } : s)),
+    closeCopy: () => set({ copyOpen: false }),
     clearPanel: () => set({ panel: null, draft: null, draftOrig: null, cell: null }),
     patchDraft: p => set(s => ({ draft: s.draft ? { ...s.draft, ...p } : null })),
 
@@ -930,4 +943,10 @@ useRoadmapStore.subscribe((state, prev) => {
   if (state.items === prev.items && state.resources === prev.resources && state.roles === prev.roles) return
   const filters = pruneFilters(state.filters, state)
   if (filters !== state.filters) useRoadmapStore.setState({ filters })
+  // Deleted items (or undo past their creation) drop out of the selection.
+  if (state.items !== prev.items && state.selectedIds.length) {
+    const ids = new Set(state.items.map(i => i.id))
+    const kept = state.selectedIds.filter(id => ids.has(id))
+    if (kept.length !== state.selectedIds.length) useRoadmapStore.setState({ selectedIds: kept })
+  }
 })

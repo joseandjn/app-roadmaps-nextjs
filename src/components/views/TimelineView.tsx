@@ -22,7 +22,7 @@ const HEADER_H = 54 + SPRINT_ROW_H
 export default function TimelineView() {
   const {
     pxPerDay, projects, items, deps, sprints, visible, filters, draft, settings, resources, roles,
-    showDeps, _tr, filterStartDay, filterEndDay, setViewport, openItem, editProject, startDrag, addDependency,
+    showDeps, _tr, filterStartDay, filterEndDay, setViewport, openItem, editProject, startDrag, addDependency, selectedIds, toggleSelected,
     openContextMenu, editSprint, onNewSprint, startSprintDrag,
   } = useRoadmapStore()
   const { t } = useTranslation()
@@ -65,6 +65,14 @@ export default function TimelineView() {
   const totalWidth = visibleDays * ppd
 
   const visProjects = projects.filter(p => visible.has(p.id))
+  const picked = useMemo(() => new Set(selectedIds), [selectedIds])
+  // Cmd/Ctrl/Shift-click adds or removes an item from the selection ("Copy
+  // to…") instead of opening or dragging it.
+  const multi = (e: React.MouseEvent | React.PointerEvent) => e.metaKey || e.ctrlKey || e.shiftKey
+  const onBarClick = (id: string) => (e: React.MouseEvent) => {
+    if (multi(e)) toggleSelected(id)
+    else if (!didDrag()) openItem(id)
+  }
   // Items the filters keep. Dependency conflicts below still use all items,
   // so a filter never hides a clash signal on the bars that remain.
   const shown = useMemo(() => items.filter(i => itemMatch(i, fctx) !== 'hide'), [items, fctx])
@@ -208,6 +216,8 @@ export default function TimelineView() {
       const topPx = y + LP + row * ROW
       const isM = it.type === 'milestone' || it.type === 'release'
       const sel = draft?.id === it.id
+      const isPicked = picked.has(it.id)
+      const ring = sel ? '0 0 0 2px #18181b' : isPicked ? '0 0 0 2px #3b6ef5' : null
       const inConflict = conflictedIds.has(it.id)
       const fade = dimmed.has(it.id) && !sel ? DIM_OPACITY : 1
 
@@ -219,8 +229,8 @@ export default function TimelineView() {
             key={it.id}
             data-item-id={it.id}
             style={{ position: 'absolute', left: left - 7, top: topPx, height: BAR_H, display: 'flex', alignItems: 'center', gap: 6, cursor: 'grab', zIndex: sel ? 5 : 2, whiteSpace: 'nowrap', transition: tr, touchAction: 'none', opacity: fade }}
-            onClick={() => { if (!didDrag()) openItem(it.id) }}
-            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'move', e.clientX, dragRows(e.clientY)) }}
+            onClick={onBarClick(it.id)}
+            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); if (!multi(e)) startDrag(it.id, 'move', e.clientX, dragRows(e.clientY)) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}
             onMouseEnter={startHover('item', it.id)}
             onMouseMove={moveHover}
@@ -228,7 +238,7 @@ export default function TimelineView() {
             title={inConflict ? t('Clash') : undefined}
           >
             <div style={{ position: 'relative', width: 11, height: 11, flex: '0 0 auto' }}>
-              <div style={{ position: 'absolute', inset: 0, transform: 'rotate(45deg)', background: it.type === 'release' ? c.dot : '#fff', border: `2px solid ${inConflict ? '#d08a8a' : c.dot}`, borderRadius: 2, boxShadow: sel ? '0 0 0 2px #18181b' : inConflict ? '0 0 0 2px #d08a8a' : 'none' }} />
+              <div style={{ position: 'absolute', inset: 0, transform: 'rotate(45deg)', background: it.type === 'release' ? c.dot : '#fff', border: `2px solid ${inConflict ? '#d08a8a' : c.dot}`, borderRadius: 2, boxShadow: ring ?? (inConflict ? '0 0 0 2px #d08a8a' : 'none') }} />
               {showDeps && (
                 <div
                   onPointerDown={startConnect(it.id)}
@@ -250,9 +260,9 @@ export default function TimelineView() {
           <div
             key={it.id}
             data-item-id={it.id}
-            style={{ position: 'absolute', left, top: topPx, width: w, height: BAR_H, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRadius: 6, background: c.bg, border: `1px solid ${inConflict ? '#d08a8a' : c.bd}`, color: c.fg, fontSize: isEpic ? 12 : 11, fontWeight: isEpic ? 600 : 500, cursor: 'grab', overflow: 'visible', whiteSpace: 'nowrap', boxShadow: sel ? '0 0 0 2px #18181b' : inConflict ? '0 0 0 1.5px #d08a8a' : 'none', zIndex: sel ? 5 : inConflict ? 2 : 1, transition: tr, touchAction: 'none', opacity: fade }}
-            onClick={() => { if (!didDrag()) openItem(it.id) }}
-            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); startDrag(it.id, 'move', e.clientX, dragRows(e.clientY)) }}
+            style={{ position: 'absolute', left, top: topPx, width: w, height: BAR_H, display: 'flex', alignItems: 'center', padding: '0 8px', boxSizing: 'border-box', borderRadius: 6, background: c.bg, border: `1px solid ${inConflict ? '#d08a8a' : c.bd}`, color: c.fg, fontSize: isEpic ? 12 : 11, fontWeight: isEpic ? 600 : 500, cursor: 'grab', overflow: 'visible', whiteSpace: 'nowrap', boxShadow: ring ?? (inConflict ? '0 0 0 1.5px #d08a8a' : 'none'), zIndex: sel ? 5 : isPicked ? 3 : inConflict ? 2 : 1, transition: tr, touchAction: 'none', opacity: fade }}
+            onClick={onBarClick(it.id)}
+            onPointerDown={e => { e.stopPropagation(); e.preventDefault(); if (!multi(e)) startDrag(it.id, 'move', e.clientX, dragRows(e.clientY)) }}
             onContextMenu={onBarContextMenu(it.id, it.projectId, it.startDay)}
             onMouseEnter={startHover('item', it.id)}
             onMouseMove={moveHover}

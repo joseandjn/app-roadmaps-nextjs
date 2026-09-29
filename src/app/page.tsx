@@ -7,6 +7,7 @@ import Toolbar from '@/components/Toolbar'
 import LeftRail from '@/components/LeftRail'
 import RightPanel from '@/components/RightPanel'
 import Toast from '@/components/Toast'
+import SelectionBar from '@/components/SelectionBar'
 import FilterBar from '@/components/FilterBar'
 import ImpactModal from '@/components/modals/ImpactModal'
 import ProjectModal from '@/components/modals/ProjectModal'
@@ -15,6 +16,7 @@ import ScenarioModal from '@/components/modals/ScenarioModal'
 import HistoryModal from '@/components/modals/HistoryModal'
 import AnalysisModal from '@/components/modals/AnalysisModal'
 import SprintModal from '@/components/modals/SprintModal'
+import CopyToScenarioModal from '@/components/modals/CopyToScenarioModal'
 import TimelineView from '@/components/views/TimelineView'
 import CrossView from '@/components/views/CrossView'
 import ResourcesView from '@/components/views/ResourcesView'
@@ -42,6 +44,7 @@ export default function Home() {
           {view === 'compare' && <CompareView />}
           {view === 'settings' && <SettingsView />}
           {!isSettings && <RightPanel />}
+          {view === 'timeline' && <SelectionBar />}
           <Toast />
         </div>
       </div>
@@ -52,6 +55,7 @@ export default function Home() {
       <HistoryModal />
       <AnalysisModal />
       <SprintModal />
+      <CopyToScenarioModal />
     </div>
   )
 }

@@ -38,6 +38,28 @@ path focus and the text search.
 - **Restore** overwrites the scenario's current data with the snapshot
   (an in-place rollback, not a fork) and reloads it.
 
+### Copying tasks to another scenario
+
+- In the Timeline, **Cmd/Ctrl/Shift-click** bars to select them (they get a
+  blue outline), or right-click a lane → "Select project tasks" (the ones
+  the filters show). A floating bar shows "N selected · Copy to… · Clear";
+  Esc clears. The selection isn't saved, isn't part of undo, and is cleared
+  when switching scenarios.
+- **Copy to…** lists the other scenarios. Picking one shows what the copy
+  will do there, computed from that scenario's saved data: new tasks, tasks
+  that replace their version there (scenarios duplicated from each other
+  share ids, so it's the same task), projects/people/roles that come along
+  because the target doesn't have them, and dependencies that can't be kept.
+- Each copied task brings its own "Depends on": in the target it replaces
+  that task's dependencies (other tasks' dependencies on it stay). A
+  dependency on a task the target doesn't have is left out and listed.
+  Projects, people and roles the target already has are never overwritten.
+- Before writing, the target gets a checkpoint "Before copying from <source>"
+  — the copying tab's undo can't reach another scenario, so restoring that
+  checkpoint (History) is the way back.
+- A tab of this browser showing the target reloads right away; others pick
+  it up on focus / the 30 s check, like any save from elsewhere.
+
 ### What it feels like
 
 - **On load**: the seed data shows briefly, then the saved scenario and
@@ -66,6 +88,8 @@ path focus and the text search.
 | `src/lib/persistence/scenarioSync.ts` | Client: loads and saves scenario data with its revision, conflicts, sync across tabs |
 | `src/lib/persistence/scenarioActions.ts` | Client helpers for switching, creating, promoting scenarios and checkpoint actions |
 | `src/lib/persistence/viewPayload.ts` | Builds the `view.json` PUT body from the store (one place for both callers) |
+| `src/lib/scenarioCopy.ts` | Pure: what travels with selected tasks (`buildCopyPayload`), merging it into a scenario (`applyCopy`), payload validation; tests in `scenarioCopy.test.ts` |
+| `src/lib/persistence/copyActions.ts` | Client: preview (`GET` target + `applyCopy`) and copy (`POST …/import`), then announces the target's new revision |
 
 ### Routes
 
@@ -77,6 +101,7 @@ path focus and the text search.
 | `/api/scenarios/[id]/checkpoints` | `GET` metadata list · `POST { name, note }` |
 | `/api/scenarios/[id]/checkpoints/[cid]` | `GET` full checkpoint · `DELETE` |
 | `/api/scenarios/[id]/checkpoints/[cid]/restore` | `POST` |
+| `/api/scenarios/[id]/import` | `POST { payload, checkpointName }`: checkpoint, then `applyCopy` on the current data, saved against its revision (re-applied up to 3 times if another save lands in between) → `{ summary, rev, checkpointId }` |
 | `/api/view` | `GET` · `PUT` |
 
 Validation is shallow: a scenario `PUT` only checks that the top-level

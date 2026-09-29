@@ -125,6 +125,12 @@ async function reloadIfChanged(scenarioId: string, knownRev?: string) {
   }
 }
 
+// Tells the other tabs of this browser that another scenario was saved from
+// here (a copy into it), so a tab showing it reloads right away.
+export function announceScenarioRevision(scenarioId: string, newRev: string): void {
+  announce(scenarioId, newRev)
+}
+
 // Tells the other tabs of this browser that a scenario changed outside the
 // autosave (a checkpoint restore), so they reload it.
 export function announceScenarioChanged(scenarioId: string): void {
