@@ -5,7 +5,7 @@ Configuración tiene sidebar (PR #29). Priorizadas el 2026-09-29; se hace de a u
 
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 >
-> **Estado general:** P1 y P2 hechas el 2026-09-29; sigue P3. Plan armado el 2026-09-29 sobre `main` en `988385c`.
+> **Estado general:** P1, P2 y P3 hechas el 2026-09-29; sigue P4. Plan armado el 2026-09-29 sobre `main` en `988385c`.
 
 ---
 
@@ -96,10 +96,17 @@ proyecto nuevo y el agente de voz usan la lista del plan. Probado sobre una copi
 los datos: renombrar "Móvil" (sus 2 proyectos siguieron), eliminar, agregar, duplicado
 rechazado y el formulario con la lista nueva.
 
-## P3 · Duración por defecto de cada tipo `[ ]`
+## P3 · Duración por defecto de cada tipo `[x]`
 
 - `settings.defaultDurations` por tipo (tarea, épica). Hoy hay 21 días desde "+" y en
   la voz, pero 14 desde el menú contextual: se unifica con estos valores.
+
+**Cómo quedó:** `settings.defaultDurations` y `defaultDuration()` en `roadmapUtils.ts`
+(sin valor: 21 días). Lo usan el botón +, el menú contextual, cambiar un hito a
+tarea o épica en el panel, y el agente de voz. Se edita en PLAN → General. Cambio de
+comportamiento: el menú contextual creaba tareas de 14 días; ahora usa el mismo valor
+que el resto (21 por defecto). Probado sobre una copia: con Tarea = 10 y Épica = 30,
+"+" crea 10 días, "Nueva épica" 30, y épica → hito → tarea queda en 10.
 
 ## P4 · Escenarios `[ ]`
 

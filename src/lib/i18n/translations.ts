@@ -251,6 +251,9 @@ const es: Record<string, string> = {
   'Copying…': 'Copiando…',
   'Copy': 'Copiar',
   // Settings sidebar and its sections
+  'Defaults for new tasks and projects.': 'Valores por defecto de tareas y proyectos nuevos.',
+  'Default duration': 'Duración por defecto',
+  'How long a new task or epic starts out, from the + button, the right-click menu or by voice. Milestones and releases have no duration.': 'Con cuánta duración empieza una tarea o épica nueva, desde el botón +, el menú contextual o por voz. Los hitos y releases no tienen duración.',
   'Categories': 'Categorías',
   'Categories to group projects by. Renaming one updates the projects that use it.': 'Categorías para agrupar los proyectos. Renombrar una actualiza los proyectos que la usan.',
   'New category name': 'Nombre de la nueva categoría',

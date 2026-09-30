@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { DEFAULT_PROJECT_TASKS } from '@/data/initialData'
+import { defaultDuration } from '@/lib/roadmapUtils'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 
 const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'
@@ -29,8 +30,36 @@ export default function GeneralSettings() {
   }
   const iconBtn = 'flex-none text-[#a1a1aa] cursor-pointer border-none bg-transparent p-0 disabled:opacity-30 disabled:cursor-default'
 
+  const setDuration = (type: 'task' | 'epic', v: string) => {
+    const n = Math.max(1, Math.round(Number(v) || 1))
+    patchSettings({ defaultDurations: { ...settings.defaultDurations, [type]: n } })
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      <div>
+        <div className={labelCls}>{t('Default duration')}</div>
+        <p className="text-[11px] text-[#a1a1aa] mb-2">{t('How long a new task or epic starts out, from the + button, the right-click menu or by voice. Milestones and releases have no duration.')}</p>
+        <div className="grid grid-cols-2 gap-3">
+          {(['task', 'epic'] as const).map(type => (
+            <label key={type} className="block">
+              <span className="block text-[12px] text-[#52525b] mb-1">{t(type === 'task' ? 'Task' : 'Epic')}</span>
+              <span className="flex items-center gap-2">
+                <input
+                  type="number" min={1} step={1}
+                  className={inputCls}
+                  value={defaultDuration(settings, type)}
+                  onChange={e => setDuration(type, e.target.value)}
+                />
+                <span className="text-[12px] text-[#71717a] flex-none">{t('calendar days')}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="h-px bg-[#f1f1f1]" />
+
       <div>
         <div className={labelCls}>{t('Default tasks for new projects')}</div>
         <p className="text-[11px] text-[#a1a1aa] mb-2">{t('When creating a project you can add these tasks, in this order, spread across its dates.')}</p>

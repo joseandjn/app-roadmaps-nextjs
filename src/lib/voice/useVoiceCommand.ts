@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react'
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { offFromStr, fmtDate, addDays, workingDaysInRange, assignedDuringTimeOff } from '@/lib/roadmapUtils'
+import { offFromStr, fmtDate, addDays, workingDaysInRange, assignedDuringTimeOff, defaultDuration } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
 import { getSpeechRecognitionCtor, type SpeechRecognition } from './speechRecognition'
 import type { VoiceCommandResult } from '@/lib/agent/roadmapAgent'
@@ -10,7 +10,6 @@ import { STATUS_ORDER, ITEM_TYPES } from '@/data/initialData'
 import { EMPTY_FILTERS } from '@/lib/filters'
 import type { Filters, Item } from '@/types'
 
-const DEFAULT_ITEM_SPAN_DAYS = 21 // matches the store's own newItem() default
 
 export type VoiceStatus = 'idle' | 'listening' | 'thinking'
 
@@ -158,7 +157,7 @@ export function useVoiceCommand() {
           const startDay = offFromStr(input.startDate as string)
           const dur = isInstant ? 0
             : input.endDate ? Math.max(1, offFromStr(input.endDate as string) - startDay)
-            : DEFAULT_ITEM_SPAN_DAYS
+            : defaultDuration(settings, type)
           agentCreateItem({
             projectId: p.id,
             title: input.title as string,
