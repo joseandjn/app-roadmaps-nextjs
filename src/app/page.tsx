@@ -3,6 +3,7 @@
 import { useRoadmapStore } from '@/store/useRoadmapStore'
 import { useRoadmapPersistence } from '@/lib/persistence/useRoadmapPersistence'
 import { useUndoShortcuts } from '@/lib/history/useUndoShortcuts'
+import { useDateFormatSync } from '@/lib/useDateFormatSync'
 import Toolbar from '@/components/Toolbar'
 import LeftRail from '@/components/LeftRail'
 import RightPanel from '@/components/RightPanel'
@@ -27,6 +28,7 @@ import SettingsView from '@/components/views/SettingsView'
 export default function Home() {
   useRoadmapPersistence()
   useUndoShortcuts()
+  useDateFormatSync()
   const view = useRoadmapStore(s => s.view)
   const isSettings = view === 'settings'
 
