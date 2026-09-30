@@ -57,7 +57,9 @@ sub-rows so overlapping work never overlaps visually.
   shows the change and where it lands ("+3 d · Oct 2 – Oct 25"; with several
   items, "3 items · +3 d"; when resizing, the new length), and the hover card
   closes as soon as you press so it doesn't cover the way (it shows again on
-  the next hover). On release, a toast reports how many
+  the next hover). The hover card is placed by its measured size: below-right
+  of the pointer, or above / to the left when it wouldn't fit, so a tall card
+  near the bottom of the window isn't cut off. On release, a toast reports how many
   dependency clashes / resource over-allocations the change introduced
   (or "Rescheduled — no conflicts"). Unlike the panel-based edit flow,
   drag changes commit immediately — there's no confirmation step.
