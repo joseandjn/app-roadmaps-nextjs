@@ -5,7 +5,7 @@ Configuración tiene sidebar (PR #29). Priorizadas el 2026-09-29; se hace de a u
 
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 >
-> **Estado general:** P1 hecha el 2026-09-29; sigue P2. Plan armado el 2026-09-29 sobre `main` en `988385c`.
+> **Estado general:** P1 y P2 hechas el 2026-09-29; sigue P3. Plan armado el 2026-09-29 sobre `main` en `988385c`.
 
 ---
 
@@ -79,11 +79,22 @@ idioma. Todo `fmtDate` y los encabezados de `roadmapUtils.ts` pasan por el módu
 Probado en la app: encabezados "Dic, Ene…" y "T1 2027", feriados "28 jul 26" /
 "28/07/26", inglés igual que antes, sin errores de hidratación.
 
-## P2 · Categorías de proyecto `[ ]`
+## P2 · Categorías de proyecto `[x]`
 
 - `CATEGORIES` pasa a `settings.categories` (sin valor → la lista actual).
 - Sección en PLAN, parecida a Roles: agregar, renombrar (actualiza los proyectos que
   la usan) y eliminar (solo si ningún proyecto la usa, o pidiendo reemplazo).
+
+**Cómo quedó:** `settings.categories` + `projectCategories()` en `roadmapUtils.ts` (la
+lista del plan más cualquier categoría que use un proyecto y no esté en ella, así
+nunca desaparece una); acciones `addCategory` / `renameCategory` / `removeCategory` en
+el store; sección PLAN → Categorías (`CategoriesSettings.tsx`). Eliminar se bloquea
+mientras un proyecto la usa (sin reemplazo automático). Los nombres de fábrica se
+siguen mostrando traducidos y los duplicados se detectan por lo que se ve
+("producto" = "Product"). El formulario de proyecto, el valor por defecto de un
+proyecto nuevo y el agente de voz usan la lista del plan. Probado sobre una copia de
+los datos: renombrar "Móvil" (sus 2 proyectos siguieron), eliminar, agregar, duplicado
+rechazado y el formulario con la lista nueva.
 
 ## P3 · Duración por defecto de cada tipo `[ ]`
 

@@ -1,15 +1,15 @@
 'use client'
 
 import { useRoadmapStore } from '@/store/useRoadmapStore'
-import { STATUS_ORDER, CATEGORIES } from '@/data/initialData'
+import { STATUS_ORDER } from '@/data/initialData'
 import { useTranslation } from '@/lib/i18n/useTranslation'
-import { projectTaskTemplate } from '@/lib/roadmapUtils'
+import { projectTaskTemplate, projectCategories } from '@/lib/roadmapUtils'
 
 const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'
 const inputCls = 'w-full text-[13px] text-[#27272a] bg-white border border-[#ececec] rounded-lg px-2.5 py-2 font-inherit'
 
 export default function ProjectModal() {
-  const { pform, resources, settings, items, patchPF, onPSave, onPCancel, onPDelete, resetProjectLanes } = useRoadmapStore()
+  const { pform, resources, settings, items, projects, patchPF, onPSave, onPCancel, onPDelete, resetProjectLanes } = useRoadmapStore()
   const { t } = useTranslation()
   const tasks = projectTaskTemplate(settings)
 
@@ -43,7 +43,7 @@ export default function ProjectModal() {
             <div>
               <div className={labelCls}>{t('Category')}</div>
               <select className={inputCls} value={pform.category} onChange={e => patchPF({ category: e.target.value })}>
-                {CATEGORIES.map(c => <option key={c} value={c}>{t(c)}</option>)}
+                {projectCategories(settings, projects).map(c => <option key={c} value={c}>{t(c)}</option>)}
               </select>
             </div>
           </div>

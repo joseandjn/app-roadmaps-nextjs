@@ -1,4 +1,4 @@
-import { START_DATE, TOTAL_DAYS, DEFAULT_PROJECT_TASKS } from '@/data/initialData'
+import { START_DATE, TOTAL_DAYS, DEFAULT_PROJECT_TASKS, CATEGORIES } from '@/data/initialData'
 import { formatDate, formatMonthDay, monthShort, weekdayShort, quarterLabel } from '@/lib/dateFormat'
 import { layoutLanes, type LaneLayout } from '@/lib/lanes'
 import type { Item, Resource, Dependency, ScaleIndex, Settings, ScenarioMetrics, TimeOff, Sprint } from '@/types'
@@ -20,6 +20,14 @@ export function itemEnd(it: Item): number {
 }
 
 // The task titles a new project starts with (Settings → General), blanks dropped.
+// Categories to offer: the catalog (or the built-in list), plus any a project
+// uses that isn't in it (e.g. from older data), so none ever goes missing.
+export function projectCategories(settings: Pick<Settings, 'categories'>, projects: { category: string }[] = []): string[] {
+  const list = [...(settings.categories ?? CATEGORIES)]
+  for (const p of projects) if (p.category && !list.includes(p.category)) list.push(p.category)
+  return list
+}
+
 export function projectTaskTemplate(settings: Settings): string[] {
   return (settings.defaultProjectTasks ?? DEFAULT_PROJECT_TASKS).map(t => t.trim()).filter(Boolean)
 }

@@ -1,4 +1,4 @@
-import { CATEGORIES, STATUS_ORDER, ITEM_TYPES, getTodayDay } from '@/data/initialData'
+import { STATUS_ORDER, ITEM_TYPES, getTodayDay } from '@/data/initialData'
 import { dateStr, addDays } from '@/lib/roadmapUtils'
 
 export type VoiceCommandResult =
@@ -41,8 +41,9 @@ export interface ItemContext {
 // roles currently are — a role added or renamed there is immediately valid
 // here too, and a deleted one immediately stops being offered. The filter
 // tool gets the same treatment for resource and project ids.
-export function buildAgentTools(roleNames: string[], resourceIds: string[], projectIds: string[]): AgentToolDef[] {
+export function buildAgentTools(roleNames: string[], resourceIds: string[], projectIds: string[], categories: string[]): AgentToolDef[] {
   const roleEnum = { type: 'string', enum: [...roleNames] }
+  const categoryEnum = { type: 'string', enum: [...categories] }
   // An empty enum is invalid JSON Schema, so fall back to a plain string.
   const idEnum = (ids: string[]) => ids.length ? { type: 'string', enum: [...ids] } : { type: 'string' }
   return [
@@ -84,7 +85,7 @@ export function buildAgentTools(roleNames: string[], resourceIds: string[], proj
           name: { type: 'string' },
           desc: { type: 'string', description: 'Short one-sentence description' },
           owner: { type: 'string', description: 'id of the owning resource, from the existing resources list' },
-          category: { type: 'string', enum: [...CATEGORIES] },
+          category: categoryEnum,
           status: { type: 'string', enum: [...STATUS_ORDER] },
         },
         required: ['name', 'owner'],
@@ -100,7 +101,7 @@ export function buildAgentTools(roleNames: string[], resourceIds: string[], proj
           name: { type: 'string' },
           desc: { type: 'string' },
           owner: { type: 'string', description: 'id of the owning resource, from the existing resources list' },
-          category: { type: 'string', enum: [...CATEGORIES] },
+          category: categoryEnum,
           status: { type: 'string', enum: [...STATUS_ORDER] },
         },
         required: ['id'],
