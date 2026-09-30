@@ -1,4 +1,5 @@
-import { START_DATE, TOTAL_DAYS, MONTHS, WEEKDAYS, DEFAULT_PROJECT_TASKS } from '@/data/initialData'
+import { START_DATE, TOTAL_DAYS, DEFAULT_PROJECT_TASKS } from '@/data/initialData'
+import { formatDate, formatMonthDay, monthShort, weekdayShort, quarterLabel } from '@/lib/dateFormat'
 import { layoutLanes, type LaneLayout } from '@/lib/lanes'
 import type { Item, Resource, Dependency, ScaleIndex, Settings, ScenarioMetrics, TimeOff, Sprint } from '@/types'
 
@@ -47,8 +48,9 @@ export function addDays(n: number): Date {
   return new Date(START_DATE.getTime() + n * DAY_MS)
 }
 
+// In the app's language and the date format picked in Preferences (see dateFormat.ts).
 export function fmtDate(d: Date): string {
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${String(d.getFullYear()).slice(2)}`
+  return formatDate(d)
 }
 
 export function dateStr(off: number): string {
@@ -327,7 +329,7 @@ export function buildHeader(
     while ((d.getTime() - d0.getTime()) / DAY_MS < td) {
       const off = (d.getTime() - d0.getTime()) / DAY_MS
       const nx = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-      pushBand(off, (nx.getTime() - d.getTime()) / DAY_MS, `${MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`)
+      pushBand(off, (nx.getTime() - d.getTime()) / DAY_MS, `${monthShort(d.getMonth(), true)} ${String(d.getFullYear()).slice(2)}`)
       d = nx
     }
   }
@@ -337,7 +339,7 @@ export function buildHeader(
     while ((d.getTime() - d0.getTime()) / DAY_MS < td) {
       const off = (d.getTime() - d0.getTime()) / DAY_MS
       const nx = new Date(d.getFullYear(), d.getMonth() + 3, 1)
-      pushBand(off, (nx.getTime() - d.getTime()) / DAY_MS, `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`)
+      pushBand(off, (nx.getTime() - d.getTime()) / DAY_MS, `${quarterLabel(Math.floor(d.getMonth() / 3) + 1)} ${d.getFullYear()}`)
       d = nx
     }
   }
@@ -356,24 +358,24 @@ export function buildHeader(
     months()
     let d = new Date(d0.getFullYear(), d0.getMonth() + 1, 1)
     while ((d.getTime() - d0.getTime()) / DAY_MS < td) { gl(((d.getTime() - d0.getTime()) / DAY_MS) * ppd, '#f4f4f5'); d = new Date(d.getFullYear(), d.getMonth() + 1, 1) }
-    for (let i = 0; i < td; i++) { const dt = addDays(startDay + i); pushTick(i * ppd, `${WEEKDAYS[dt.getDay()]} ${dt.getDate()}`, dt.getDay() === 1) }
+    for (let i = 0; i < td; i++) { const dt = addDays(startDay + i); pushTick(i * ppd, `${weekdayShort(dt.getDay())} ${dt.getDate()}`, dt.getDay() === 1) }
   } else if (scaleIndex === 1) {
     months()
     let d = new Date(d0.getFullYear(), d0.getMonth() + 1, 1)
     while ((d.getTime() - d0.getTime()) / DAY_MS < td) { gl(((d.getTime() - d0.getTime()) / DAY_MS) * ppd, '#f4f4f5'); d = new Date(d.getFullYear(), d.getMonth() + 1, 1) }
-    for (let i = 0; i < td; i++) { const dt = addDays(startDay + i); if (dt.getDay() === 1) pushTick(i * ppd, `${MONTHS[dt.getMonth()]} ${dt.getDate()}`, false) }
+    for (let i = 0; i < td; i++) { const dt = addDays(startDay + i); if (dt.getDay() === 1) pushTick(i * ppd, formatMonthDay(dt), false) }
   } else if (scaleIndex === 2) {
     quarters()
     let d = new Date(d0.getFullYear(), Math.floor(d0.getMonth() / 3) * 3 + 3, 1)
     while ((d.getTime() - d0.getTime()) / DAY_MS < td) { gl(((d.getTime() - d0.getTime()) / DAY_MS) * ppd, '#eeeeef'); d = new Date(d.getFullYear(), d.getMonth() + 3, 1) }
     let m = new Date(d0.getFullYear(), d0.getMonth(), 1)
-    while ((m.getTime() - d0.getTime()) / DAY_MS < td) { const off = (m.getTime() - d0.getTime()) / DAY_MS; pushTick(Math.max(0, off * ppd), MONTHS[m.getMonth()], m.getMonth() % 3 === 0); m = new Date(m.getFullYear(), m.getMonth() + 1, 1) }
+    while ((m.getTime() - d0.getTime()) / DAY_MS < td) { const off = (m.getTime() - d0.getTime()) / DAY_MS; pushTick(Math.max(0, off * ppd), monthShort(m.getMonth(), true), m.getMonth() % 3 === 0); m = new Date(m.getFullYear(), m.getMonth() + 1, 1) }
   } else {
     years()
     let d = new Date(d0.getFullYear() + 1, 0, 1)
     while ((d.getTime() - d0.getTime()) / DAY_MS < td) { gl(((d.getTime() - d0.getTime()) / DAY_MS) * ppd, '#eeeeef'); d = new Date(d.getFullYear() + 1, 0, 1) }
     let q = new Date(d0.getFullYear(), Math.floor(d0.getMonth() / 3) * 3, 1)
-    while ((q.getTime() - d0.getTime()) / DAY_MS < td) { const off = (q.getTime() - d0.getTime()) / DAY_MS; pushTick(Math.max(0, off * ppd), `Q${Math.floor(q.getMonth() / 3) + 1}`, q.getMonth() === 0); q = new Date(q.getFullYear(), q.getMonth() + 3, 1) }
+    while ((q.getTime() - d0.getTime()) / DAY_MS < td) { const off = (q.getTime() - d0.getTime()) / DAY_MS; pushTick(Math.max(0, off * ppd), quarterLabel(Math.floor(q.getMonth() / 3) + 1), q.getMonth() === 0); q = new Date(q.getFullYear(), q.getMonth() + 3, 1) }
   }
 
   return { bands, ticks, gridLines }
@@ -389,13 +391,13 @@ export function buckets(scaleIndex: ScaleIndex, startDay = 0, totalDays = TOTAL_
   if (scaleIndex === 0) {
     for (let i = 0; i < td; i++) out.push({ s: i, d: 1, label: String(new Date(d0.getTime() + i * DAY_MS).getDate()) })
   } else if (scaleIndex === 1) {
-    for (let i = 0; i < td; i += 7) { const dt = new Date(d0.getTime() + i * DAY_MS); out.push({ s: i, d: Math.min(7, td - i), label: `${MONTHS[dt.getMonth()]} ${dt.getDate()}` }) }
+    for (let i = 0; i < td; i += 7) { const dt = new Date(d0.getTime() + i * DAY_MS); out.push({ s: i, d: Math.min(7, td - i), label: formatMonthDay(dt) }) }
   } else if (scaleIndex === 2) {
     let d = new Date(d0.getFullYear(), d0.getMonth(), 1)
     while ((d.getTime() - d0.getTime()) / DAY_MS < td) {
       const off = (d.getTime() - d0.getTime()) / DAY_MS
       const nx = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-      out.push({ s: Math.max(0, off), d: Math.min((nx.getTime() - d.getTime()) / DAY_MS, td - Math.max(0, off)), label: MONTHS[d.getMonth()] })
+      out.push({ s: Math.max(0, off), d: Math.min((nx.getTime() - d.getTime()) / DAY_MS, td - Math.max(0, off)), label: monthShort(d.getMonth(), true) })
       d = nx
     }
   } else {
@@ -403,7 +405,7 @@ export function buckets(scaleIndex: ScaleIndex, startDay = 0, totalDays = TOTAL_
     while ((d.getTime() - d0.getTime()) / DAY_MS < td) {
       const off = (d.getTime() - d0.getTime()) / DAY_MS
       const nx = new Date(d.getFullYear(), d.getMonth() + 3, 1)
-      out.push({ s: Math.max(0, off), d: Math.min((nx.getTime() - d.getTime()) / DAY_MS, td - Math.max(0, off)), label: `Q${Math.floor(d.getMonth() / 3) + 1}` })
+      out.push({ s: Math.max(0, off), d: Math.min((nx.getTime() - d.getTime()) / DAY_MS, td - Math.max(0, off)), label: quarterLabel(Math.floor(d.getMonth() / 3) + 1) })
       d = nx
     }
   }
