@@ -45,6 +45,41 @@ export async function createScenarioAndSwitch(name: string, note: string): Promi
   await switchScenario(meta.id)
 }
 
+export async function updateScenarioInfo(id: string, patch: { name?: string; note?: string }): Promise<boolean> {
+  const res = await fetch(`/api/scenarios/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  if (res.ok) await refreshScenarioList()
+  return res.ok
+}
+
+// A copy of any scenario (not only the active one), without switching to it.
+export async function duplicateScenario(id: string, name: string): Promise<ScenarioMeta | null> {
+  if (useRoadmapStore.getState().activeScenarioId === id) await flushSave()
+  const res = await fetch('/api/scenarios', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, note: '', basedOn: id }),
+  })
+  if (!res.ok) return null
+  await refreshScenarioList()
+  return await res.json() as ScenarioMeta
+}
+
+// Deletes a scenario and its checkpoints (the server refuses the official one
+// and the last one). Deleting the one on screen switches to the official first.
+export async function deleteScenarioAction(id: string): Promise<string | null> {
+  const { activeScenarioId, officialScenarioId } = useRoadmapStore.getState()
+  if (activeScenarioId === id && officialScenarioId && officialScenarioId !== id) await switchScenario(officialScenarioId)
+  const res = await fetch(`/api/scenarios/${id}`, { method: 'DELETE' })
+  const data = await res.json().catch(() => null) as { error?: string } | null
+  if (!res.ok) return data?.error ?? `Delete failed (${res.status})`
+  await refreshScenarioList()
+  return null
+}
+
 export async function promoteScenario(id: string): Promise<void> {
   const res = await fetch(`/api/scenarios/${id}/promote`, { method: 'POST' })
   if (!res.ok) return

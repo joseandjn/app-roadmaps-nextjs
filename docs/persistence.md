@@ -29,6 +29,10 @@ path focus and the text search.
 - **Promote** marks another scenario official without touching any data.
 - The official scenario and the last remaining one can't be deleted;
   deleting a scenario also deletes its checkpoints.
+- **Settings → Scenarios** lists them all: rename and edit the note in
+  place, open, make official, duplicate (any scenario, without switching to
+  it) and delete (with a confirmation; deleting the open one switches to the
+  official one first).
 
 ### Checkpoints
 
@@ -97,7 +101,7 @@ path focus and the text search.
 | Route | Methods |
 |---|---|
 | `/api/scenarios` | `GET` list + `officialId` · `POST { name, note, basedOn }` duplicates a scenario |
-| `/api/scenarios/[id]` | `GET` data (`ETag`; `If-None-Match` → 304) · `PUT` data (requires `If-Match`) · `DELETE` |
+| `/api/scenarios/[id]` | `GET` data (`ETag`; `If-None-Match` → 304) · `PUT` data (requires `If-Match`) · `PATCH { name?, note? }` (index only) · `DELETE` |
 | `/api/scenarios/[id]/promote` | `POST` |
 | `/api/scenarios/[id]/checkpoints` | `GET` metadata list · `POST { name, note }` |
 | `/api/scenarios/[id]/checkpoints/[cid]` | `GET` full checkpoint · `DELETE` |

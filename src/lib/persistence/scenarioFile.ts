@@ -161,6 +161,17 @@ export async function promoteScenario(id: string): Promise<void> {
   await writeIndex(index)
 }
 
+// Renames a scenario or changes its note; the data file isn't touched.
+export async function updateScenarioMeta(id: string, patch: { name?: string; note?: string }): Promise<ScenarioMeta> {
+  const index = await readIndex()
+  const meta = index.scenarios.find(s => s.id === id)
+  if (!meta) throw new Error('Unknown scenario')
+  if (patch.name !== undefined) meta.name = patch.name
+  if (patch.note !== undefined) meta.note = patch.note
+  await writeIndex(index)
+  return meta
+}
+
 export async function deleteScenario(id: string): Promise<void> {
   const index = await readIndex()
   if (index.officialId === id) throw new Error('Cannot delete the official scenario')
