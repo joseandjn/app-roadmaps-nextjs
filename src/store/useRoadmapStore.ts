@@ -6,7 +6,7 @@ import {
   INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS,
   getTodayDay, SCALE_PRESETS, PROJECT_COLORS,
 } from '@/data/initialData'
-import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded, projectTaskTemplate, dependencyIssues } from '@/lib/roadmapUtils'
+import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded, projectTaskTemplate, dependencyIssues, projectCategories } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
 import { EMPTY_FILTERS, pruneFilters, currentViewSnapshot, persistedFilters, BUILTIN_VIEWS } from '@/lib/filters'
 import { withInitialEstimate, withCompletion, cleanDescription } from '@/lib/estimates'
@@ -138,6 +138,10 @@ type Store = RoadmapState & {
   removeRole: (name: string) => void
   renameRole: (oldName: string, newName: string) => void
   setRoleIcon: (name: string, icon: string) => void
+  // project categories catalog (Settings → Categories)
+  addCategory: (name: string) => void
+  renameCategory: (oldName: string, newName: string) => void
+  removeCategory: (name: string) => void
   toggleDeps: () => void
   addDependency: (fromId: string, toId: string) => void
   setFilter: (startDay: number | null, endDay: number | null) => void
@@ -217,6 +221,11 @@ function newConflicts(before: Item[], after: Item[], deps: RoadmapState['deps'],
   let n = [...dependencyIssues(after, deps).conflicted].filter(id => !clashBefore.has(id)).length
   for (const p of people) if (isOverloaded(resPeak(p.id, after), p) && !isOverloaded(resPeak(p.id, before), p)) n++
   return n
+}
+
+const sameCategory = (a: string, b: string) => {
+  const norm = (x: string) => x.trim().toLowerCase()
+  return norm(a) === norm(b) || norm(t(a)) === norm(t(b)) || norm(t(a)) === norm(b) || norm(a) === norm(t(b))
 }
 
 // Undo/redo history over the persisted planning data only — UI state (panels,
@@ -689,7 +698,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     },
 
     onNewProject: () => set(s => ({
-      pform: { show: true, id: null, name: '', desc: '', owner: 'r1', category: 'Product', startStr: dateStr(getTodayDay()), endStr: dateStr(getTodayDay() + 90), status: 'Planned', defaultTasks: projectTaskTemplate(s.settings).length > 0 }
+      pform: { show: true, id: null, name: '', desc: '', owner: 'r1', category: projectCategories(s.settings, s.projects)[0] ?? 'Product', startStr: dateStr(getTodayDay()), endStr: dateStr(getTodayDay() + 90), status: 'Planned', defaultTasks: projectTaskTemplate(s.settings).length > 0 }
     })),
     editProject: id => set(s => {
       const p = s.projects.find(pr => pr.id === id)!
@@ -913,6 +922,36 @@ export const useRoadmapStore = create<Store>((set, get) => {
     },
     setRoleIcon: (name, icon) => set(s => ({ roles: s.roles.map(r => r.name === name ? { ...r, icon } : r) })),
 
+    // Categories are compared by what people see: a built-in key and its
+    // translation ("Mobile" / "Móvil") count as the same name.
+    addCategory: name => {
+      const trimmed = name.trim()
+      if (!trimmed) return
+      const list = projectCategories(get().settings, get().projects)
+      if (list.some(c => sameCategory(c, trimmed))) { showToast(t('That category already exists')); return }
+      set(s => ({ settings: { ...s.settings, categories: [...list, trimmed] } }))
+      showToast(t('Category added'))
+    },
+    renameCategory: (oldName, newName) => {
+      const trimmed = newName.trim()
+      if (!trimmed || trimmed === oldName || trimmed === t(oldName)) return
+      const list = projectCategories(get().settings, get().projects)
+      if (list.some(c => c !== oldName && sameCategory(c, trimmed))) { showToast(t('That category already exists')); return }
+      set(s => ({
+        settings: { ...s.settings, categories: list.map(c => c === oldName ? trimmed : c) },
+        projects: s.projects.map(p => p.category === oldName ? { ...p, category: trimmed } : p),
+      }))
+      showToast(t('Category renamed'))
+    },
+    // Blocked while a project uses it, like roles: a project always has one.
+    removeCategory: name => {
+      if (get().projects.some(p => p.category === name)) { showToast(t('Change the category of the projects that use it before deleting')); return }
+      const list = projectCategories(get().settings, get().projects)
+      if (list.length <= 1) return
+      set(s => ({ settings: { ...s.settings, categories: list.filter(c => c !== name) } }))
+      showToast(t('Category removed'))
+    },
+
     agentCreateResource: data => {
       const id = 'r' + Date.now()
       set(s => ({ resources: [...s.resources, { id, name: data.name, role: data.role, cost: data.cost, costUnit: data.costUnit ?? 'month' }] }))
@@ -928,7 +967,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
       const color = PROJECT_COLORS[get().projects.length % PROJECT_COLORS.length]
       const np: Project = {
         id, name: data.name, desc: data.desc ?? '', owner: data.owner,
-        category: data.category ?? 'Product', color, status: data.status ?? 'Planned',
+        category: data.category ?? projectCategories(get().settings, get().projects)[0] ?? 'Product', color, status: data.status ?? 'Planned',
       }
       set(s => { const v = new Set(s.visible); v.add(id); return { projects: [...s.projects, np], visible: v } })
       showToast(t('Project "{name}" created', { name: data.name }))

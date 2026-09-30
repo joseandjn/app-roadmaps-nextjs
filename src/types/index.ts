@@ -109,6 +109,10 @@ export interface Settings {
   // Task titles a new project can start with, in order. Missing means the
   // built-in list (DEFAULT_PROJECT_TASKS); an empty list means none.
   defaultProjectTasks?: string[]
+  // Project categories to pick from, in order. Missing means the built-in
+  // list (CATEGORIES). Built-in names are English keys shown translated;
+  // names added or renamed by hand are shown as typed.
+  categories?: string[]
 }
 
 // A scenario is a full, independent copy of the planning data below — a
