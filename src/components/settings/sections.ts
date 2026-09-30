@@ -24,7 +24,7 @@ export interface SettingsSectionDef {
 // store reads/writes), so adding a settings area is just writing that
 // component and listing it here; the container never needs to change.
 export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
-  { id: 'general', group: 'Plan', label: 'General', icon: SlidersHorizontal, Component: GeneralSettings, description: 'Tasks new projects can start with.' },
+  { id: 'general', group: 'Plan', label: 'General', icon: SlidersHorizontal, Component: GeneralSettings, description: 'Defaults for new tasks and projects.' },
   { id: 'calendar', group: 'Plan', label: 'Calendar', icon: CalendarDays, Component: CalendarSettings, description: 'Working hours, weekends and holidays: they set durations in working days, capacity and cost.' },
   { id: 'roles', group: 'Plan', label: 'Roles', icon: Shapes, Component: RolesSettings, description: 'Roles people can have and tasks can require.' },
   { id: 'categories', group: 'Plan', label: 'Categories', icon: Tags, Component: CategoriesSettings, description: 'Categories to group projects by. Renaming one updates the projects that use it.' },

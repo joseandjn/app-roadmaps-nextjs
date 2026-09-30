@@ -113,6 +113,9 @@ export interface Settings {
   // list (CATEGORIES). Built-in names are English keys shown translated;
   // names added or renamed by hand are shown as typed.
   categories?: string[]
+  // Calendar days a new task / epic starts with (+ button, right-click menu,
+  // voice). Missing means DEFAULT_ITEM_DAYS. Milestones and releases have none.
+  defaultDurations?: Partial<Record<'task' | 'epic', number>>
 }
 
 // A scenario is a full, independent copy of the planning data below — a

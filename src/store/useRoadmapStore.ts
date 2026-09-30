@@ -6,7 +6,7 @@ import {
   INITIAL_PROJECTS, INITIAL_ITEMS, INITIAL_RESOURCES, INITIAL_DEPS, INITIAL_SPRINTS, INITIAL_ROLES, DEFAULT_SETTINGS,
   getTodayDay, SCALE_PRESETS, PROJECT_COLORS,
 } from '@/data/initialData'
-import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded, projectTaskTemplate, dependencyIssues, projectCategories } from '@/lib/roadmapUtils'
+import { deriveScale, dateStr, offFromStr, resPeak, pack, itemEnd, resourceCapacity, isOverloaded, projectTaskTemplate, dependencyIssues, projectCategories, defaultDuration } from '@/lib/roadmapUtils'
 import { t } from '@/lib/i18n/translations'
 import { EMPTY_FILTERS, pruneFilters, currentViewSnapshot, persistedFilters, BUILTIN_VIEWS } from '@/lib/filters'
 import { withInitialEstimate, withCompletion, cleanDescription } from '@/lib/estimates'
@@ -455,16 +455,16 @@ export const useRoadmapStore = create<Store>((set, get) => {
     newItem: pid => set(s => {
       const r = projRange(s.items, pid)
       const day = r ? Math.round((r.a + r.b) / 2) : getTodayDay()
-      const draft: Draft = { id: 'i' + Date.now(), projectId: pid, title: 'New item', startDay: day, dur: 21, status: 'Planned', type: 'task', assignments: [], _deps: [], _new: true }
+      const draft: Draft = { id: 'i' + Date.now(), projectId: pid, title: 'New item', startDay: day, dur: defaultDuration(s.settings, 'task'), status: 'Planned', type: 'task', assignments: [], _deps: [], _new: true }
       return { panel: 'item', draft, draftOrig: null, cell: null }
     }),
     // Right-click "create here" on the timeline canvas — same staging flow as
     // newItem, but at the day/project the user clicked instead of the
     // project's midpoint, and typed from the context menu choice.
-    newItemAt: (pid, day, type = 'task') => set(() => {
+    newItemAt: (pid, day, type = 'task') => set(s => {
       const isInstant = type === 'milestone' || type === 'release'
       const titles: Record<Item['type'], string> = { task: 'New task', epic: 'New epic', milestone: 'New milestone', release: 'New release' }
-      const draft: Draft = { id: 'i' + Date.now(), projectId: pid, title: titles[type], startDay: day, dur: isInstant ? 0 : 14, status: 'Planned', type, assignments: [], _deps: [], _new: true }
+      const draft: Draft = { id: 'i' + Date.now(), projectId: pid, title: titles[type], startDay: day, dur: isInstant ? 0 : defaultDuration(s.settings, type), status: 'Planned', type, assignments: [], _deps: [], _new: true }
       return { panel: 'item', draft, draftOrig: null, cell: null, contextMenu: null }
     }),
     duplicateItem: id => {
@@ -543,7 +543,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
       const t = v as Item['type']
       const p: Partial<Draft> = { type: t }
       if (t === 'milestone' || t === 'release') p.dur = 0
-      else if (get().draft?.dur === 0) p.dur = 21
+      else if (get().draft?.dur === 0) p.dur = defaultDuration(get().settings, t)
       get().patchDraft(p)
     },
     onDraftStart: v => {

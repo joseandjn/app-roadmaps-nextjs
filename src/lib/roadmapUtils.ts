@@ -28,6 +28,15 @@ export function projectCategories(settings: Pick<Settings, 'categories'>, projec
   return list
 }
 
+// How long a new item of this type starts out: the plan's setting, or 21
+// calendar days. Instants (milestone, release) are 0.
+export const DEFAULT_ITEM_DAYS = 21
+export function defaultDuration(settings: Pick<Settings, 'defaultDurations'>, type: Item['type']): number {
+  if (type === 'milestone' || type === 'release') return 0
+  const v = settings.defaultDurations?.[type]
+  return v && v >= 1 ? Math.round(v) : DEFAULT_ITEM_DAYS
+}
+
 export function projectTaskTemplate(settings: Settings): string[] {
   return (settings.defaultProjectTasks ?? DEFAULT_PROJECT_TASKS).map(t => t.trim()).filter(Boolean)
 }

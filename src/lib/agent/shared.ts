@@ -172,7 +172,7 @@ export function buildAgentTools(roleNames: string[], resourceIds: string[], proj
           title: { type: 'string' },
           type: { type: 'string', enum: [...ITEM_TYPES], description: 'milestone and release are instants with no end date; epic and task span a date range' },
           startDate: { type: 'string', description: 'Start date in YYYY-MM-DD format' },
-          endDate: { type: 'string', description: 'End date in YYYY-MM-DD format. Omit for milestone/release, or if not mentioned (defaults to a 3-week span).' },
+          endDate: { type: 'string', description: 'End date in YYYY-MM-DD format. Omit for milestone/release, or if not mentioned (defaults to the plan default duration for that type).' },
           status: { type: 'string', enum: [...STATUS_ORDER], description: 'Defaults to Planned if not mentioned' },
           requiredRoles: { type: 'array', items: roleEnum, description: 'Roles a person can take this on with — any one of them counts as a fit. Only set it if the user names one or more roles or kinds of specialist; otherwise omit it (any role can take it).' },
           description: { type: 'string', description: "What the task is about (scope, complexity, assumptions), in the user's words. Only set it if the user describes the task; otherwise omit it." },
