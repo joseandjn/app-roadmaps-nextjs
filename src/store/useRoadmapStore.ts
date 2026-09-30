@@ -36,6 +36,7 @@ type Store = RoadmapState & {
   onCheckpointFormCancel: () => void
   // view
   setView: (v: ViewKey) => void
+  setSettingsSection: (id: string) => void
   setScale: (i: number) => void
   zoom: (f: number) => void
   toggleRail: () => void
@@ -322,6 +323,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     selectedIds: [],
     copyOpen: false,
     dragInfo: null,
+    settingsSection: 'general',
     showDeps: false,
     filterStartDay: null,
     filterEndDay: null,
@@ -373,6 +375,7 @@ export const useRoadmapStore = create<Store>((set, get) => {
     onCheckpointFormCancel: () => set({ checkpointForm: null }),
 
     setView: v => set({ view: v, panel: null, cell: null, contextMenu: null }),
+    setSettingsSection: id => set({ settingsSection: id }),
     setScale: i => { startTrans(); set({ pxPerDay: SCALE_PRESETS[i] }) },
     zoom: f => { startTrans(); set(s => ({ pxPerDay: Math.max(1.8, Math.min(70, s.pxPerDay * f)) })) },
     toggleRail: () => set(s => ({ railOpen: !s.railOpen })),

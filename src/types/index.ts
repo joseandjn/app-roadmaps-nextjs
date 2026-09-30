@@ -272,6 +272,8 @@ export interface RoadmapState {
   // UI only: not saved, not in undo, cleared on scenario switch.
   selectedIds: string[]
   copyOpen: boolean
+  // Section shown in the Settings tab (its sidebar). UI only, not saved.
+  settingsSection: string
   // While a bar is being dragged: which one, how many items move with it,
   // and the change so far in days. UI only, for the live chip on the bar.
   dragInfo: { id: string; count: number; days: number; mode: 'move' | 'resize' } | null
