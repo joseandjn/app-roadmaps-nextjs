@@ -1,22 +1,31 @@
 import type { ComponentType } from 'react'
+import { SlidersHorizontal, CalendarDays, Shapes, Users, Wallet, Database, type LucideIcon } from 'lucide-react'
 import GeneralSettings from './GeneralSettings'
-import HolidaysSettings from './HolidaysSettings'
+import CalendarSettings from './CalendarSettings'
 import RolesSettings from './RolesSettings'
+import PeopleSettings from './PeopleSettings'
+import CostSettings from './CostSettings'
 import KnowledgeSettings from './KnowledgeSettings'
 
 export interface SettingsSectionDef {
   id: string
+  group: string // sidebar heading it's listed under (English key, translated)
+  label: string
+  description: string
+  icon: LucideIcon
   Component: ComponentType
 }
 
-// The Settings tab (SettingsView) is agnostic to what sections exist — it just
-// lays out this list in order, one card per entry. Each section is fully
-// self-contained (own heading, own store reads/writes), so adding a new
-// settings area is just writing that component and listing it here; the
-// container never needs to change.
+// The Settings tab (SettingsView) is agnostic to what sections exist — it
+// builds its sidebar from this list (grouped by `group`, in order) and shows
+// the picked section's component. Each section is fully self-contained (own
+// store reads/writes), so adding a settings area is just writing that
+// component and listing it here; the container never needs to change.
 export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
-  { id: 'general', Component: GeneralSettings },
-  { id: 'holidays', Component: HolidaysSettings },
-  { id: 'roles', Component: RolesSettings },
-  { id: 'knowledge', Component: KnowledgeSettings },
+  { id: 'general', group: 'Plan', label: 'General', icon: SlidersHorizontal, Component: GeneralSettings, description: 'Tasks new projects can start with.' },
+  { id: 'calendar', group: 'Plan', label: 'Calendar', icon: CalendarDays, Component: CalendarSettings, description: 'Working hours, weekends and holidays: they set durations in working days, capacity and cost.' },
+  { id: 'roles', group: 'Plan', label: 'Roles', icon: Shapes, Component: RolesSettings, description: 'Roles people can have and tasks can require.' },
+  { id: 'people', group: 'Team', label: 'People', icon: Users, Component: PeopleSettings, description: 'Who works on the roadmap, with their role, rate and availability.' },
+  { id: 'costs', group: 'Team', label: 'Costs', icon: Wallet, Component: CostSettings, description: 'Currency and how time off counts toward cost.' },
+  { id: 'knowledge', group: 'Data', label: 'Knowledge base', icon: Database, Component: KnowledgeSettings, description: 'Finished tasks with their estimates and actual duration, to download.' },
 ]

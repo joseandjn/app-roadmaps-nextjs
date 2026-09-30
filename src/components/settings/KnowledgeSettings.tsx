@@ -5,7 +5,6 @@ import { useTranslation } from '@/lib/i18n/useTranslation'
 import { dateStr } from '@/lib/roadmapUtils'
 import { getTodayDay } from '@/data/initialData'
 
-const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'
 const btnCls = 'flex-1 text-center border border-[#ececec] text-[#52525b] bg-white rounded-lg px-3.5 py-2 text-xs font-semibold cursor-pointer font-inherit no-underline'
 
 // Downloads the estimation knowledge base (/api/knowledge): the official
@@ -28,7 +27,6 @@ export default function KnowledgeSettings() {
   const stamp = dateStr(getTodayDay())
   return (
     <div>
-      <div className={labelCls}>{t('Estimation knowledge base')}</div>
       <p className="text-[12px] text-[#71717a] mb-3 leading-snug">
         {t('Finished tasks of the official scenario with their description, estimates, actual duration and dependencies.')}
         {count !== null && <> {t('{n} tasks right now.', { n: count })}</>}

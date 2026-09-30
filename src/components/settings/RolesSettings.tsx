@@ -6,7 +6,6 @@ import { ROLE_ICONS, DEFAULT_ROLE_ICON, roleIconDef, iconForRoleName } from '@/d
 import type { Role } from '@/types'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 
-const labelCls = 'text-[11px] font-semibold text-[#71717a] mb-1.5'
 const inputCls = 'w-full text-[13px] text-[#27272a] bg-white border border-[#ececec] rounded-lg px-2.5 py-2 font-inherit'
 
 // A 20x20 chip showing one role's icon at 10x10 — click opens the picker.
@@ -142,11 +141,9 @@ function AddRoleRow() {
 
 export default function RolesSettings() {
   const roles = useRoadmapStore(s => s.roles)
-  const { t } = useTranslation()
 
   return (
     <div>
-      <div className={labelCls}>{t('Roles')}</div>
       <div className="flex flex-col gap-1.5 mb-2">
         {roles.map(role => <RoleRow key={role.name} role={role} />)}
       </div>
