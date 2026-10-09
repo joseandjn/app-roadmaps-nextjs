@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readScenarioWithRevision, writeScenario, deleteScenario, StaleRevisionError } from '@/lib/persistence/scenarioFile'
+import { readScenarioWithRevision, writeScenario, deleteScenario, updateScenarioMeta, StaleRevisionError } from '@/lib/persistence/scenarioFile'
 import type { ScenarioData } from '@/types'
 
 function isValidScenarioData(body: unknown): body is ScenarioData {
@@ -41,6 +41,22 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       const { data, rev } = err.current
       return NextResponse.json({ error: 'Stale revision', data, rev }, { status: 409, headers: { ETag: etag(rev) } })
     }
+    return NextResponse.json({ error: 'Unknown scenario' }, { status: 404 })
+  }
+}
+
+// Rename a scenario or change its note: { name?, note? }.
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const body = await request.json().catch(() => null) as { name?: unknown; note?: unknown } | null
+  const name = typeof body?.name === 'string' ? body.name.trim().slice(0, 120) : undefined
+  const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 500) : undefined
+  if (name === '' || (name === undefined && note === undefined)) {
+    return NextResponse.json({ error: 'A non-empty name or a note is required' }, { status: 400 })
+  }
+  try {
+    return NextResponse.json(await updateScenarioMeta(id, { name, note }))
+  } catch {
     return NextResponse.json({ error: 'Unknown scenario' }, { status: 404 })
   }
 }

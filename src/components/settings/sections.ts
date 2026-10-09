@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import { SlidersHorizontal, CalendarDays, Shapes, Tags, Users, Wallet, Database, Languages, type LucideIcon } from 'lucide-react'
+import { SlidersHorizontal, CalendarDays, Shapes, Tags, Users, Wallet, Database, Languages, GitBranch, type LucideIcon } from 'lucide-react'
 import GeneralSettings from './GeneralSettings'
 import CalendarSettings from './CalendarSettings'
 import RolesSettings from './RolesSettings'
@@ -7,6 +7,7 @@ import CategoriesSettings from './CategoriesSettings'
 import PeopleSettings from './PeopleSettings'
 import CostSettings from './CostSettings'
 import KnowledgeSettings from './KnowledgeSettings'
+import ScenariosSettings from './ScenariosSettings'
 import FormatSettings from './FormatSettings'
 
 export interface SettingsSectionDef {
@@ -30,6 +31,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
   { id: 'categories', group: 'Plan', label: 'Categories', icon: Tags, Component: CategoriesSettings, description: 'Categories to group projects by. Renaming one updates the projects that use it.' },
   { id: 'people', group: 'Team', label: 'People', icon: Users, Component: PeopleSettings, description: 'Who works on the roadmap, with their role, rate and availability.' },
   { id: 'costs', group: 'Team', label: 'Costs', icon: Wallet, Component: CostSettings, description: 'Currency and how time off counts toward cost.' },
+  { id: 'scenarios', group: 'Data', label: 'Scenarios', icon: GitBranch, Component: ScenariosSettings, description: 'Every version of the roadmap: rename, open, make official, duplicate or delete.' },
   { id: 'knowledge', group: 'Data', label: 'Knowledge base', icon: Database, Component: KnowledgeSettings, description: 'Finished tasks with their estimates and actual duration, to download.' },
   { id: 'format', group: 'Preferences', label: 'Format', icon: Languages, Component: FormatSettings, description: 'Language and how dates are written. Personal: saved in this browser.' },
 ]

@@ -5,7 +5,7 @@ Configuración tiene sidebar (PR #29). Priorizadas el 2026-09-29; se hace de a u
 
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 >
-> **Estado general:** P1, P2 y P3 hechas el 2026-09-29; sigue P4. Plan armado el 2026-09-29 sobre `main` en `988385c`.
+> **Estado general:** P1–P4 hechas (P4 el 2026-09-30); sigue P5. Plan armado el 2026-09-29 sobre `main` en `988385c`.
 
 ---
 
@@ -108,11 +108,19 @@ comportamiento: el menú contextual creaba tareas de 14 días; ahora usa el mism
 que el resto (21 por defecto). Probado sobre una copia: con Tarea = 10 y Épica = 30,
 "+" crea 10 días, "Nueva épica" 30, y épica → hito → tarea queda en 10.
 
-## P4 · Escenarios `[ ]`
+## P4 · Escenarios `[x]`
 
 - Sección en DATOS con la lista de escenarios (nombre, nota, fecha, cuál es oficial)
   y acciones renombrar, marcar oficial, duplicar y eliminar (con las mismas reglas de
   hoy: no se elimina el oficial ni el último).
+
+**Cómo quedó:** sección DATOS → Escenarios (`ScenariosSettings.tsx`): nombre y nota
+editables en el lugar, fecha de creación y de qué escenario salió, marcas "Oficial" y
+"Abierto", y acciones Abrir, Marcar como oficial, Duplicar (cualquiera, sin cambiar
+al duplicado) y Eliminar (con confirmación; si es el abierto, primero se cambia al
+oficial). Nuevo `PATCH /api/scenarios/[id]` para nombre y nota
+(`updateScenarioMeta`). Probado sobre una copia de los datos: renombrar, nota,
+duplicar, eliminar la copia, marcar otro como oficial y eliminar el abierto.
 
 ## P5 · Respaldo `[ ]`
 
