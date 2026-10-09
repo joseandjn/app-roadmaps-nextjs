@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import { SlidersHorizontal, CalendarDays, Shapes, Tags, Users, Wallet, Database, Languages, GitBranch, type LucideIcon } from 'lucide-react'
+import { SlidersHorizontal, CalendarDays, Shapes, Tags, Users, Wallet, Database, Languages, GitBranch, Archive, type LucideIcon } from 'lucide-react'
 import GeneralSettings from './GeneralSettings'
 import CalendarSettings from './CalendarSettings'
 import RolesSettings from './RolesSettings'
@@ -8,6 +8,7 @@ import PeopleSettings from './PeopleSettings'
 import CostSettings from './CostSettings'
 import KnowledgeSettings from './KnowledgeSettings'
 import ScenariosSettings from './ScenariosSettings'
+import BackupSettings from './BackupSettings'
 import FormatSettings from './FormatSettings'
 
 export interface SettingsSectionDef {
@@ -32,6 +33,7 @@ export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
   { id: 'people', group: 'Team', label: 'People', icon: Users, Component: PeopleSettings, description: 'Who works on the roadmap, with their role, rate and availability.' },
   { id: 'costs', group: 'Team', label: 'Costs', icon: Wallet, Component: CostSettings, description: 'Currency and how time off counts toward cost.' },
   { id: 'scenarios', group: 'Data', label: 'Scenarios', icon: GitBranch, Component: ScenariosSettings, description: 'Every version of the roadmap: rename, open, make official, duplicate or delete.' },
+  { id: 'backup', group: 'Data', label: 'Backup', icon: Archive, Component: BackupSettings, description: 'Download roadmaps as a file, or bring one back. Your data only lives on this machine: keep a copy.' },
   { id: 'knowledge', group: 'Data', label: 'Knowledge base', icon: Database, Component: KnowledgeSettings, description: 'Finished tasks with their estimates and actual duration, to download.' },
   { id: 'format', group: 'Preferences', label: 'Format', icon: Languages, Component: FormatSettings, description: 'Language and how dates are written. Personal: saved in this browser.' },
 ]

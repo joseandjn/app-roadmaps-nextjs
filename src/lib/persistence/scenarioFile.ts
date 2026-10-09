@@ -151,6 +151,21 @@ export async function createScenario(opts: { name: string; note: string; basedOn
   return meta
 }
 
+// A new scenario from imported data (a backup). Never replaces an existing
+// one: it always gets a fresh id. Ids are 's' + time, bumped if several are
+// created within the same millisecond.
+export async function createScenarioFromData(opts: { name: string; note: string; data: ScenarioData }): Promise<ScenarioMeta> {
+  const index = await readIndex()
+  let n = Date.now()
+  while (index.scenarios.some(s => s.id === 's' + n)) n++
+  const id = 's' + n
+  const meta: ScenarioMeta = { id, name: opts.name, note: opts.note, createdAt: new Date().toISOString(), basedOn: null }
+  await fs.writeFile(scenarioFile(id), JSON.stringify(ensureRoles(opts.data), null, 2), 'utf-8')
+  index.scenarios.push(meta)
+  await writeIndex(index)
+  return meta
+}
+
 // Marks a scenario as the official plan. Doesn't touch any data — the
 // previous official scenario stays intact as a regular scenario, just no
 // longer the default one the app opens when no scenario is active yet.

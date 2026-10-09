@@ -5,7 +5,7 @@ Configuración tiene sidebar (PR #29). Priorizadas el 2026-09-29; se hace de a u
 
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 >
-> **Estado general:** P1–P4 hechas (P4 el 2026-09-30); sigue P5. Plan armado el 2026-09-29 sobre `main` en `988385c`.
+> **Estado general:** P1–P5 hechas (P5 el 2026-10-09); sigue P6. Plan armado el 2026-09-29 sobre `main` en `988385c`.
 
 ---
 
@@ -122,10 +122,20 @@ oficial). Nuevo `PATCH /api/scenarios/[id]` para nombre y nota
 (`updateScenarioMeta`). Probado sobre una copia de los datos: renombrar, nota,
 duplicar, eliminar la copia, marcar otro como oficial y eliminar el abierto.
 
-## P5 · Respaldo `[ ]`
+## P5 · Respaldo `[x]`
 
 - Exportar el escenario activo (o todos) como archivo JSON; importar un archivo como
   escenario nuevo, validando su forma. Nunca pisa uno existente.
+
+**Cómo quedó:** `src/lib/backup.ts` (formato `roadmap-backup` v1, nombre de archivo,
+validación de los datos con el primer problema encontrado; tests en
+`backup.test.ts`), `backupActions.ts` (exportar descarga un archivo; importar crea un
+escenario por entrada) y sección DATOS → Respaldo. El servidor acepta
+`POST /api/scenarios { name, note, data }` y vuelve a validar. También importa un
+JSON de escenario suelto (el de `storage/scenarios/`). Probado sobre una copia de los
+datos: exportar los 4 escenarios (idénticos a lo guardado), importarlos como 4
+escenarios nuevos (idénticos a los originales vistos por la app) y un archivo
+inválido rechazado sin crear nada.
 
 ## P6 · Asistente IA `[ ]`
 
