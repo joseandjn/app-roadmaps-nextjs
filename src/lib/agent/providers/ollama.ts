@@ -1,7 +1,8 @@
+import { LLM_DEFAULTS } from '@engine/index'
 import { buildSystemPrompt, type AgentToolDef, type ItemContext, type ProjectContext, type ResourceContext, type VoiceCommandResult } from '../shared'
 
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'qwen2.5:latest'
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || LLM_DEFAULTS.ollamaBaseUrl
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || LLM_DEFAULTS.ollamaModel
 
 interface OllamaToolCall {
   function: { name: string; arguments: Record<string, unknown> }

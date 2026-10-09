@@ -5,7 +5,7 @@ Configuración tiene sidebar (PR #29). Priorizadas el 2026-09-29; se hace de a u
 
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecha
 >
-> **Estado general:** P1–P5 hechas (P5 el 2026-10-09); sigue P6. Plan armado el 2026-09-29 sobre `main` en `988385c`.
+> **Estado general:** P1–P6 hechas (P5 y P6 el 2026-10-09). Quedan las opciones de "Después". Plan armado el 2026-09-29 sobre `main` en `988385c`.
 
 ---
 
@@ -137,7 +137,18 @@ datos: exportar los 4 escenarios (idénticos a lo guardado), importarlos como 4
 escenarios nuevos (idénticos a los originales vistos por la app) y un archivo
 inválido rechazado sin crear nada.
 
-## P6 · Asistente IA `[ ]`
+## P6 · Asistente IA `[x]`
 
 - Sección ASISTENTE: proveedor y modelo activos (de `.env`), botón "Probar conexión"
   (una llamada mínima al LLM) y cómo cambiarlo. La clave no se muestra ni se edita.
+
+**Cómo quedó:** grupo ASISTENTE → Modelo de IA (`AssistantSettings.tsx`): proveedor,
+modelo, servidor de Ollama (si responde y si el modelo está instalado, con la lista
+de los disponibles) o si hay clave de Claude, en qué se usa, botón "Probar conexión"
+y el bloque de `.env` para cambiarlo. Rutas `GET /api/llm` (nunca devuelve la clave)
+y `POST /api/llm/test` (pide `{"ok": true}` y mide el tiempo). `describeLlmEnv` y
+`LLM_DEFAULTS` en `engine/llm/fromEnv.ts` (tests en `engine/test/llmEnv.test.ts`).
+Además, el agente de voz con Claude ahora respeta `ANTHROPIC_MODEL` (antes tenía el
+modelo fijo) y una variable vacía en `.env` cae al valor por defecto. Probado contra el
+Ollama real: estado, modelo instalado y conexión OK. No se probaron a mano los casos
+de Ollama apagado o Claude sin clave (cubiertos por los tests de `describeLlmEnv`).
