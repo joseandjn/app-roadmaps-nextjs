@@ -148,7 +148,9 @@ via `OLLAMA_MODEL` / `OLLAMA_BASE_URL` env vars.
 
 ### Anthropic provider
 
-Unchanged in behavior from the original implementation — `claude-opus-5`,
+Unchanged in behavior from the original implementation — the model is
+`ANTHROPIC_MODEL` (default `claude-opus-5`, shared with the analysis and the
+estimate assistant through `LLM_DEFAULTS` in `engine/llm/fromEnv.ts`),
 `output_config: { effort: 'low' }` (this is simple intent/argument
 extraction, not a task needing deep reasoning), tools built from the same
 `shared.ts` definitions. See git history / `docs/persistence.md`-adjacent

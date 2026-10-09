@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import { SlidersHorizontal, CalendarDays, Shapes, Tags, Users, Wallet, Database, Languages, GitBranch, Archive, type LucideIcon } from 'lucide-react'
+import { SlidersHorizontal, CalendarDays, Shapes, Tags, Users, Wallet, Database, Languages, GitBranch, Archive, Sparkles, type LucideIcon } from 'lucide-react'
 import GeneralSettings from './GeneralSettings'
 import CalendarSettings from './CalendarSettings'
 import RolesSettings from './RolesSettings'
@@ -9,6 +9,7 @@ import CostSettings from './CostSettings'
 import KnowledgeSettings from './KnowledgeSettings'
 import ScenariosSettings from './ScenariosSettings'
 import BackupSettings from './BackupSettings'
+import AssistantSettings from './AssistantSettings'
 import FormatSettings from './FormatSettings'
 
 export interface SettingsSectionDef {
@@ -35,5 +36,6 @@ export const SETTINGS_SECTIONS: SettingsSectionDef[] = [
   { id: 'scenarios', group: 'Data', label: 'Scenarios', icon: GitBranch, Component: ScenariosSettings, description: 'Every version of the roadmap: rename, open, make official, duplicate or delete.' },
   { id: 'backup', group: 'Data', label: 'Backup', icon: Archive, Component: BackupSettings, description: 'Download roadmaps as a file, or bring one back. Your data only lives on this machine: keep a copy.' },
   { id: 'knowledge', group: 'Data', label: 'Knowledge base', icon: Database, Component: KnowledgeSettings, description: 'Finished tasks with their estimates and actual duration, to download.' },
+  { id: 'assistant', group: 'Assistant', label: 'AI model', icon: Sparkles, Component: AssistantSettings, description: 'The AI behind Suggest duration, the plan analysis and voice commands: which one is in use, and whether it answers.' },
   { id: 'format', group: 'Preferences', label: 'Format', icon: Languages, Component: FormatSettings, description: 'Language and how dates are written. Personal: saved in this browser.' },
 ]

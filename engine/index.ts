@@ -8,8 +8,8 @@ export type {
   OverloadFinding, OversizedItemsFinding, Severity, SprintSpilloverFinding, TimeOffConflictFinding, UnassignedResourcesFinding,
 } from './findings.ts'
 export { createAnthropicClient } from './llm/anthropic.ts'
-export { createLlmFromEnv } from './llm/fromEnv.ts'
-export type { Env } from './llm/fromEnv.ts'
+export { createLlmFromEnv, describeLlmEnv, LLM_DEFAULTS } from './llm/fromEnv.ts'
+export type { Env, LlmEnvInfo } from './llm/fromEnv.ts'
 export { narrate } from './llm/narrate.ts'
 export type { Narrative } from './llm/narrate.ts'
 export { createOllamaClient } from './llm/ollama.ts'
