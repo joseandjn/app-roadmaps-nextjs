@@ -33,6 +33,12 @@ path focus and the text search.
   place, open, make official, duplicate (any scenario, without switching to
   it) and delete (with a confirmation; deleting the open one switches to the
   official one first).
+- **Settings → Backup** downloads the open scenario, or all of them, as one
+  JSON file (`src/lib/backup.ts`: name, note and full data of each), and
+  imports such a file — or a bare scenario JSON from `storage/scenarios/` —
+  as **new** scenarios named "… (imported)". The file is validated first
+  (`scenarioDataProblem`, also checked by the server); nothing existing is
+  ever replaced.
 
 ### Checkpoints
 
@@ -100,7 +106,7 @@ path focus and the text search.
 
 | Route | Methods |
 |---|---|
-| `/api/scenarios` | `GET` list + `officialId` · `POST { name, note, basedOn }` duplicates a scenario |
+| `/api/scenarios` | `GET` list + `officialId` · `POST { name, note, basedOn }` duplicates a scenario · `POST { name, note, data }` creates one from imported data |
 | `/api/scenarios/[id]` | `GET` data (`ETag`; `If-None-Match` → 304) · `PUT` data (requires `If-Match`) · `PATCH { name?, note? }` (index only) · `DELETE` |
 | `/api/scenarios/[id]/promote` | `POST` |
 | `/api/scenarios/[id]/checkpoints` | `GET` metadata list · `POST { name, note }` |
